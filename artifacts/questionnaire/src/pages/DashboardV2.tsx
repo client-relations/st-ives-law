@@ -932,7 +932,29 @@ export default function DashboardV2() {
               <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>Forms</h3>
 
               <div style={{ marginBottom: '16px', padding: '12px', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
-                <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Initial Outreach Form</div>
+                <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '12px' }}>Initial Outreach Form</div>
+
+                {/* Display inquiry form summary if submitted */}
+                {viewingIntakeForm.form_data?.inquiry && (
+                  <div style={{ marginBottom: '12px', padding: '12px', background: '#f9f9f9', borderRadius: '4px', fontSize: '12px', lineHeight: '1.6' }}>
+                    {viewingIntakeForm.form_data.inquiry.client_name && (
+                      <div><strong>Name:</strong> {viewingIntakeForm.form_data.inquiry.client_name}</div>
+                    )}
+                    {viewingIntakeForm.form_data.inquiry.client_email && (
+                      <div><strong>Email:</strong> {viewingIntakeForm.form_data.inquiry.client_email}</div>
+                    )}
+                    {viewingIntakeForm.form_data.inquiry.client_phone && (
+                      <div><strong>Phone:</strong> {viewingIntakeForm.form_data.inquiry.client_phone}</div>
+                    )}
+                    {viewingIntakeForm.form_data.inquiry.client_state && (
+                      <div><strong>State:</strong> {viewingIntakeForm.form_data.inquiry.client_state}</div>
+                    )}
+                    {viewingIntakeForm.form_data.inquiry.inquiry_reason && (
+                      <div><strong>Reason:</strong> {viewingIntakeForm.form_data.inquiry.inquiry_reason}</div>
+                    )}
+                  </div>
+                )}
+
                 <button
                   style={{
                     padding: '6px 12px',
@@ -945,7 +967,7 @@ export default function DashboardV2() {
                   }}
                   onClick={() => window.open(`/lead-inquiry?lead_id=${viewingIntakeForm.id}`, '_blank')}
                 >
-                  View Form
+                  {viewingIntakeForm.form_data?.inquiry ? 'View Details' : 'View Form'}
                 </button>
               </div>
 
