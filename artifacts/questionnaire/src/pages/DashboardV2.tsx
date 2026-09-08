@@ -1001,19 +1001,10 @@ export default function DashboardV2() {
             <div className='nv-modal-actions'>
               <button
                 className='nv-btn-qualify'
-                onClick={async () => {
-                  setIntakeActionLoading(true);
-                  if (await sendIntakeForm(viewingIntakeForm.id)) {
-                    await refreshData();
-                    setViewingIntakeForm(null);
-                    setGeneratedLink(`${window.location.origin}/intake-form?lead_id=${viewingIntakeForm.id}`);
-                    setShowLinkModal(true);
-                  }
-                  setIntakeActionLoading(false);
-                }}
-                disabled={intakeActionLoading}
+                disabled
+                title='Coming soon: Intake form will be available after we add the full estate planning questionnaire'
               >
-                {intakeActionLoading ? 'Sending...' : 'Send Intake Form'}
+                Send Intake Form (Coming Soon)
               </button>
             </div>
           )}
