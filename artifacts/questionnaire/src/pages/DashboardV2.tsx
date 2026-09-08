@@ -1104,13 +1104,24 @@ export default function DashboardV2() {
                           )}
                         </div>
                       </div>
-                      <button
-                        type='button'
-                        className='nv-btn-view'
-                        onClick={() => setViewingLead(lead)}
-                      >
-                        View
-                      </button>
+                      <div className='nv-pipe-actions'>
+                        <button
+                          type='button'
+                          className='nv-btn-reject'
+                          onClick={() => handleRejectLead(lead.id)}
+                          disabled={leadActionLoading}
+                        >
+                          Disqualify
+                        </button>
+                        <button
+                          type='button'
+                          className='nv-btn-qualify'
+                          onClick={() => handleQualifyLead(lead.id)}
+                          disabled={leadActionLoading}
+                        >
+                          {leadActionLoading ? 'Sending...' : 'Send Appointment'}
+                        </button>
+                      </div>
                     </div>
                   ))}
               </div>
