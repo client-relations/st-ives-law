@@ -331,7 +331,10 @@ async function loadExistingData() {
 
     const result = await response.json();
     if (!result.data || Object.keys(result.data).length === 0) {
+      // No saved data - show blank form
       spinner.style.display = 'none';
+      formEl.classList.remove('hidden');
+      render();
       return;
     }
 
