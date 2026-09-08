@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estate Planning Lead Inquiry</title>
+<style>
+  :root {
+    --border: #d8d8d8;
+    --muted: #6b6b6b;
+    --accent: #2f4858;
+    --accent-soft: #eef2f4;
+    --bg: #fafafa;
+    --radius: 8px;
+    --error: #b3261e;
+    --warn-bg: #fdf3e7;
+    --warn-border: #e3b873;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    color: #1a1a1a; margin: 0; background: var(--bg); padding: 0 1.2rem 3rem;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  header { padding: 2rem 0 1rem; }
+  h1 { font-size: 1.4rem; margin: 0 0 0.2rem; }
+  .subtitle { color: var(--muted); font-size: 0.92rem; margin: 0; }
+  .meta-line { color: var(--muted); font-size: 0.8rem; margin: 0.4rem 0 0; }
+
+  .progress-wrap { margin: 1.4rem 0 1.6rem; }
+  .progress-track { background: #e4e4e4; border-radius: 999px; height: 6px; overflow: hidden; }
+  .progress-fill { background: var(--accent); height: 100%; width: 0%; transition: width 0.25s ease; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--muted); margin-top: 0.4rem; }
+
+  .card {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.4rem 1.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .step-title { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.2rem; }
+  .step-purpose { color: var(--muted); font-size: 0.85rem; margin: 0 0 1rem; }
+
+  label { display: block; font-size: 0.86rem; color: #333; margin-top: 0.85rem; margin-bottom: 0.25rem; }
+  label .req { color: var(--error); }
+  label.inline { display: inline-block; margin: 0 1.2rem 0 0; font-weight: normal; color: #1a1a1a; }
+  input[type=text], input[type=email], input[type=tel], select, textarea {
+    width: 100%; padding: 0.5rem 0.6rem; border: 1px solid var(--border); border-radius: 6px;
+    font-family: inherit; font-size: 0.92rem; background: #fff;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  textarea { min-height: 5rem; resize: vertical; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+  @media (max-width:560px){ .row2 { grid-template-columns: 1fr; } }
+
+  .radio-group, .checkbox-group { margin-top: 0.5rem; }
+  .radio-group label.option, .checkbox-group label.option {
+    display: flex; align-items: flex-start; gap: 0.5rem; margin: 0.45rem 0; font-weight: normal; cursor: pointer;
+  }
+  .radio-group label.option input, .checkbox-group label.option input { margin-top: 0.2rem; flex-shrink: 0; }
+  .helper { font-size: 0.78rem; color: var(--muted); margin: 0.15rem 0 0 1.5rem; }
+  .error-msg { font-size: 0.8rem; color: var(--error); margin-top: 0.5rem; display: none; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 1.2rem 0; }
+
+  .hidden { display: none !important; }
+  button { font-family: inherit; }
+  .nav-btn {
+    font-size: 0.85rem; padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 6px;
+    background: #fff; cursor: pointer; color: #1a1a1a;
+  }
+  .nav-btn:hover { border-color: var(--accent); }
+
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; }
+  .nav-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; padding: 0.55rem 1.3rem; font-size: 0.92rem; }
+  .nav-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .steps-dots { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.6rem; }
+  .steps-dots span { width: 8px; height: 8px; border-radius: 50%; background: #d8d8d8; display: inline-block; }
+  .steps-dots span.done { background: var(--accent); }
+  .steps-dots span.current { background: var(--accent); outline: 2px solid var(--accent-soft); }
+
+  #ending-wrap { display: none; }
+  #ending-wrap .card p { margin: 0.6rem 0; }
+
+  #result-wrap { display: none; margin-top: 1.5rem; }
+  .banner {
+    background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: var(--radius);
+    padding: 0.8rem 1rem; font-size: 0.85rem; margin-bottom: 1rem;
+  }
+  .will-doc {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 2rem 2.2rem; font-family: Georgia, 'Times New Roman', serif; font-size: 0.95rem; line-height: 1.65;
+    white-space: pre-wrap;
+  }
+  #result-actions { margin: 0.8rem 0 1.5rem; }
+  #json-payload {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.2rem 1.4rem; font-size: 0.8rem; white-space: pre-wrap; word-break: break-word;
+    max-height: 320px; overflow: auto; margin-top: 1rem;
+  }
+  details summary { cursor: pointer; font-size: 0.85rem; color: var(--muted); margin-top: 1rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Estate Planning Lead Inquiry</h1>
+    <p class="subtitle">A short form to understand what you need. It takes about four minutes, and helps us prepare for your first appointment.</p>
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-label">
+        <span id="progress-text">Question 1 of 8</span>
+        <span id="progress-title">What brings you to us?</span>
+      </div>
+    </div>
+  </header>
+
+  <form id="intake-form" novalidate>
+    <div class="card">
+
+      <!-- Q1 -->
+      <div class="step" data-title="What brings you to us?" data-require-radio="inquiry_reason">
+        <p class="step-title">01. What brings you to us?</p>
+        <div class="radio-group">
+          <label class="option"><input type="radio" name="inquiry_reason" value="Put a will or estate plan in place">Put a will or estate plan in place</label>
+          <label class="option"><input type="radio" name="inquiry_reason" value="Update an existing one">Update an existing one</label>
+          <label class="option"><input type="radio" name="inquiry_reason" value="Someone has died">Someone has died</label>
+          <label class="option"><input type="radio" name="inquiry_reason" value="A concern about a will or estate">A concern about a will or estate</label>
+          <label class="option"><input type="radio" name="inquiry_reason" value="Not sure, I'd like to talk it through">Not sure, I'd like to talk it through</label>
+        </div>
+        <div class="error-msg" data-error-for="inquiry_reason">Please choose one option.</div>
+      </div>
+
+      <!-- Q2 -->
+      <div class="step" data-title="Your details">
+        <p class="step-title">02. Your details</p>
+        <label>Full name <span class="req">*</span></label>
+        <input type="text" name="client_name" required>
+        <div class="row2">
+          <div><label>Email <span class="req">*</span></label><input type="email" name="client_email" required></div>
+          <div><label>Phone <span class="req">*</span></label><input type="tel" name="client_phone" required></div>
+        </div>
+        <label>State or territory <span class="req">*</span></label>
+        <select name="client_state" required>
+          <option value="">Select…</option>
+          <option>NSW</option><option>VIC</option><option>QLD</option><option>WA</option>
+          <option>SA</option><option>TAS</option><option>ACT</option><option>NT</option>
+        </select>
+      </div>
+
+      <!-- Q3 -->
+      <div class="step" data-title="Which of these apply to you?">
+        <p class="step-title">03. Which of these apply to you?</p>
+        <p class="step-purpose">Select all that apply.</p>
+        <div class="checkbox-group">
+          <label class="option"><input type="checkbox" name="complexity_flags" value="Planning with a partner">Planning with a partner</label>
+          <label class="option"><input type="checkbox" name="complexity_flags" value="Already have a will">Already have a will</label>
+          <label class="option"><input type="checkbox" name="complexity_flags" value="Children under 18">Children under 18</label>
+          <label class="option"><input type="checkbox" name="complexity_flags" value="Children from a previous relationship">Children from a previous relationship</label>
+          <label class="option"><input type="checkbox" name="complexity_flags" value="A dependant with a disability or care needs">A dependant with a disability or care needs</label>
+          <label class="option"><input type="checkbox" name="complexity_flags" value="Someone estranged, or who would struggle to manage money">Someone estranged, or who would struggle to manage money</label>
+        </div>
+      </div>
+
+      <!-- Q4 -->
+      <div class="step" data-title="Which of these do you own?">
+        <p class="step-title">04. Which of these do you own?</p>
+        <p class="step-purpose">Select all that apply — this just helps us size the matter, no figures needed.</p>
+        <div class="checkbox-group">
+          <label class="option"><input type="checkbox" name="asset_flags" value="Property in my name">Property in my name</label>
+          <label class="option"><input type="checkbox" name="asset_flags" value="Jointly owned property">Jointly owned property</label>
+          <div class="helper">A will doesn't usually control jointly owned property — it passes to the surviving owner.</div>
+          <label class="option"><input type="checkbox" name="asset_flags" value="Superannuation">Superannuation</label>
+          <div class="helper">Superannuation is generally paid according to your fund's rules and any binding nomination, not your will.</div>
+          <label class="option"><input type="checkbox" name="asset_flags" value="A business, family trust or SMSF">A business, family trust or SMSF</label>
+          <label class="option"><input type="checkbox" name="asset_flags" value="Overseas assets">Overseas assets</label>
+          <label class="option"><input type="checkbox" name="asset_flags" value="Mostly savings and personal belongings">Mostly savings and personal belongings</label>
+        </div>
+      </div>
+
+      <!-- Q5 -->
+      <div class="step" data-title="What are you hoping to sort out?" data-require-checkbox="goal">
+        <p class="step-title">05. What are you hoping to sort out?</p>
+        <p class="step-purpose">Select all that apply.</p>
+        <div class="checkbox-group">
+          <label class="option"><input type="checkbox" name="goal" value="A will — who receives what">A will — who receives what</label>
+          <label class="option"><input type="checkbox" name="goal" value="Who manages my money and medical decisions if I lose capacity">Who manages my money and medical decisions if I lose capacity</label>
+          <label class="option"><input type="checkbox" name="goal" value="Protecting an inheritance rather than paying it out directly">Protecting an inheritance rather than paying it out directly</label>
+          <label class="option"><input type="checkbox" name="goal" value="Not sure yet, I'd like it explained">Not sure yet, I'd like it explained</label>
+        </div>
+        <div class="error-msg" data-error-for="goal">Please choose at least one option.</div>
+      </div>
+
+      <!-- Q6 -->
+      <div class="step" data-title="Executor, and specific gifts" data-require-radio="executor_confidence gifts_volume">
+        <p class="step-title">06. Executor, and specific gifts</p>
+        <label>Executor <span class="req">*</span></label>
+        <div class="radio-group">
+          <label class="option"><input type="radio" name="executor_confidence" value="I know exactly who">I know exactly who</label>
+          <label class="option"><input type="radio" name="executor_confidence" value="Someone in mind, not certain">Someone in mind, not certain</label>
+          <label class="option"><input type="radio" name="executor_confidence" value="I'd like guidance">I'd like guidance</label>
+          <label class="option"><input type="radio" name="executor_confidence" value="Not sure the obvious choice is right">Not sure the obvious choice is right</label>
+        </div>
+        <div class="error-msg" data-error-for="executor_confidence">Please choose one option.</div>
+        <hr>
+        <label>Specific gifts <span class="req">*</span></label>
+        <div class="radio-group">
+          <label class="option"><input type="radio" name="gifts_volume" value="None, divide by share">None, divide by share</label>
+          <label class="option"><input type="radio" name="gifts_volume" value="A few">A few</label>
+          <label class="option"><input type="radio" name="gifts_volume" value="Quite a number">Quite a number</label>
+          <label class="option"><input type="radio" name="gifts_volume" value="Not sure yet">Not sure yet</label>
+        </div>
+        <div class="error-msg" data-error-for="gifts_volume">Please choose one option.</div>
+      </div>
+
+      <!-- Q7 -->
+      <div class="step" data-title="Funeral and body wishes">
+        <p class="step-title">07. Funeral and body wishes</p>
+        <p class="step-purpose">Optional. Select all that apply.</p>
+        <div class="checkbox-group">
+          <label class="option"><input type="checkbox" name="funeral_wishes" value="Clear wishes on burial or cremation">Clear wishes on burial or cremation</label>
+          <label class="option"><input type="checkbox" name="funeral_wishes" value="Organ or tissue donor">Organ or tissue donor</label>
+          <label class="option"><input type="checkbox" name="funeral_wishes" value="Discussed with family, nothing written down">Discussed with family, nothing written down</label>
+          <label class="option"><input type="checkbox" name="funeral_wishes" value="I'd rather my family decided">I'd rather my family decided</label>
+          <label class="option"><input type="checkbox" name="funeral_wishes" value="Haven't thought about it yet">Haven't thought about it yet</label>
+        </div>
+      </div>
+
+      <!-- Q8 -->
+      <div class="step" data-title="Anything else?">
+        <p class="step-title">08. Anything else, including anything time-sensitive?</p>
+        <p class="step-purpose">Optional.</p>
+        <textarea name="additional_notes" placeholder="Health, travel, family circumstances, urgency — anything you'd like us to know before your appointment."></textarea>
+      </div>
+
+      <div class="nav-bar">
+        <button type="button" id="back-btn" class="nav-btn" disabled>← Back</button>
+        <div class="steps-dots" id="steps-dots"></div>
+        <button type="button" id="next-btn" class="nav-btn primary">Next →</button>
+      </div>
+
+    </div>
+  </form>
+
+  <div id="ending-wrap">
+    <div class="card">
+      <p class="step-title" id="ending-title">Thanks — we'll be in touch</p>
+      <p id="ending-body"></p>
+      <p style="color:var(--muted); font-size:0.85rem;">You don't need to do anything else right now. A member of the team will call you to talk through the best next step.</p>
+      <div class="nav-bar" style="justify-content:flex-start;">
+        <button type="button" id="ending-back-btn" class="nav-btn">← Back</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="result-wrap">
+    <h2 style="margin-top:2rem;">Draft Will — Generated from your answers</h2>
+    <div class="banner">
+      <strong>Draft outline — not a finished Will.</strong> This form only captures qualification-level answers, so names, addresses and other specifics below are placeholders marked in brackets. Everything will be confirmed and finalised with you at your appointment before any document is signed.
+    </div>
+    <div id="result-actions">
+      <button type="button" id="download-btn" class="nav-btn">Download as .txt</button>
+    </div>
+    <div class="will-doc" id="will-doc"></div>
+    <details>
+      <summary>Lead data captured (this is what would be sent to Clio)</summary>
+      <div id="json-payload"></div>
+    </details>
+  </div>
+
+</div>
+
+<script>
+// ---- wizard navigation ----
+const steps = Array.from(document.querySelectorAll('.step'));
+const total = steps.length;
+let current = 0;
+
+const QUALIFYING_REASONS = ['Put a will or estate plan in place', 'Update an existing one'];
+
+const progressFill = document.getElementById('progress-fill');
+const progressText = document.getElementById('progress-text');
+const progressTitle = document.getElementById('progress-title');
+const backBtn = document.getElementById('back-btn');
+const nextBtn = document.getElementById('next-btn');
+const dotsWrap = document.getElementById('steps-dots');
+const formEl = document.getElementById('intake-form');
+const endingWrap = document.getElementById('ending-wrap');
+
+steps.forEach((s) => {
+  const dot = document.createElement('span');
+  dot.title = s.getAttribute('data-title');
+  dotsWrap.appendChild(dot);
+});
+
+function render(){
+  formEl.classList.remove('hidden');
+  endingWrap.style.display = 'none';
+  steps.forEach((s, i) => s.classList.toggle('hidden', i !== current));
+  progressFill.style.width = ((current + 1) / total * 100) + '%';
+  progressText.textContent = `Question ${current + 1} of ${total}`;
+  progressTitle.textContent = steps[current].getAttribute('data-title');
+  backBtn.disabled = current === 0;
+  nextBtn.textContent = current === total - 1 ? 'Submit' : 'Next →';
+  Array.from(dotsWrap.children).forEach((dot, i) => {
+    dot.classList.toggle('done', i < current);
+    dot.classList.toggle('current', i === current);
+  });
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function validateStep(stepEl){
+  let ok = true;
+  let firstInvalid = null;
+
+  // plain required inputs (text/email/tel/select)
+  stepEl.querySelectorAll('[required]').forEach(field => {
+    if (!field.value) { ok = false; if (!firstInvalid) firstInvalid = field; field.style.borderColor = 'var(--error)'; }
+    else { field.style.borderColor = ''; }
+  });
+
+  // required radio groups (exactly one choice)
+  const radioGroups = (stepEl.getAttribute('data-require-radio') || '').split(' ').filter(Boolean);
+  radioGroups.forEach(name => {
+    const checked = stepEl.querySelector(`input[name="${name}"]:checked`);
+    const errEl = stepEl.querySelector(`.error-msg[data-error-for="${name}"]`);
+    if (!checked) {
+      ok = false;
+      if (errEl) errEl.style.display = 'block';
+      if (!firstInvalid) firstInvalid = stepEl.querySelector(`input[name="${name}"]`);
+    } else if (errEl) {
+      errEl.style.display = 'none';
+    }
+  });
+
+  // required checkbox groups (at least one choice)
+  const checkboxGroups = (stepEl.getAttribute('data-require-checkbox') || '').split(' ').filter(Boolean);
+  checkboxGroups.forEach(name => {
+    const anyChecked = stepEl.querySelector(`input[name="${name}"]:checked`);
+    const errEl = stepEl.querySelector(`.error-msg[data-error-for="${name}"]`);
+    if (!anyChecked) {
+      ok = false;
+      if (errEl) errEl.style.display = 'block';
+      if (!firstInvalid) firstInvalid = stepEl.querySelector(`input[name="${name}"]`);
+    } else if (errEl) {
+      errEl.style.display = 'none';
+    }
+  });
+
+  if (firstInvalid) firstInvalid.scrollIntoView({ block: 'center' });
+  return ok;
+}
+
+function showEnding(reason){
+  const name = (document.querySelector('input[name=client_name]') || {}).value || '';
+  document.getElementById('ending-body').textContent =
+    reason === 'Someone has died'
+      ? `Thanks${name ? ', ' + name : ''}. We're sorry for your loss. Deceased estate matters need a proper conversation rather than a form, so we won't ask you anything further here.`
+      : reason === 'A concern about a will or estate'
+      ? `Thanks${name ? ', ' + name : ''}. Concerns about a will or estate are handled case by case, so we won't ask you anything further here.`
+      : `Thanks${name ? ', ' + name : ''}. It sounds like a quick conversation will help more than a form right now.`;
+  formEl.classList.add('hidden');
+  endingWrap.style.display = 'block';
+}
+
+backBtn.addEventListener('click', () => { if (current > 0) { current--; render(); } });
+
+nextBtn.addEventListener('click', () => {
+  if (!validateStep(steps[current])) return;
+
+  // routing check happens right after Q2 (index 1)
+  if (current === 1) {
+    const reasonEl = document.querySelector('input[name=inquiry_reason]:checked');
+    const reason = reasonEl ? reasonEl.value : '';
+    if (!QUALIFYING_REASONS.includes(reason)) {
+      showEnding(reason);
+      return;
+    }
+  }
+
+  if (current < total - 1) { current++; render(); return; }
+  submitForm();
+});
+
+document.getElementById('ending-back-btn').addEventListener('click', () => {
+  current = 1;
+  render();
+});
+
+dotsWrap.addEventListener('click', (e) => {
+  const idx = Array.from(dotsWrap.children).indexOf(e.target);
+  if (idx >= 0 && idx <= current) { current = idx; render(); }
+});
+
+render();
+
+// ---- data collection ----
+function collectData(){
+  const data = {};
+  new FormData(formEl).forEach((value, key) => {
+    if (data[key] !== undefined) {
+      if (!Array.isArray(data[key])) data[key] = [data[key]];
+      data[key].push(value);
+    } else {
+      data[key] = value;
+    }
+  });
+  return data;
+}
+function toArray(v){ return v === undefined ? [] : Array.isArray(v) ? v : [v]; }
+
+// ---- heuristic mapper: lead-qualification answers -> will-generator data shape ----
+function mapLeadToWillData(lead){
+  const flags = toArray(lead.complexity_flags);
+  const assets = toArray(lead.asset_flags);
+
+  const isCouple = flags.includes('Planning with a partner');
+  const hasMinors = flags.includes('Children under 18');
+  const blended = flags.includes('Children from a previous relationship');
+  const hasDependantCare = flags.includes('A dependant with a disability or care needs');
+  const hasVulnerablePerson = flags.includes('Someone estranged, or who would struggle to manage money');
+  const hasBusiness = assets.includes('A business, family trust or SMSF');
+  const hasOverseas = assets.includes('Overseas assets');
+  const goals = toArray(lead.goal);
+  const wantsProtection = goals.includes('Protecting an inheritance rather than paying it out directly');
+  const wantsCapacityDocs = goals.includes('Who manages my money and medical decisions if I lose capacity');
+  const wantsExplained = goals.includes("Not sure yet, I'd like it explained");
+
+  const trustTriggerCount = [hasMinors, blended, hasDependantCare, wantsProtection].filter(Boolean).length;
+  const fundCount = trustTriggerCount === 0 ? 0 : (trustTriggerCount === 1 ? 1 : 2);
+  const fpe = fundCount >= 1 && hasOverseas;
+
+  const execNoteMap = {
+    'I know exactly who': '[executor name to be confirmed at appointment — client indicated they already know who]',
+    'Someone in mind, not certain': '[executor name to be confirmed at appointment — client has someone in mind but is not fully certain]',
+    "I'd like guidance": '[executor to be selected with guidance at the appointment]',
+    'Not sure the obvious choice is right': '[executor to be discussed carefully at appointment — client flagged that the obvious choice may not be right]',
+  };
+  const execNote = execNoteMap[lead.executor_confidence] || '[executor name to be confirmed at appointment]';
+
+  const primaryBeneficiary = isCouple
+    ? '[partner name to be confirmed at appointment]'
+    : '[primary beneficiary to be confirmed at appointment]';
+  const calamityBeneficiary = (hasMinors || blended)
+    ? '[children / next-generation beneficiaries to be confirmed at appointment]'
+    : '';
+
+  let gifts = [];
+  if (lead.gifts_volume === 'A few') {
+    gifts = [
+      { 'Item description': '[specific gift 1 — to be confirmed at appointment]', 'Recipient': '[recipient to be confirmed]' },
+      { 'Item description': '[specific gift 2 — to be confirmed at appointment]', 'Recipient': '[recipient to be confirmed]' },
+    ];
+  } else if (lead.gifts_volume === 'Quite a number') {
+    gifts = [1,2,3,4].map(n => ({ 'Item description': `[specific gift ${n} — to be confirmed at appointment]`, 'Recipient': '[recipient to be confirmed]' }));
+  } else if (lead.gifts_volume === 'Not sure yet') {
+    gifts = [{ 'Item description': '[specific gifts — client unsure, to be drawn out at appointment]', 'Recipient': '[recipient to be confirmed]' }];
+  }
+
+  const funeralWishes = toArray(lead.funeral_wishes);
+  const funeralMap = {
+    'Clear wishes on burial or cremation': 'Client has indicated they have clear wishes on burial or cremation — to be recorded precisely at the appointment.',
+    'Organ or tissue donor': 'Client has indicated they wish to be an organ or tissue donor.',
+    'Discussed with family, nothing written down': 'Client has discussed funeral wishes with family but nothing is written down yet — consider a Letter of Wishes.',
+    "I'd rather my family decided": 'Client would prefer their family made funeral decisions at the time.',
+    "Haven't thought about it yet": 'Client has not yet turned their mind to funeral wishes.',
+  };
+  const funeralText = funeralWishes.map(w => funeralMap[w] || '').filter(Boolean).join(' ');
+
+  return {
+    scenario: isCouple ? 'Couple' : 'Individual',
+    client_name: lead.client_name || '[name not provided]',
+    client_address: '[address to be confirmed at appointment]',
+    spouse_name: isCouple ? '[partner name to be confirmed at appointment]' : '',
+    mirror_or_independent: '',
+    fund_count: String(fundCount),
+    fpe_trust: fpe,
+    exec_initial_name: execNote,
+    exec_initial_relationship: '',
+    exec_initial_address: '',
+    exec_backup: '[backup executor to be confirmed at appointment]',
+    exec_further_backup: '',
+    exec_joint: isCouple ? 'Act jointly' : '',
+    exec_power_of_sale: true,
+    has_minors: hasMinors ? 'Yes' : 'No',
+    guardian_initial: hasMinors ? '[guardian to be confirmed at appointment]' : '',
+    guardian_backup: '',
+    exclusion: [],
+    no_contest_clause: false,
+    personal_belongings_to: hasMinors ? "Client's children" : '',
+    beneficiary1: primaryBeneficiary, beneficiary1_pct: '',
+    beneficiary2: '', beneficiary2_pct: '',
+    beneficiary3: '', beneficiary3_pct: '',
+    gift: gifts,
+    has_company: hasBusiness ? 'Yes' : 'No',
+    company_name: hasBusiness ? '[business / family trust / SMSF name to be confirmed at appointment]' : '',
+    company_acn: '', company_on_death: '', company_share_treatment: '',
+    has_life_tenancy: 'No',
+    fund1_beneficiary: fundCount >= 1 ? primaryBeneficiary : '',
+    fund1_class: fundCount >= 1 ? 'their children and remoter issue' : '',
+    fund1_trustee_initial: fundCount >= 1 ? execNote : '',
+    fund1_trustee_backup: '', fund1_trustee_further: '',
+    fund1_appointor_initial: fundCount >= 1 ? execNote : '',
+    fund1_appointor_backup: '', fund1_appointor_further: '',
+    fund2_beneficiary: fundCount >= 2 ? '[second beneficiary group to be confirmed at appointment]' : '',
+    fund2_class: fundCount >= 2 ? 'their children and remoter issue' : '',
+    fund2_trustee_initial: fundCount >= 2 ? execNote : '',
+    fund2_trustee_backup: '', fund2_trustee_further: '',
+    fund2_appointor_initial: fundCount >= 2 ? execNote : '',
+    fund2_appointor_backup: '', fund2_appointor_further: '',
+    calamity1: calamityBeneficiary, calamity1_pct: '',
+    calamity2: '', calamity2_pct: '',
+    calamity3: '', calamity3_pct: '',
+    has_sdt: hasDependantCare ? 'Yes' : 'No',
+    sdt_principal_beneficiary: hasDependantCare ? '[dependant name to be confirmed at appointment]' : '',
+    sdt_mechanism: '',
+    organ_donation: funeralWishes.includes('Organ or tissue donor') ? 'client has indicated they wish to be an organ or tissue donor (to be confirmed)' : '',
+    burial_or_cremation: '',
+    funeral_other: [funeralText, lead.additional_notes ? `Client's own note: ${lead.additional_notes}` : ''].filter(Boolean).join(' '),
+    governing_jurisdiction: lead.client_state || '',
+    client_state: lead.client_state || '',
+    _flags_for_solicitor: [
+      hasVulnerablePerson ? 'Client flagged someone estranged, or who would struggle to manage money — clarify at appointment whether this calls for a protective trust, an exclusion clause, or neither. Do not assume exclusion.' : '',
+      lead.gifts_volume === 'Quite a number' ? 'Client indicated "quite a number" of specific gifts — this is likely to exceed a standard package; scope and fee to be confirmed.' : '',
+      lead.executor_confidence === 'Not sure the obvious choice is right' ? 'Client flagged that the obvious executor choice may not be right — possible family tension, explore gently at appointment.' : '',
+      wantsExplained ? 'Client wants the options explained rather than arriving with a fixed scope — budget appointment time for advice, not just drafting instructions.' : '',
+      wantsCapacityDocs ? 'Client also wants to sort out who manages money/medical decisions on loss of capacity — raise Enduring Power of Attorney and Enduring Guardianship at appointment; not covered by the will draft below.' : '',
+      (goals.length > 1) ? `Client selected more than one goal (${goals.join('; ')}) — likely a full estate plan rather than a will alone; scope and quote accordingly.` : '',
+    ].filter(Boolean),
+  };
+}
+
+// ---- will text generation ----
+// Structure and clause wording follow the firm's own precedent set
+// (Simple Will / Single & Multi Testamentary Trust Will templates).
+function generateWillText(d){
+  const lines = [];
+  const isCouple = d.scenario === 'Couple';
+  const testator = d.client_name || '[Client name not provided]';
+  const fundCount = parseInt(d.fund_count || '0', 10);
+  let clause = 1;
+  const num = () => clause++;
+
+  lines.push(`Last Will of`);
+  lines.push(testator);
+  lines.push('');
+  lines.push(`of ${d.client_address || '[address not provided]'}`);
+  lines.push('');
+  const fpe = fundCount >= 1 && d.fpe_trust;
+  const baseType = fundCount === 0 ? 'Simple Will' : fundCount === 1 ? 'Single TT Will' : 'Multi TT Will';
+  const docType = `${baseType}${fpe ? ' (with Foreign Persons Excluded Trust)' : ''} — ${isCouple ? 'Couple' : 'Individual'}`;
+  lines.push(`[Template used: ${docType}]`);
+  lines.push('');
+  lines.push('='.repeat(60));
+  lines.push('PART A — GENERAL');
+  lines.push('='.repeat(60));
+  lines.push('');
+  lines.push(`${num()}. Intentions`);
+  lines.push(`I, ${testator}:`);
+  lines.push('(a) revoke all former wills and other testamentary acts made by me;');
+  lines.push('(b) declare this to be my last Will; and');
+  lines.push("(c) confirm the interpretation and definitions provisions at the end of this Will apply in relation to its interpretation.");
+  if (isCouple && d.spouse_name) {
+    lines.push(`This Will is made as ${d.mirror_or_independent === 'Independent wills' ? 'an independent will alongside' : 'a mirror will together with'} the will of ${d.spouse_name}.`);
+  }
+  lines.push('');
+
+  lines.push('='.repeat(60));
+  lines.push('PART B — TESTAMENTARY DIRECTIONS');
+  lines.push('='.repeat(60));
+  lines.push('');
+
+  lines.push(`${num()}. Executor and trustee`);
+  lines.push('I appoint as the executor and trustee of my Will:');
+  lines.push(`(a) ${d.exec_initial_name || '[initial executor not provided]'}${d.exec_initial_relationship ? ` (my ${d.exec_initial_relationship})` : ''}${d.exec_initial_address ? `, of ${d.exec_initial_address}` : ''};`);
+  if (d.exec_backup) lines.push(`(b) if ${d.exec_initial_name || 'my initial Executor'} is unable or unwilling to act for any reason, then I appoint ${d.exec_backup}; or`);
+  if (d.exec_further_backup) lines.push(`(c) if ${d.exec_backup || 'my backup Executor'} is unable or unwilling to act for any reason, then I appoint ${d.exec_further_backup}.`);
+  lines.push('');
+  lines.push('Unless otherwise specifically stated in my Will, my Executor is not excluded from participating in any matter concerning the administration of my estate only because of a personal interest in the matter.');
+  lines.push(d.exec_joint === 'Act jointly'
+    ? 'Where two or more people are appointed to act as Executor, they must act jointly, save that if any one or more of them are unable or unwilling to act for any reason, those remaining who are willing and able may continue to act.'
+    : 'A sole Executor may act at any time.');
+  if (d.exec_power_of_sale) lines.push('My Executor has an express power of sale over any part of my estate.');
+  lines.push('');
+
+  if (d.has_minors === 'Yes' && d.guardian_initial) {
+    lines.push(`${num()}. Testamentary guardian for Minors`);
+    lines.push('If there is no surviving guardian of my Minor Children, then I appoint:');
+    lines.push(`(a) ${d.guardian_initial}; or`);
+    if (d.guardian_backup) lines.push(`(b) if ${d.guardian_initial} is unable or unwilling to act for any reason, then I appoint ${d.guardian_backup},`);
+    lines.push('as the guardian to care for my Minor Children.');
+    lines.push('');
+  }
+
+  if (d.exclusion && d.exclusion.length) {
+    lines.push(`${num()}. Exclusions`);
+    lines.push('It is not through any oversight that I have intentionally made no provision in this my Will for the following person(s):');
+    d.exclusion.forEach((ex, i) => {
+      lines.push(`(${String.fromCharCode(97+i)}) ${ex['Name'] || '[name not provided]'}${ex['Reason'] ? ` — ${ex['Reason']}` : ''};`);
+    });
+    if (d.no_contest_clause) lines.push('If any beneficiary challenges or contests this Will, or the distribution of my estate under it, any gift to that beneficiary under this Will is to be forfeited to the extent permitted by law.');
+    lines.push('');
+  }
+
+  lines.push(`${num()}. Personal Belongings and Specific Gifts`);
+  lines.push('Subject to any specific gifts in my Will, I give (free of all duties and encumbrances) my Personal Belongings to my Executor to be distributed under this clause.');
+  if (d.personal_belongings_to === "Client's children") {
+    lines.push('I give my Personal Belongings to those of my Children who survive me absolutely, to be divided as my Executor determines.');
+  } else {
+    const namedBenes = [1,2,3].map(i => d['beneficiary'+i]).filter(Boolean);
+    if (namedBenes.length) lines.push(`I give my Personal Belongings to such of ${namedBenes.join(', ')} who survive me absolutely, to be divided as my Executor determines.`);
+  }
+  if (d.gift && d.gift.length) {
+    lines.push('');
+    lines.push('I make the following specific gifts:');
+    d.gift.forEach((g, i) => {
+      lines.push(`(${String.fromCharCode(97+i)}) I give ${g['Item description'] || '[item not described]'} to ${g['Recipient'] || '[recipient not provided]'}${g['Fallback if recipient predeceases'] ? `, or if they do not survive me, to ${g['Fallback if recipient predeceases']}` : ''};`);
+    });
+  }
+  lines.push('');
+
+  if (d.has_company === 'Yes' && d.company_name) {
+    lines.push(`${num()}. Company Shares`);
+    lines.push(`In respect of my shares in ${d.company_name}${d.company_acn ? ` (ACN ${d.company_acn})` : ''}, I direct my Executor to ${(d.company_on_death || 'deal with the shares as my Executor sees fit').toLowerCase()}.`);
+    if (d.company_share_treatment) lines.push(`The value of these shares shall ${d.company_share_treatment === 'Specific gift' ? 'form a specific gift under this Will' : 'fall into and form part of my Residual Estate'}.`);
+    lines.push('');
+  }
+
+  if (d.has_life_tenancy === 'Yes' && d.life_tenant) {
+    lines.push(`${num()}. Life Tenancy`);
+    lines.push(`I give ${d.life_tenant} a life tenancy in ${d.life_tenancy_property || '[property not specified]'}.`);
+    if (d.life_tenancy_outgoings) lines.push(`Outgoings in respect of the property during the life tenancy are to be borne by the ${d.life_tenancy_outgoings.toLowerCase()}.`);
+    if (d.life_tenancy_sale_power) lines.push('My Trustee may sell the property the subject of the life tenancy and acquire a substitute property on the same terms.');
+    if (d.life_tenancy_balance) lines.push(`On the death of the life tenant (or on the earlier termination of the life tenancy), the balance passes to ${d.life_tenancy_balance}.`);
+    lines.push('');
+  }
+
+  lines.push(`${num()}. Residual Estate`);
+  if (fundCount >= 1) {
+    lines.push(`I direct my Executor to hold my Residual Estate on trust and to establish the following testamentary trust${fundCount > 1 ? 's' : ''} on my death:`);
+    lines.push('');
+    if (d.fund1_beneficiary) {
+      lines.push(`${testator} ${fpe ? 'FPE ' : ''}Testamentary Trust No. 1`);
+      lines.push(`— Nominated Beneficiary: ${d.fund1_beneficiary}${d.fund1_class ? ` (and the class of ${d.fund1_class})` : ''}`);
+      lines.push(`— Initial Trustee: ${d.fund1_trustee_initial || '[not provided]'}`);
+      if (d.fund1_trustee_backup) lines.push(`— Backup Trustee: ${d.fund1_trustee_backup}`);
+      if (d.fund1_trustee_further) lines.push(`— Further Backup Trustee: ${d.fund1_trustee_further}`);
+      lines.push(`— Initial Appointor: ${d.fund1_appointor_initial || '[not provided]'}`);
+      if (d.fund1_appointor_backup) lines.push(`— Backup Appointor: ${d.fund1_appointor_backup}`);
+      if (d.fund1_appointor_further) lines.push(`— Further Backup Appointor: ${d.fund1_appointor_further}`);
+      lines.push('');
+    }
+    if (fundCount >= 2 && d.fund2_beneficiary) {
+      lines.push(`${testator} ${fpe ? 'FPE ' : ''}Testamentary Trust No. 2`);
+      lines.push(`— Nominated Beneficiary: ${d.fund2_beneficiary}${d.fund2_class ? ` (and the class of ${d.fund2_class})` : ''}`);
+      lines.push(`— Initial Trustee: ${d.fund2_trustee_initial || '[not provided]'}`);
+      if (d.fund2_trustee_backup) lines.push(`— Backup Trustee: ${d.fund2_trustee_backup}`);
+      if (d.fund2_trustee_further) lines.push(`— Further Backup Trustee: ${d.fund2_trustee_further}`);
+      lines.push(`— Initial Appointor: ${d.fund2_appointor_initial || '[not provided]'}`);
+      if (d.fund2_appointor_backup) lines.push(`— Backup Appointor: ${d.fund2_appointor_backup}`);
+      if (d.fund2_appointor_further) lines.push(`— Further Backup Appointor: ${d.fund2_appointor_further}`);
+      lines.push('');
+    }
+    if (fpe) {
+      lines.push(`Each ${testator} FPE Testamentary Trust must be administered as a testamentary trust in accordance with the provisions set out in this Will, however:`);
+      lines.push('(a) Appointor means my Executor, or any other person nominated as the appointor, either in substitution for or in addition to them;');
+      lines.push('(b) Nominated Beneficiaries means my Children; and');
+      lines.push('(c) Trustee means my Executor, or any other person nominated as the trustee, either in substitution for or in addition to them,');
+      lines.push('and my Executor may make a Resolution specifying that Foreign Persons are not entitled to any interest or benefit from the Trust Fund, and no part of the Trust Fund may be paid, lent to, distributed or applied to the benefit (directly or indirectly) of any Foreign Person under any circumstances, regardless of any other provision of this Will.');
+      lines.push('Any gift in this Will (including, for clarity, any part of my Residual Estate) which requires approval under the Foreign Acquisitions and Takeovers Act is conditional upon such approval being granted.');
+    } else {
+      lines.push('Each Trust must be administered as a testamentary trust in accordance with the standard trustee powers schedule to this Will.');
+    }
+  } else {
+    const benes = [1,2,3].map(i => ({name: d['beneficiary'+i], pct: d['beneficiary'+i+'_pct']})).filter(b => b.name);
+    if (benes.length === 1) {
+      lines.push(`I give my Residual Estate to ${benes[0].name} absolutely, with the Giftover Provision applying.`);
+    } else if (benes.length > 1) {
+      lines.push('I give my Residual Estate as follows:');
+      benes.forEach((b, i) => {
+        lines.push(`(${String.fromCharCode(97+i)}) as to a ${b.pct ? b.pct + '%' : 'equal'} share to ${b.name} absolutely, with the Giftover Provision applying;`);
+      });
+      lines.push('If any of the gifts in the preceding clause fail for any reason, that gift will revert to and form part of the share of my Residual Estate in respect of which the remaining gift(s) have taken effect, in the same proportions as those gifts which have not failed bear to one another.');
+    } else {
+      lines.push('[No residuary beneficiary provided.]');
+    }
+  }
+  const calamities = [1,2,3].map(i => ({name: d['calamity'+i], pct: d['calamity'+i+'_pct']})).filter(c => c.name);
+  if (calamities.length) {
+    lines.push('');
+    lines.push('If all of the gifts of my Residual Estate above fail, I give my Residual Estate as follows:');
+    calamities.forEach((c, i) => {
+      lines.push(`(${String.fromCharCode(97+i)}) as to a ${c.pct ? c.pct + '%' : 'equal'} share to ${c.name} absolutely, with the Giftover Provision applying;`);
+    });
+  }
+  lines.push('');
+
+  if (d.has_sdt === 'Yes' && d.sdt_principal_beneficiary) {
+    lines.push(`${num()}. Special Disability Trust`);
+    if (d.sdt_mechanism && d.sdt_mechanism.startsWith('Full standalone')) {
+      lines.push(`[FLAG FOR SUPERVISING SOLICITOR: a full standalone Special Disability Trust deed has been requested for ${d.sdt_principal_beneficiary}. This falls outside the standard precedent set and must be drafted separately.]`);
+    } else {
+      lines.push(`My Executor may, with the consent of ${d.sdt_principal_beneficiary} (or their Financial Representative), distribute a share of my estate directly to ${d.sdt_principal_beneficiary} to enable a contribution to a Special Disability Trust established for their benefit.`);
+    }
+    lines.push('');
+  }
+
+  lines.push('='.repeat(60));
+  lines.push('PART C — SUPERANNUATION DEATH BENEFITS');
+  lines.push('='.repeat(60));
+  lines.push('');
+  lines.push(`${num()}. Directions relating to Superannuation Death Benefits`);
+  lines.push('I make a non-binding wish and direction to the trustees of any superannuation fund of which I am a member at the date of my death, to pay any Superannuation Death Benefits in accordance with my directions in the most recent BDBN signed before my death, even if that BDBN has been deemed invalid by the trustees of the superannuation fund.');
+  lines.push('');
+
+  lines.push('='.repeat(60));
+  lines.push('PART D — FUNERAL WISHES (NON-BINDING)');
+  lines.push('='.repeat(60));
+  lines.push('');
+  lines.push(`${num()}. Funeral wishes`);
+  if (d.organ_donation) lines.push(`Organ donation: ${d.organ_donation}.`);
+  if (d.burial_or_cremation) lines.push(`I wish to be ${d.burial_or_cremation === 'Burial' ? 'buried' : 'cremated'}.`);
+  if (d.funeral_other) lines.push(d.funeral_other);
+  lines.push('');
+
+  lines.push('='.repeat(60));
+  lines.push('PART E — GOVERNING JURISDICTION');
+  lines.push('='.repeat(60));
+  lines.push('');
+  lines.push(`${num()}. Governing jurisdiction`);
+  lines.push(`So far as I can choose the law to govern the administration of my estate, and the trusts created by my Will, I choose the laws of ${d.governing_jurisdiction || d.client_state || '[jurisdiction not provided]'}.`);
+  lines.push('');
+
+  lines.push('='.repeat(60));
+  lines.push('PART F — EXECUTION');
+  lines.push('='.repeat(60));
+  lines.push('');
+  lines.push(`Executed by ${testator} on _______________________________`);
+  lines.push('');
+  lines.push(`Signed by ${testator} as their last will, in the presence of us both at the same time, who at their request and in their presence, and in the presence of each other, have signed our names as witnesses.`);
+  lines.push('');
+  lines.push('Signature of Testator: ____________________________');
+  lines.push('');
+  lines.push('Full Name of First Witness: _______________________________');
+  lines.push('Address of First Witness: _______________________________');
+  lines.push('Signature of First Witness: ____________________________');
+  lines.push('');
+  lines.push('Full Name of Second Witness: _______________________________');
+  lines.push('Address of Second Witness: _______________________________');
+  lines.push('Signature of Second Witness: ____________________________');
+
+  return lines.join('\n');
+}
+
+function buildFlagsSummary(lead, mapped){
+  const flags = toArray(lead.complexity_flags);
+  const assets = toArray(lead.asset_flags);
+  const lines = [];
+  lines.push('LEAD QUALIFICATION SUMMARY (pre-intake form — confirm everything at appointment)');
+  lines.push('-'.repeat(70));
+  lines.push(`Reason for inquiry: ${lead.inquiry_reason || '—'}`);
+  lines.push(`Name: ${lead.client_name || '—'}    Email: ${lead.client_email || '—'}    Phone: ${lead.client_phone || '—'}    State: ${lead.client_state || '—'}`);
+  lines.push(`Which apply: ${flags.length ? flags.join('; ') : 'None selected'}`);
+  lines.push(`What they own: ${assets.length ? assets.join('; ') : 'None selected'}`);
+  const goalsList = toArray(lead.goal);
+  const funeralList = toArray(lead.funeral_wishes);
+  lines.push(`Hoping to sort out: ${goalsList.length ? goalsList.join('; ') : '—'}`);
+  lines.push(`Executor confidence: ${lead.executor_confidence || '—'}`);
+  lines.push(`Specific gifts: ${lead.gifts_volume || '—'}`);
+  lines.push(`Funeral/body wishes: ${funeralList.length ? funeralList.join('; ') : 'Not answered'}`);
+  lines.push(`Anything else: ${lead.additional_notes || '—'}`);
+  if (mapped._flags_for_solicitor && mapped._flags_for_solicitor.length) {
+    lines.push('');
+    lines.push('Flags for the appointment:');
+    mapped._flags_for_solicitor.forEach(f => lines.push(`  • ${f}`));
+  }
+  lines.push('-'.repeat(70));
+  return lines.join('\n');
+}
+
+function submitForm(){
+  const lead = collectData();
+  const mapped = mapLeadToWillData(lead);
+  const willText = buildFlagsSummary(lead, mapped) + '\n\n' + generateWillText(mapped);
+
+  document.getElementById('will-doc').textContent = willText;
+  document.getElementById('json-payload').textContent = JSON.stringify(lead, null, 2);
+  formEl.classList.add('hidden');
+  document.getElementById('result-wrap').style.display = 'block';
+  document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth' });
+
+  document.getElementById('download-btn').onclick = () => {
+    const blob = new Blob([willText], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (lead.client_name || 'draft-will').replace(/\s+/g,'_') + '_draft_will.txt';
+    a.click();
+  };
+}
+</script>
+</body>
+</html>
