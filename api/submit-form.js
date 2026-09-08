@@ -42,11 +42,15 @@ export default async function handler(req, res) {
 
     // Determine new status
     let newStatus = form.status;
+    console.log('DEBUG:', { form_type, current_status: form.status, newStatus_before: newStatus });
+
     if (form_type === 'inquiry' && form.status === 'appointment_sent') {
       newStatus = 'scheduled';
     } else if (form_type === 'intake' && form.status === 'pending_intake') {
       newStatus = 'completed_intake';
     }
+
+    console.log('DEBUG:', { newStatus_after: newStatus });
 
     // Update
     const { error: updateError } = await supabase
