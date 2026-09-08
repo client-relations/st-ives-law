@@ -10,6 +10,9 @@
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
   "private": true,
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.4"
+  },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@rollup/rollup-win32-x64-msvc": "^4.59.0",
