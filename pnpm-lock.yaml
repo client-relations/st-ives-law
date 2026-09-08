@@ -156,6 +156,10 @@ overrides:
 importers:
 
   .:
+    dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.43.4
+        version: 2.112.3
     devDependencies:
       '@playwright/test':
         specifier: ^1.60.0
