@@ -81,6 +81,21 @@
   #ending-wrap .card p { margin: 0.6rem 0; }
 
   #result-wrap { display: none; margin-top: 1.5rem; }
+  #loading-spinner { display: none; text-align: center; padding: 3rem 1rem; }
+  .spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #4a8fa0;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+  }
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  .spinner-text { color: #666; font-size: 0.95rem; }
   .banner {
     background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: var(--radius);
     padding: 0.8rem 1rem; font-size: 0.85rem; margin-bottom: 1rem;
@@ -113,6 +128,11 @@
       </div>
     </div>
   </header>
+
+  <div id="loading-spinner">
+    <div class="spinner"></div>
+    <p class="spinner-text">Loading form...</p>
+  </div>
 
   <form id="intake-form" novalidate>
     <div class="card">
@@ -299,12 +319,21 @@ async function loadExistingData() {
 
   if (!lead_id) return;
 
+  const spinner = document.getElementById('loading-spinner');
+  spinner.style.display = 'block';
+
   try {
     const response = await fetch(`/api/get-form?lead_id=${lead_id}`);
-    if (!response.ok) return;
+    if (!response.ok) {
+      spinner.style.display = 'none';
+      return;
+    }
 
     const result = await response.json();
-    if (!result.data || Object.keys(result.data).length === 0) return;
+    if (!result.data || Object.keys(result.data).length === 0) {
+      spinner.style.display = 'none';
+      return;
+    }
 
     const data = result.data;
 
@@ -371,6 +400,7 @@ async function loadExistingData() {
 
   } catch (error) {
     console.error('Error loading form data:', error);
+    spinner.style.display = 'none';
   }
 }
 
