@@ -32,6 +32,14 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Form not found' });
     }
 
+    // Determine new status based on form type
+    let newStatus = form.status;
+    if (form_type === 'inquiry' && form.status === 'appointment_sent') {
+      newStatus = 'scheduled';
+    } else if (form_type === 'intake' && form.status === 'pending_intake') {
+      newStatus = 'completed_intake';
+    }
+
     // Update form_data in the forms table
     const { error: updateError } = await supabase
       .from('forms')
@@ -40,7 +48,7 @@ export default async function handler(req, res) {
           ...form.form_data,
           [form_type]: form_data,
         },
-        status: 'in_progress',
+        status: newStatus,
         last_accessed: new Date().toISOString(),
       })
       .eq('id', lead_id);

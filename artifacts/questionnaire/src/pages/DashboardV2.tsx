@@ -10,6 +10,7 @@ import {
   deprioritizeForm,
   markFormComplete,
   submitFormToSmokeball,
+  sendIntakeForm,
 } from '../lib/dashboard-actions';
 import '../styles/dashboard.css';
 
@@ -491,20 +492,32 @@ export default function DashboardV2() {
     .filter(matchesQualifiedLeadsDate);
 
   const inProgressFormsAll = realForms.filter(f => f.status === 'scheduled');
-  const inProgressForms = inProgressFormsAll
-    .filter(f => !qualifiedLeadsSearch || (f.name || '').toLowerCase().includes(qualifiedLeadsSearch.toLowerCase()))
-    .filter(f => !qualifiedLeadsPersonFilter || f.personResponsible === qualifiedLeadsPersonFilter)
+  // Intake section forms organized by status
+  const appointmentSentForms = realForms.filter(f => f.status === 'appointment_sent');
+  const scheduledForms = realForms.filter(f => f.status === 'scheduled');
+  const pendingIntakeForms = realForms.filter(f => f.status === 'pending_intake');
+  const completedIntakeForms = realForms.filter(f => f.status === 'completed_intake');
+
+  // Apply filters to pending intake forms (for Overview)
+  const filteredPendingIntakeForms = pendingIntakeForms
+    .filter(f => !qualifiedLeadsSearch || (f.client_name || '').toLowerCase().includes(qualifiedLeadsSearch.toLowerCase()))
+    .filter(f => !qualifiedLeadsPersonFilter || f.person_responsible === qualifiedLeadsPersonFilter)
     .filter(matchesQualifiedLeadsDate);
 
-  const trulyCompletedFormsAll = realForms.filter(f => f.status === 'pending_intake');
-  const trulyCompletedForms = trulyCompletedFormsAll
-    .filter(f => !completedSearch || (f.name || '').toLowerCase().includes(completedSearch.toLowerCase()))
-    .filter(f => !completedPersonFilter || f.personResponsible === completedPersonFilter);
+  // Keep legacy names for now
+  const inProgressForms = appointmentSentForms
+    .filter(f => !qualifiedLeadsSearch || (f.client_name || '').toLowerCase().includes(qualifiedLeadsSearch.toLowerCase()))
+    .filter(f => !qualifiedLeadsPersonFilter || f.person_responsible === qualifiedLeadsPersonFilter)
+    .filter(matchesQualifiedLeadsDate);
 
-  const submittedForms = realForms
-    .filter(f => f.status === 'completed_intake')
-    .filter(f => !qualifiedLeadsSearch || (f.name || '').toLowerCase().includes(qualifiedLeadsSearch.toLowerCase()))
-    .filter(f => !qualifiedLeadsPersonFilter || f.personResponsible === qualifiedLeadsPersonFilter)
+  const trulyCompletedFormsAll = completedIntakeForms;
+  const trulyCompletedForms = trulyCompletedFormsAll
+    .filter(f => !completedSearch || (f.client_name || '').toLowerCase().includes(completedSearch.toLowerCase()))
+    .filter(f => !completedPersonFilter || f.person_responsible === completedPersonFilter);
+
+  const submittedForms = scheduledForms
+    .filter(f => !qualifiedLeadsSearch || (f.client_name || '').toLowerCase().includes(qualifiedLeadsSearch.toLowerCase()))
+    .filter(f => !qualifiedLeadsPersonFilter || f.person_responsible === qualifiedLeadsPersonFilter)
     .filter(matchesQualifiedLeadsDate);
   const overdueForms = realForms
     .filter(f => f.status === 'overdue')
@@ -962,6 +975,27 @@ export default function DashboardV2() {
             </div>
           </div>
 
+          {viewingIntakeForm.status === 'scheduled' && (
+            <div className='nv-modal-actions'>
+              <button
+                className='nv-btn-qualify'
+                onClick={async () => {
+                  setIntakeActionLoading(true);
+                  if (await sendIntakeForm(viewingIntakeForm.id)) {
+                    await refreshData();
+                    setViewingIntakeForm(null);
+                    setGeneratedLink(`${window.location.origin}/intake-form?lead_id=${viewingIntakeForm.id}`);
+                    setShowLinkModal(true);
+                  }
+                  setIntakeActionLoading(false);
+                }}
+                disabled={intakeActionLoading}
+              >
+                {intakeActionLoading ? 'Sending...' : 'Send Intake Form'}
+              </button>
+            </div>
+          )}
+
           {isCompletedIntake && (
             <div className='nv-modal-actions'>
               <button
@@ -1005,8 +1039,8 @@ export default function DashboardV2() {
         ? 'Track intake progress for qualified clients.'
         : 'Your practice at a glance, what needs attention today.';
 
-  const overviewIntakeForms = realForms.filter(f => !['completed', 'submitted'].includes(f.status));
-  const overviewCompletedForms = trulyCompletedForms;
+  const overviewIntakeForms = filteredPendingIntakeForms;
+  const overviewCompletedForms = completedIntakeForms;
   const userInitials = (lawyer?.full_name || 'NL')
     .split(' ')
     .filter(Boolean)

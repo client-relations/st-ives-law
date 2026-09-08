@@ -47,7 +47,7 @@ export async function qualifyLead(screeningId: string, personResponsible: string
         referral_type: screening.referral_type,
         billing_type: screening.billing_type,
         person_responsible: screening.person_responsible || '',
-        status: 'sent',
+        status: 'appointment_sent',
         progress_pct: 0,
         unique_link: uniqueLink,
         created_at: new Date().toISOString(),
@@ -360,6 +360,37 @@ export async function deprioritizeForm(formId: string) {
     return true;
   } catch (err) {
     console.error('Error deprioritizing form:', err);
+    return false;
+  }
+}
+
+export async function sendIntakeForm(formId: string) {
+  try {
+    if (!supabase) throw new Error('Database connection error');
+
+    const { data: form } = await supabase
+      .from('forms')
+      .select('*')
+      .eq('id', formId)
+      .single();
+
+    if (!form) throw new Error('Form not found');
+
+    // Update status to pending_intake
+    const { error } = await supabase
+      .from('forms')
+      .update({ status: 'pending_intake' })
+      .eq('id', formId);
+
+    if (error) throw error;
+
+    // WEBHOOK DISABLED - will re-enable with automation
+    // Would send email with intake form link here
+    // const intakeLink = `${window.location.origin}/intake-form?lead_id=${formId}`;
+
+    return true;
+  } catch (err) {
+    console.error('Error sending intake form:', err);
     return false;
   }
 }
