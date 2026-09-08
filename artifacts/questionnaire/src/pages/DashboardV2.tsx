@@ -816,9 +816,9 @@ export default function DashboardV2() {
   return (
     <div className='nv-app'>
       <aside className='nv-sidebar'>
-        <div className='nv-brand'>
-          <img src="/logo.png" alt="St Ives Law" style={{ height: '50px', width: 'auto', marginBottom: '8px', maxWidth: '100%', objectFit: 'contain' }} />
-          <div className='nv-brand-sub'>Client Intake</div>
+        <div className='nv-brand' style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <img src="/logo.png" alt="St Ives Law" style={{ height: '60px', width: 'auto', marginBottom: '12px', maxWidth: '90%', objectFit: 'contain' }} />
+          <div className='nv-brand-sub' style={{ textAlign: 'center' }}>Client Intake</div>
           <div className='nv-brand-rule' />
         </div>
 
