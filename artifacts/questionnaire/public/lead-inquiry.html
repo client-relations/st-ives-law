@@ -520,8 +520,16 @@ dotsWrap.addEventListener('click', (e) => {
   if (idx >= 0 && idx <= current) { current = idx; render(); }
 });
 
-render();
-loadExistingData();
+// Start with loading spinner
+const spinner = document.getElementById('loading-spinner');
+const params = new URLSearchParams(window.location.search);
+if (params.get('lead_id')) {
+  spinner.style.display = 'block';
+  formEl.classList.add('hidden');
+  loadExistingData();
+} else {
+  render();
+}
 
 // ---- data collection ----
 function collectData(){
