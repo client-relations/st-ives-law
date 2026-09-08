@@ -515,7 +515,7 @@ export default function DashboardV2() {
     .filter(f => !completedSearch || (f.client_name || '').toLowerCase().includes(completedSearch.toLowerCase()))
     .filter(f => !completedPersonFilter || f.person_responsible === completedPersonFilter);
 
-  const submittedForms = scheduledForms
+  const submittedForms = completedIntakeForms
     .filter(f => !qualifiedLeadsSearch || (f.client_name || '').toLowerCase().includes(qualifiedLeadsSearch.toLowerCase()))
     .filter(f => !qualifiedLeadsPersonFilter || f.person_responsible === qualifiedLeadsPersonFilter)
     .filter(matchesQualifiedLeadsDate);
