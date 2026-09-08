@@ -67,6 +67,10 @@ export default function DashboardV2() {
   const [viewingIntakeForm, setViewingIntakeForm] = useState<any | null>(null);
   const [intakeActionLoading, setIntakeActionLoading] = useState(false);
 
+  // Form link modal (temporary - until webhook automation)
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState('');
+
   useEffect(() => {
     if (!loading && !user) {
       window.location.href = '/login';
@@ -611,8 +615,10 @@ export default function DashboardV2() {
       if (formId) {
         await refreshData();
         setViewingLead(null);
-        // Open form in new tab for viewing/testing
-        window.open(`/lead-inquiry?lead_id=${formId}`, '_blank');
+        // Show link modal for manual sharing
+        const link = `${window.location.origin}/lead-inquiry?lead_id=${formId}`;
+        setGeneratedLink(link);
+        setShowLinkModal(true);
       }
     } else {
       console.error('No person_responsible assigned to this lead');
@@ -772,6 +778,92 @@ export default function DashboardV2() {
               title='Send appointment and move to next stage'
             >
               {leadActionLoading ? 'Sending...' : 'Send Appointment'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderLinkModal = () => {
+    if (!showLinkModal) return null;
+
+    return (
+      <div
+        className='nv-modal-overlay'
+        onClick={() => setShowLinkModal(false)}
+      >
+        <div className='nv-modal' onClick={(e) => e.stopPropagation()}>
+          <div className='nv-modal-head'>
+            <div className='nv-modal-head-main'>
+              <p className='nv-modal-eyebrow'>Form Link</p>
+              <h2 className='nv-modal-title'>Share with Client</h2>
+            </div>
+            <button
+              className='nv-modal-close'
+              onClick={() => setShowLinkModal(false)}
+              title='Close'
+            >
+              ×
+            </button>
+          </div>
+          <div className='nv-modal-body' style={{ padding: '1.5rem' }}>
+            <p style={{ marginBottom: '1rem', color: '#666', fontSize: '0.9rem' }}>
+              Copy this link and send it to your client:
+            </p>
+            <div style={{
+              display: 'flex',
+              gap: '0.5rem',
+              marginBottom: '1rem',
+            }}>
+              <input
+                type='text'
+                readOnly
+                value={generatedLink}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '0.85rem',
+                  fontFamily: 'monospace',
+                }}
+              />
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(generatedLink);
+                  alert('Link copied to clipboard!');
+                }}
+                style={{
+                  padding: '0.75rem 1.2rem',
+                  background: '#4a8fa0',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                }}
+              >
+                Copy
+              </button>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: '#999', marginBottom: '1rem' }}>
+              The form will be available at this link until they submit their responses.
+            </p>
+            <button
+              onClick={() => setShowLinkModal(false)}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                background: '#f5f5f5',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+              }}
+            >
+              Done
             </button>
           </div>
         </div>
@@ -1777,6 +1869,9 @@ export default function DashboardV2() {
 
         {/* Intake Form Modal */}
         {renderIntakeFormModal()}
+
+        {/* Form Link Modal (temporary - until webhook automation) */}
+        {renderLinkModal()}
 
         {/* Screening Form Modal */}
         {showScreeningModal && (
