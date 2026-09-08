@@ -1855,6 +1855,7 @@ export default function DashboardV2() {
                               type='button'
                               className='nv-btn-view'
                               onClick={() => setViewingIntakeForm(form)}
+                              disabled
                             >
                               View
                             </button>
