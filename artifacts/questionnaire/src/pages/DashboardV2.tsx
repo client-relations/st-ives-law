@@ -63,6 +63,10 @@ export default function DashboardV2() {
   const [viewingLead, setViewingLead] = useState<any | null>(null);
   const [leadActionLoading, setLeadActionLoading] = useState(false);
 
+  // Intake form modal
+  const [viewingIntakeForm, setViewingIntakeForm] = useState<any | null>(null);
+  const [intakeActionLoading, setIntakeActionLoading] = useState(false);
+
   useEffect(() => {
     if (!loading && !user) {
       window.location.href = '/login';
@@ -767,6 +771,125 @@ export default function DashboardV2() {
               {leadActionLoading ? 'Sending...' : 'Send Appointment'}
             </button>
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderIntakeFormModal = () => {
+    if (!viewingIntakeForm) return null;
+
+    const isCompletedIntake = viewingIntakeForm.status === 'completed_intake';
+    const isPendingIntake = viewingIntakeForm.status === 'pending_intake';
+    const showBothForms = isPendingIntake || isCompletedIntake;
+
+    return (
+      <div
+        className='nv-modal-overlay'
+        onClick={() => { if (!intakeActionLoading) setViewingIntakeForm(null); }}
+      >
+        <div className='nv-modal' onClick={(e) => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className='nv-modal-head'>
+            <div className='nv-modal-head-main'>
+              <p className='nv-modal-eyebrow'>Lead Information</p>
+              <h2 className='nv-modal-title'>{viewingIntakeForm.name || 'Untitled'}</h2>
+              <div className='nv-modal-meta'>
+                <span className='nv-chip'>
+                  <span className='nv-chip-dot' />
+                  {viewingIntakeForm.status ? String(viewingIntakeForm.status).replace(/_/g, ' ') : 'Unknown'}
+                </span>
+              </div>
+            </div>
+            <button
+              className='nv-modal-close'
+              onClick={() => { if (!intakeActionLoading) setViewingIntakeForm(null); }}
+              disabled={intakeActionLoading}
+              aria-label='Close'
+            >
+              ×
+            </button>
+          </div>
+
+          <div className='nv-modal-body'>
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>Lead Details</h3>
+              <div style={{ fontSize: '12px', lineHeight: '1.8' }}>
+                <div><strong>Name:</strong> {viewingIntakeForm.name}</div>
+                <div><strong>Email:</strong> {viewingIntakeForm.client_email}</div>
+                <div><strong>Responsible:</strong> {viewingIntakeForm.personResponsible || 'Unassigned'}</div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>Forms</h3>
+
+              <div style={{ marginBottom: '16px', padding: '12px', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Initial Outreach Form</div>
+                <button
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    background: '#f5f5f5',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                  disabled
+                >
+                  View Form
+                </button>
+              </div>
+
+              {showBothForms ? (
+                <div style={{ padding: '12px', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Intake Form</div>
+                  <button
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      background: '#f5f5f5',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}
+                    disabled
+                  >
+                    View Form
+                  </button>
+                </div>
+              ) : (
+                <div style={{ padding: '12px', border: '1px dashed #ddd', borderRadius: '4px', background: '#fafafa', color: '#999', fontSize: '12px' }}>
+                  Intake form will be available after appointment is scheduled
+                </div>
+              )}
+            </div>
+          </div>
+
+          {isCompletedIntake && (
+            <div className='nv-modal-actions'>
+              <button
+                className='nv-btn-edit'
+                onClick={() => console.log('Edit - disabled')}
+                disabled
+              >
+                Edit
+              </button>
+              <button
+                className='nv-btn-view'
+                onClick={() => console.log('Send Back - disabled')}
+                disabled
+              >
+                Send Back
+              </button>
+              <button
+                className='nv-btn-qualify'
+                onClick={() => console.log('Populate Matter - disabled')}
+                disabled
+              >
+                Populate Matter
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1483,8 +1606,7 @@ export default function DashboardV2() {
                             <button
                               type='button'
                               className='nv-btn-view'
-                              onClick={() => console.log('View - disabled')}
-                              disabled
+                              onClick={() => setViewingIntakeForm(form)}
                             >
                               View
                             </button>
@@ -1530,8 +1652,7 @@ export default function DashboardV2() {
                             <button
                               type='button'
                               className='nv-btn-view'
-                              onClick={() => console.log('View - disabled')}
-                              disabled
+                              onClick={() => setViewingIntakeForm(form)}
                             >
                               View
                             </button>
@@ -1571,8 +1692,7 @@ export default function DashboardV2() {
                             <button
                               type='button'
                               className='nv-btn-view'
-                              onClick={() => console.log('View - disabled')}
-                              disabled
+                              onClick={() => setViewingIntakeForm(form)}
                             >
                               View
                             </button>
@@ -1647,6 +1767,9 @@ export default function DashboardV2() {
 
         {/* Lead Detail Modal */}
         {renderLeadDetailModal()}
+
+        {/* Intake Form Modal */}
+        {renderIntakeFormModal()}
 
         {/* Screening Form Modal */}
         {showScreeningModal && (
