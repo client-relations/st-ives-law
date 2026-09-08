@@ -405,6 +405,7 @@ async function loadExistingData() {
 }
 
 function showSummary(lead) {
+  document.getElementById('loading-spinner').style.display = 'none';
   formEl.classList.add('hidden');
   document.getElementById('result-wrap').style.display = 'block';
   const summaryHtml = buildSummaryHtml(lead);
