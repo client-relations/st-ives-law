@@ -1,34 +1,30 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Try both VITE_ and plain names
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-
-console.log('Supabase URL:', supabaseUrl ? 'SET' : 'MISSING');
-console.log('Supabase Key:', supabaseKey ? 'SET' : 'MISSING');
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase credentials in environment variables');
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { lead_id, form_data, form_type } = req.body;
+    // Check env vars
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
-    console.log('Received submission:', { lead_id, form_type, dataKeys: Object.keys(form_data || {}) });
-
-    if (!lead_id || !form_data) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!supabaseUrl) {
+      return res.status(500).json({ error: 'SUPABASE_URL not set' });
+    }
+    if (!supabaseKey) {
+      return res.status(500).json({ error: 'SUPABASE_ANON_KEY not set' });
     }
 
-    // Get the form record
-    console.log('Fetching form:', lead_id);
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { lead_id, form_data, form_type } = req.body;
+
+    if (!lead_id || !form_data) {
+      return res.status(400).json({ error: 'Missing lead_id or form_data' });
+    }
+
+    // Fetch form
     const { data: form, error: fetchError } = await supabase
       .from('forms')
       .select('*')
@@ -36,17 +32,15 @@ export default async function handler(req, res) {
       .single();
 
     if (fetchError) {
-      console.error('Fetch error:', fetchError);
       return res.status(404).json({ error: 'Form not found', details: fetchError.message });
     }
 
-    if (!form) {
-      return res.status(404).json({ error: 'Form not found' });
-    }
+    // Parse form_data
+    const parsedFormData = typeof form.form_data === 'string'
+      ? JSON.parse(form.form_data || '{}')
+      : (form.form_data || {});
 
-    console.log('Form found, current status:', form.status);
-
-    // Determine new status based on form type
+    // Determine new status
     let newStatus = form.status;
     if (form_type === 'inquiry' && form.status === 'appointment_sent') {
       newStatus = 'scheduled';
@@ -54,14 +48,7 @@ export default async function handler(req, res) {
       newStatus = 'completed_intake';
     }
 
-    console.log('Updating form, new status:', newStatus);
-
-    // Parse form_data if it's a string
-    const parsedFormData = typeof form.form_data === 'string'
-      ? JSON.parse(form.form_data || '{}')
-      : (form.form_data || {});
-
-    // Update form_data in the forms table
+    // Update
     const { error: updateError } = await supabase
       .from('forms')
       .update({
@@ -75,18 +62,15 @@ export default async function handler(req, res) {
       .eq('id', lead_id);
 
     if (updateError) {
-      console.error('Update error:', updateError);
-      return res.status(500).json({ error: 'Failed to save form data', details: updateError.message });
+      return res.status(500).json({ error: 'Update failed', details: updateError.message });
     }
 
-    console.log('Form updated successfully');
     return res.status(200).json({
       success: true,
       message: 'Form submitted successfully',
       lead_id,
     });
   } catch (error) {
-    console.error('Submit error:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Server error', details: error.message, stack: error.stack });
   }
 }
