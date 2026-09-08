@@ -409,10 +409,10 @@ async function loadExistingData() {
 
 function showSummary(lead) {
   document.getElementById('loading-spinner').style.display = 'none';
-  formEl.classList.add('hidden');
-  document.getElementById('result-wrap').style.display = 'block';
+  document.querySelector('.card').style.display = 'none';
+  const resultWrap = document.getElementById('result-wrap');
   const summaryHtml = buildSummaryHtml(lead);
-  document.getElementById('result-wrap').innerHTML = `
+  resultWrap.innerHTML = `
     <div style="margin-top: 1.5rem;">
       <h2 style="font-size: 1.3rem; margin-bottom: 1.5rem; color: #2f4858;">Inquiry Summary</h2>
       ${summaryHtml}
@@ -421,7 +421,8 @@ function showSummary(lead) {
       </div>
     </div>
   `;
-  document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth' });
+  resultWrap.style.display = 'block';
+  resultWrap.scrollIntoView({ behavior: 'smooth' });
 }
 
 function render(){
