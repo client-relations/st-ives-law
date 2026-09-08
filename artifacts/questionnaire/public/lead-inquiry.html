@@ -483,7 +483,7 @@ function validateStep(stepEl){
   return ok;
 }
 
-function showEnding(reason){
+async function showEnding(reason){
   const name = (document.querySelector('input[name=client_name]') || {}).value || '';
   document.getElementById('ending-body').textContent =
     reason === 'Someone has died'
@@ -491,6 +491,27 @@ function showEnding(reason){
       : reason === 'A concern about a will or estate'
       ? `Thanks${name ? ', ' + name : ''}. Concerns about a will or estate are handled case by case, so we won't ask you anything further here.`
       : `Thanks${name ? ', ' + name : ''}. It sounds like a quick conversation will help more than a form right now.`;
+
+  // Save partial form data (Q1-Q2) before showing ending
+  const params = new URLSearchParams(window.location.search);
+  const lead_id = params.get('lead_id');
+  if (lead_id) {
+    const data = collectData();
+    try {
+      await fetch('/api/submit-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lead_id,
+          form_data: data,
+          form_type: 'inquiry',
+        }),
+      });
+    } catch (error) {
+      console.error('Error saving partial form:', error);
+    }
+  }
+
   formEl.classList.add('hidden');
   endingWrap.style.display = 'block';
 }
