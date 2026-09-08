@@ -1034,13 +1034,14 @@ export default function DashboardV2() {
                     ? <div className='nv-panel-empty'>No pending leads</div>
                     : pendingLeads.map(lead => (
                       <div key={lead.id} className='nv-panel-item' style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p className='nv-panel-item-name'>{lead.name}</p>
                           <p className='nv-panel-item-meta'>{lead.email}</p>
-                          <div className='nv-panel-item-row' style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                            <p className='nv-panel-item-meta'>{lead.personResponsible || 'Unassigned'}</p>
-                            {lead.region && <span className='nv-chip'><span className='nv-chip-dot' />{lead.region}</span>}
-                          </div>
+                          <p className='nv-panel-item-meta'>{lead.personResponsible || 'Unassigned'}</p>
+                        </div>
+                        <div style={{ minWidth: '80px', textAlign: 'center' }}>
+                          {lead.region && <span className='nv-chip'><span className='nv-chip-dot' />{lead.region}</span>}
                         </div>
                         <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                           <button
@@ -1061,6 +1062,7 @@ export default function DashboardV2() {
                             Delete
                           </button>
                         </div>
+                      </div>
                       </div>
                     ))}
                 </div>
