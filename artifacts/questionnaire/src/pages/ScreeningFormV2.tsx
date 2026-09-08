@@ -3,8 +3,7 @@ import { supabase } from '../lib/supabase';
 
 type ContactType = 'person' | 'firm';
 
-const LAWYERS = ['Colin Long', 'Emma Mathieson', 'Katrina Elizabeth Brown', 'Sarah Tait', 'Tyler Smith', 'Vicki Baker'];
-const REFERRAL_TYPES = ['None', 'Accountant', 'Barrister', 'Builder', 'Developer', 'Direct', "Doyle's Guide", 'Existing Client', 'Facebook', 'Financial Institution', 'Financial Planner', 'Flyer', 'Friend', 'Google', 'Instagram', 'Lead generator', 'LinkedIn', 'Mortgage Broker', 'Networking Group', 'Newspaper', 'Other', 'Previous Client', "Purchaser's Advocate", 'Radio', 'Real Estate Agent', 'Social Media', 'Solicitor', 'Staff Member', 'Surveyor', "Vendor's Advocate", 'Walk-in', 'Web', 'Word of Mouth', 'Yellow Pages'];
+const LAWYERS = ['John Smith', 'Emma Taylor', 'Michael Brown'];
 const BILLING_TYPES = ['Fixed Fee', 'Fixed Fee Per Appearance', 'Time Based', 'Contingency ($)', 'Contingency (%)', 'Not Billable'];
 const REGIONS = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'];
 
@@ -15,7 +14,7 @@ export interface ScreeningFormV2Props {
 }
 
 export default function ScreeningFormV2({ lawyerId, onSubmit, onClose }: ScreeningFormV2Props) {
-  const [contactType, setContactType] = useState<ContactType | null>(null);
+  const [contactType, setContactType] = useState<ContactType>('person');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
@@ -28,7 +27,6 @@ export default function ScreeningFormV2({ lawyerId, onSubmit, onClose }: Screeni
     leadType: '',
     region: '',
     personResponsible: '',
-    referralType: '',
     billingType: '',
   });
 
@@ -120,7 +118,6 @@ export default function ScreeningFormV2({ lawyerId, onSubmit, onClose }: Screeni
           lead_type: personData.leadType,
           region: personData.region,
           person_responsible: personData.personResponsible,
-          referral_type: personData.referralType,
           billing_type: personData.billingType,
           status: 'pending',
           created_at: new Date().toISOString(),
@@ -271,7 +268,6 @@ export default function ScreeningFormV2({ lawyerId, onSubmit, onClose }: Screeni
         {renderField('Lead Type', renderTextInput(leadType, (v) => setLead('leadType', v), 'e.g. Estate Planning, Family Law'))}
         {renderField('Region (Australia)', renderSelect(region, (v) => setLead('region', v), REGIONS))}
         {renderField('Person Responsible', renderSelect(personResponsible, (v) => setLead('personResponsible', v), LAWYERS))}
-        {renderField('Referral Type', renderSelect(referralType, (v) => setLead('referralType', v), REFERRAL_TYPES))}
         {renderField('Billing Type', renderSelect(billingType, (v) => setLead('billingType', v), BILLING_TYPES))}
       </section>
     );
@@ -368,35 +364,31 @@ export default function ScreeningFormV2({ lawyerId, onSubmit, onClose }: Screeni
         <p>{introSub}</p>
       </div>
 
-      {!contactType
-        ? renderTypeSelect()
-        : (
-          <form
-            className='nv-screen-form'
-            onSubmit={contactType === 'person' ? handlePersonSubmit : handleFirmSubmit}>
-            {error
-              ? <div className='nv-screen-error'>{error}</div>
-              : null}
+      <form
+        className='nv-screen-form'
+        onSubmit={handlePersonSubmit}>
+        {error
+          ? <div className='nv-screen-error'>{error}</div>
+          : null}
 
-            {contactType === 'person' ? renderPersonFields() : renderFirmFields()}
-            {renderLeadDetails()}
+        {renderPersonFields()}
+        {renderLeadDetails()}
 
-            <div className='nv-screen-actions'>
-              <button
-                type='button'
-                className='nv-screen-btn-back'
-                onClick={() => { setContactType(null); setError(''); }}>
-                Back
-              </button>
-              <button
-                type='submit'
-                className='nv-screen-btn-submit'
-                disabled={submitting}>
-                {submitting ? 'Submitting...' : 'Submit'}
-              </button>
-            </div>
-          </form>
-        )}
+        <div className='nv-screen-actions'>
+          <button
+            type='button'
+            className='nv-screen-btn-back'
+            onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type='submit'
+            className='nv-screen-btn-submit'
+            disabled={submitting}>
+            {submitting ? 'Submitting...' : 'Submit'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

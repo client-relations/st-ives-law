@@ -1037,7 +1037,7 @@ export default function DashboardV2() {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p className='nv-panel-item-name'>{lead.name}</p>
                           <p className='nv-panel-item-meta'>{lead.email}</p>
-                          <div className='nv-panel-item-row'>
+                          <div className='nv-panel-item-row' style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                             <p className='nv-panel-item-meta'>{lead.personResponsible || 'Unassigned'}</p>
                             {lead.region && <span className='nv-chip'><span className='nv-chip-dot' />{lead.region}</span>}
                           </div>
