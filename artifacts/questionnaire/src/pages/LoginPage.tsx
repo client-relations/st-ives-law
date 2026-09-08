@@ -93,8 +93,8 @@ export default function LoginPage() {
         width: '100%',
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
       }}>
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <img src="/logo.png" alt="St Ives Law" style={{ height: '60px', width: 'auto', marginBottom: '16px', maxWidth: '100%' }} />
+        <div style={{ textAlign: 'center', marginBottom: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <img src="/logo.png" alt="St Ives Law" style={{ height: '80px', width: 'auto', marginBottom: '16px', maxWidth: '100%', objectFit: 'contain' }} />
           <div style={{ fontSize: '12px', color: C.textL }}>
             Lawyer Dashboard Login
           </div>
