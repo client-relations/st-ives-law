@@ -914,12 +914,34 @@ export default function DashboardV2() {
                   {pendingLeads.length === 0
                     ? <div className='nv-panel-empty'>No pending leads</div>
                     : pendingLeads.map(lead => (
-                      <div key={lead.id} className='nv-panel-item'>
-                        <p className='nv-panel-item-name'>{lead.name}</p>
-                        <p className='nv-panel-item-meta'>{lead.email}</p>
-                        <div className='nv-panel-item-row'>
-                          <p className='nv-panel-item-meta'>{lead.personResponsible || 'Unassigned'}</p>
-                          {lead.region && <span className='nv-chip'><span className='nv-chip-dot' />{lead.region}</span>}
+                      <div key={lead.id} className='nv-panel-item' style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p className='nv-panel-item-name'>{lead.name}</p>
+                          <p className='nv-panel-item-meta'>{lead.email}</p>
+                          <div className='nv-panel-item-row'>
+                            <p className='nv-panel-item-meta'>{lead.personResponsible || 'Unassigned'}</p>
+                            {lead.region && <span className='nv-chip'><span className='nv-chip-dot' />{lead.region}</span>}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                          <button
+                            type='button'
+                            className='nv-btn-reject'
+                            onClick={() => handleRejectLead(lead.id)}
+                            disabled={leadActionLoading}
+                            style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                          >
+                            Disqualify
+                          </button>
+                          <button
+                            type='button'
+                            className='nv-btn-qualify'
+                            onClick={() => handleQualifyLead(lead.id)}
+                            disabled={leadActionLoading}
+                            style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                          >
+                            {leadActionLoading ? 'Sending...' : 'Send'}
+                          </button>
                         </div>
                       </div>
                     ))}
