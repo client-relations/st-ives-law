@@ -752,17 +752,19 @@ export default function DashboardV2() {
           <div className='nv-modal-actions'>
             <button
               className='nv-btn-reject'
-              onClick={() => console.log('Reject - disabled')}
-              disabled={true}
+              onClick={() => handleRejectLead(viewingLead.id)}
+              disabled={leadActionLoading}
+              title='Disqualify this lead'
             >
-              Reject
+              Disqualify
             </button>
             <button
               className='nv-btn-qualify'
-              onClick={() => console.log('Qualify - disabled')}
-              disabled={true}
+              onClick={() => handleQualifyLead(viewingLead.id)}
+              disabled={leadActionLoading}
+              title='Send appointment and move to next stage'
             >
-              Qualify
+              {leadActionLoading ? 'Sending...' : 'Send Appointment'}
             </button>
           </div>
         </div>
@@ -825,7 +827,6 @@ export default function DashboardV2() {
             { id: 'overview', label: 'Overview' },
             { id: 'pending-leads', label: 'Pending Leads' },
             { id: 'qualified-leads', label: 'Qualified Leads' },
-            { id: 'completed-forms', label: 'Completed' },
           ].map(item => (
             <button
               key={item.id}
@@ -1429,45 +1430,6 @@ export default function DashboardV2() {
               <div className='nv-kanban-track'>
                 <section className='nv-kanban-col'>
                   <div className='nv-kanban-col-head'>
-                    <h3 className='nv-kanban-col-title'>To send appointment</h3>
-                    <span className='nv-kanban-col-count'>{sentForms.length}</span>
-                  </div>
-                  <div className='nv-kanban-col-body'>
-                    {sentForms.length === 0
-                      ? <div className='nv-kanban-empty'>No sent forms</div>
-                      : sentForms.map(form => (
-                        <div key={form.id} className='nv-pipe-card'>
-                          <h4 className='nv-pipe-name'>{form.name}</h4>
-                          <p className='nv-pipe-email'>{form.client_email || '—'}</p>
-                          <div className='nv-pipe-meta'>
-                            <span className='nv-chip'>
-                              <span className='nv-chip-dot' />
-                              {form.personResponsible || 'Unassigned'}
-                            </span>
-                          </div>
-                          <div className='nv-progress'>
-                            <div className='nv-progress-track'>
-                              <div className='nv-progress-fill' style={{ width: `${Math.min(100, form.progress || 0)}%` }} />
-                            </div>
-                            <span className='nv-progress-pct'>{form.progress || 0}%</span>
-                          </div>
-                          <div className='nv-pipe-actions'>
-                            <button
-                              type='button'
-                              className='nv-btn-edit'
-                              onClick={() => console.log('Send appointment - disabled')}
-                              disabled
-                            >
-                              Send
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </section>
-
-                <section className='nv-kanban-col'>
-                  <div className='nv-kanban-col-head'>
                     <h3 className='nv-kanban-col-title'>Appointment Sent</h3>
                     <span className='nv-kanban-col-count'>{openedForms.length}</span>
                   </div>
@@ -1489,6 +1451,24 @@ export default function DashboardV2() {
                               <div className='nv-progress-fill' style={{ width: `${Math.min(100, form.progress || 0)}%` }} />
                             </div>
                             <span className='nv-progress-pct'>{form.progress || 0}%</span>
+                          </div>
+                          <div className='nv-pipe-actions'>
+                            <button
+                              type='button'
+                              className='nv-btn-view'
+                              onClick={() => console.log('View - disabled')}
+                              disabled
+                            >
+                              View
+                            </button>
+                            <button
+                              type='button'
+                              className='nv-btn-delete'
+                              onClick={() => console.log('Delete - disabled')}
+                              disabled
+                            >
+                              Delete
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -1549,7 +1529,7 @@ export default function DashboardV2() {
                   </div>
                   <div className='nv-kanban-col-body'>
                     {trulyCompletedForms.length === 0
-                      ? <div className='nv-kanban-empty'>No completed forms</div>
+                      ? <div className='nv-kanban-empty'>No pending forms</div>
                       : trulyCompletedForms.map(form => (
                         <div key={form.id} className='nv-pipe-card'>
                           <h4 className='nv-pipe-name'>{form.name}</h4>
@@ -1564,18 +1544,18 @@ export default function DashboardV2() {
                             <button
                               type='button'
                               className='nv-btn-view'
-                              onClick={() => console.log('View button - will redirect to new questionnaire')}
+                              onClick={() => console.log('View - disabled')}
                               disabled
                             >
                               View
                             </button>
                             <button
                               type='button'
-                              className='nv-btn-edit'
-                              onClick={() => console.log('Follow up - disabled')}
+                              className='nv-btn-delete'
+                              onClick={() => console.log('Delete - disabled')}
                               disabled
                             >
-                              Follow up
+                              Delete
                             </button>
                           </div>
                         </div>
@@ -1590,7 +1570,7 @@ export default function DashboardV2() {
                   </div>
                   <div className='nv-kanban-col-body'>
                     {submittedForms.length === 0
-                      ? <div className='nv-kanban-empty'>None submitted yet</div>
+                      ? <div className='nv-kanban-empty'>None completed yet</div>
                       : submittedForms.map(form => (
                         <div key={form.id} className='nv-pipe-card'>
                           <h4 className='nv-pipe-name'>{form.name}</h4>
@@ -1604,19 +1584,27 @@ export default function DashboardV2() {
                           <div className='nv-pipe-actions'>
                             <button
                               type='button'
-                              className='nv-btn-view'
-                              onClick={() => console.log('View button - will redirect to new questionnaire')}
+                              className='nv-btn-edit'
+                              onClick={() => console.log('Edit - disabled')}
                               disabled
                             >
-                              View
+                              Edit
                             </button>
                             <button
                               type='button'
-                              className='nv-btn-edit'
-                              onClick={() => console.log('Verified - disabled')}
+                              className='nv-btn-view'
+                              onClick={() => console.log('Send Back - disabled')}
                               disabled
                             >
-                              Verified
+                              Send Back
+                            </button>
+                            <button
+                              type='button'
+                              className='nv-btn-qualify'
+                              onClick={() => console.log('Populate Matter - disabled')}
+                              disabled
+                            >
+                              Populate Matter
                             </button>
                           </div>
                         </div>
