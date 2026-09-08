@@ -56,9 +56,11 @@ export async function qualifyLead(screeningId: string, personResponsible: string
 
     if (formError) throw formError;
 
+    const formRecord = formData?.[0];
+    if (!formRecord) throw new Error('Failed to create form record');
+
     // WEBHOOK DISABLED - will re-enable with new Supabase
     // Trigger webhook to send form to client
-    const formRecord = formData?.[0];
     if (formRecord) {
       try {
         // const response = await fetch(SEND_FORM_EMAIL_WEBHOOK, {
@@ -69,7 +71,7 @@ export async function qualifyLead(screeningId: string, personResponsible: string
         //     client_name: formRecord.client_name,
         //     client_email: formRecord.client_email,
         //     lead_type: formRecord.lead_type,
-        //     form_link: `${window.location.origin}/?uniqueLink=${formRecord.unique_link}`,
+        //     form_link: `${window.location.origin}/lead-inquiry?lead_id=${formRecord.id}`,
         //   }),
         // });
         // if (!response.ok) {
@@ -87,10 +89,10 @@ export async function qualifyLead(screeningId: string, personResponsible: string
       .eq('id', screeningId);
 
     if (updateError) throw updateError;
-    return true;
+    return formRecord.id;
   } catch (err) {
     console.error('Error qualifying lead:', err);
-    return false;
+    return null;
   }
 }
 

@@ -777,24 +777,58 @@ function buildFlagsSummary(lead, mapped){
   return lines.join('\n');
 }
 
-function submitForm(){
+async function submitForm(){
   const lead = collectData();
   const mapped = mapLeadToWillData(lead);
   const willText = buildFlagsSummary(lead, mapped) + '\n\n' + generateWillText(mapped);
 
-  document.getElementById('will-doc').textContent = willText;
-  document.getElementById('json-payload').textContent = JSON.stringify(lead, null, 2);
-  formEl.classList.add('hidden');
-  document.getElementById('result-wrap').style.display = 'block';
-  document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth' });
+  // Get lead_id from URL if available
+  const params = new URLSearchParams(window.location.search);
+  const lead_id = params.get('lead_id');
 
-  document.getElementById('download-btn').onclick = () => {
-    const blob = new Blob([willText], { type: 'text/plain' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = (lead.client_name || 'draft-will').replace(/\s+/g,'_') + '_draft_will.txt';
-    a.click();
-  };
+  if (lead_id) {
+    // Submit to API endpoint
+    try {
+      const response = await fetch('/api/submit-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lead_id,
+          form_data: lead,
+          form_type: 'inquiry',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit form');
+      }
+
+      // Show success
+      formEl.classList.add('hidden');
+      document.getElementById('result-wrap').style.display = 'none';
+      endingWrap.style.display = 'block';
+      document.getElementById('ending-title').textContent = 'Form submitted successfully!';
+      document.getElementById('ending-body').textContent = 'Thank you for completing the inquiry form. We\'ll review your answers and contact you shortly.';
+      endingWrap.scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+      alert('Error submitting form: ' + error.message);
+    }
+  } else {
+    // Demo mode - show will draft
+    document.getElementById('will-doc').textContent = willText;
+    document.getElementById('json-payload').textContent = JSON.stringify(lead, null, 2);
+    formEl.classList.add('hidden');
+    document.getElementById('result-wrap').style.display = 'block';
+    document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth' });
+
+    document.getElementById('download-btn').onclick = () => {
+      const blob = new Blob([willText], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (lead.client_name || 'draft-will').replace(/\s+/g,'_') + '_draft_will.txt';
+      a.click();
+    };
+  }
 }
 </script>
 </body>

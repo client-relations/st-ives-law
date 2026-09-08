@@ -607,9 +607,12 @@ export default function DashboardV2() {
     setLeadActionLoading(true);
     const personResponsible = viewingLead?.personResponsible || viewingLead?.person_responsible;
     if (personResponsible) {
-      if (await qualifyLead(leadId, personResponsible)) {
+      const formId = await qualifyLead(leadId, personResponsible);
+      if (formId) {
         await refreshData();
         setViewingLead(null);
+        // Open form in new tab for viewing/testing
+        window.open(`/lead-inquiry?lead_id=${formId}`, '_blank');
       }
     } else {
       console.error('No person_responsible assigned to this lead');
@@ -829,12 +832,13 @@ export default function DashboardV2() {
                   style={{
                     padding: '6px 12px',
                     fontSize: '12px',
-                    background: '#f5f5f5',
-                    border: '1px solid #ddd',
+                    background: '#4a8fa0',
+                    color: 'white',
+                    border: 'none',
                     borderRadius: '4px',
                     cursor: 'pointer',
                   }}
-                  disabled
+                  onClick={() => window.open(`/lead-inquiry?lead_id=${viewingIntakeForm.id}`, '_blank')}
                 >
                   View Form
                 </button>
@@ -847,12 +851,13 @@ export default function DashboardV2() {
                     style={{
                       padding: '6px 12px',
                       fontSize: '12px',
-                      background: '#f5f5f5',
-                      border: '1px solid #ddd',
+                      background: '#4a8fa0',
+                      color: 'white',
+                      border: 'none',
                       borderRadius: '4px',
                       cursor: 'pointer',
                     }}
-                    disabled
+                    onClick={() => window.open(`/intake-form?lead_id=${viewingIntakeForm.id}`, '_blank')}
                   >
                     View Form
                   </button>
