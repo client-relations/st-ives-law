@@ -1,0 +1,96 @@
+You are working on an estate planning questionnaire app at https://estate-planning-tool--jai99.replit.app. Review all existing code thoroughly before making any changes. Here is a complete list of bugs to fix, content changes to make, and new features to add:
+
+---
+
+## BUGS TO FIX
+
+### 1. Shared radio button state (Client 2 Parents + Health Attorney 2)
+Radio buttons for Client 2's father/mother living status and Health Attorney 2's "Has this person agreed to act?" cannot be selected independently — they share state with Client 1's equivalents, or don't respond until another field is interacted with. Fix so each set of radio buttons has unique name attributes and independent state.
+
+### 2. Guardians for Minor Children section blocks form progression
+The "Guardians for Minor Children" section is showing up and throwing required-field validation errors even when the client has no minor children. This section must ONLY appear if at least one child entered has been marked as a minor (under 18). If no minor children exist, skip this section entirely and do not validate it.
+
+### 3. Health Attorney 2 radio buttons unresponsive
+The Yes / No / "Not yet asked" radio buttons under Health Attorney 2 cannot be selected. Likely same root cause as Bug 1 — fix unique name/id attributes.
+
+### 4. Cascading checkboxes/dropdowns not triggering
+In the Beneficiary Profiles section, if one beneficiary's Financial Maturity dropdown is filled, the cascading options for subsequent beneficiaries do not activate. Fix so each beneficiary card's dropdowns and any cascading logic operate independently.
+
+---
+
+## CONTENT & LABEL CHANGES
+
+### 5. Remove ALL mandatory field validation
+Remove the required attribute and all asterisk (*) indicators from every field in the form. No field should block progression or show a required-field error. Fields should be optional throughout.
+
+### 6. Add partner/spouse name field
+In the personal details / relationship section, after "Relationship Status", add a text field: "Full name of partner/spouse (if applicable)".
+
+### 7. Children section — shared vs separate logic
+Add a question at the start of the children section: "Do Client 1 and Client 2 have the same children?" 
+- If Yes → show one shared set of child questions
+- If No → show "Children of Client 1" and "Children of Client 2" as separate subsections, each with their own child entry fields
+
+### 8. Primary Distribution scenario text
+Replace the current short placeholder text in the Primary Distribution scenario info box with:
+"This is your first choice. For example, if you have a spouse, and you are making a provision where that spouse survives you – this 'Primary Distribution' applies if that spouse survives you. In the next section we will discuss what happens if your preferred beneficiary (for example, your spouse), does not survive you."
+
+### 9. Contingency Distribution scenario text
+Replace the current short placeholder text in the Contingency Distribution scenario info box with:
+"This is your back up choice, if all of the persons you wished to make provision for in the Primary Distribution did not survive you. For example, if you wanted your estate to pass to your spouse in the Primary Distribution, but if they did not survive, then to your children – then in this scenario, your children are the persons you will list as the residuary beneficiaries below."
+
+### 10. Remove "Yes — strongly recommended" from Testamentary Trust dropdowns
+In all beneficiary cards (both Primary and Contingency Distribution), the "Testamentary Trust?" field currently has "Yes — strongly recommended" as an option. Remove it. The only options should be: Yes, No, To discuss.
+
+### 11. Rename Testamentary Trust question
+Change the label "Testamentary Trust recommended?" to "Would you like protection for their inheritance in the form of a trust?" everywhere it appears.
+
+### 12. Replace Testamentary Trust description text
+The "What is a Testamentary Trust?" expandable box currently says: "A Testamentary Trust provides tax benefits (income splitting), asset protection, and can delay distributions to young or vulnerable beneficiaries."
+Replace with: "A Testamentary Trust is an estate planning tool in your Will which enables the inheritance of a person to be structured in a manner which can provide tax benefits, asset protection and third party managed distributions to young or vulnerable beneficiaries."
+
+### 13. Add "At risk occupation" to Financial Maturity options
+In the Financial Maturity dropdown/list in Beneficiary Profiles, add "At risk occupation" as one of the selectable options.
+
+### 14. Reword mortgage and loan questions
+- Change "Do you hold any mortgages?" to "Are you subject to any mortgages?"
+- Change "Do you hold any personal loans or credit cards?" to "Are you subject to debt by way of personal loans or credit cards?"
+
+---
+
+## NEW SECTIONS TO BUILD
+
+### 15. Companies section (inside Business & Insurance tab)
+Add a new "Companies" subsection. First ask: "How many companies do you have?" Then for each company, dynamically show:
+- Company name
+- Directors (repeatable name fields)
+- Shareholders (repeatable name fields)
+- What does the company do? (options: Investment, Trading, Trustee Company)
+- Net asset value of the company
+- Does the company have any debt? (Yes/No) → if Yes: text field "Please describe the debt"
+
+### 16. Trusts section (inside Business & Insurance tab)
+Add a new "Trusts" subsection. For each trust:
+- Name of the trust
+- Name of trustee (and whether trustee is a Company or Natural Person(s))
+- What does the trust do? (options: Investment, Trading)
+- Does the trust have any debt? (Yes/No) → if Yes: text field "Please describe the debt"
+
+### 17. SMSF section (inside Business & Insurance tab)
+Add a new "Self-Managed Super Fund (SMSF)" subsection. For each SMSF:
+- Name of the SMSF
+- Name of trustee (Company or Natural Person(s))
+- Number of members
+- Names of all members (repeatable)
+- Approximate total value of the SMSF
+- Does the SMSF have a limited recourse borrowing arrangement? (Yes/No) → if Yes:
+  - Over what asset?
+  - How much is the borrowing?
+  - Who is the lender?
+
+### 18. Document upload section
+Add a document upload section (can be at the end of the Business & Insurance tab or as a final step). Label: "Please upload any relevant documents". Accept: PDF, DOC, DOCX, images. Include a helper note: "Relevant documents may include trust deeds, company extracts, balance sheets, financial statements, and personal tax returns. You may also email these to us directly."
+
+---
+
+Make all changes cleanly, preserving the existing design system (colours, fonts, card styles, button styles). Do not break any currently working functionality. After completing all changes, summarise what was done.

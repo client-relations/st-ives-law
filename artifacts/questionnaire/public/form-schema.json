@@ -1,0 +1,2546 @@
+{
+  "form": "Nautilus Law Group — Estate Planning Questionnaire",
+  "generated": "2026-05-20",
+  "notes": [
+    "Fields marked conditional only appear when their condition is met.",
+    "Repeating sections document one instance; the section repeats N times based on user-entered count.",
+    "PersonList is a shared sub-component used for Executors, Guardians, Health Attorneys, and Financial Attorneys.",
+    "DistributionScenario is a shared sub-component used for all four distribution pages (C1/C2 × Primary/Contingency).",
+    "Couple-only pages (C2 Personal, C2 assets, C2 distributions, C2 executors, C2 EPA, etc.) are conditional on engType starting with 'Couple'.",
+    "Full-disclosure asset pages (Property, Financial, Super, Liabilities) are conditional on disclosureLevel = 'full'.",
+    "Summary page is conditional on disclosureLevel = 'summary'.",
+    "Guardians page is conditional on at least one child having a DOB less than 18 years ago.",
+    "Insurance detail pages are conditional on the corresponding c1HasIns / c2HasIns = 'Yes'."
+  ],
+  "sections": [
+
+    {
+      "id": "part_a_welcome",
+      "tab": "Part A",
+      "title": "Welcome",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "engType",
+          "label": "Engagement Type",
+          "type": "radio",
+          "options": ["Single Client", "Couple (Joint Matter)", "Couple (Separate Matters)"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "state",
+          "label": "State / Territory",
+          "type": "select",
+          "options": ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "referral",
+          "label": "How did you hear about us?",
+          "type": "select",
+          "options": [
+            "Previous Client", "Referral — Accountant", "Referral — Financial Planner",
+            "Referral — Solicitor", "Referral — Family/Friend", "Referral — Real Estate Agent",
+            "Google Search", "Website", "Social Media", "Other"
+          ],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "refFirst",
+          "label": "Referrer First Name",
+          "type": "text",
+          "options": null,
+          "conditional": "referral starts with 'Referral'",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "refLast",
+          "label": "Referrer Last Name",
+          "type": "text",
+          "options": null,
+          "conditional": "referral starts with 'Referral'",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "refFirm",
+          "label": "Referrer Firm / Organisation",
+          "type": "text",
+          "options": null,
+          "conditional": "referral starts with 'Referral'",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "refPhone",
+          "label": "Referrer Phone",
+          "type": "tel",
+          "options": null,
+          "conditional": "referral starts with 'Referral'",
+          "validation": "required when visible; 8–12 numeric digits (spaces/hyphens stripped)",
+          "placeholder": null
+        },
+        {
+          "id": "refEmail",
+          "label": "Referrer Email",
+          "type": "email",
+          "options": null,
+          "conditional": "referral starts with 'Referral'",
+          "validation": "required when visible; must contain @ and a domain",
+          "placeholder": null
+        },
+        {
+          "id": "contactPref",
+          "label": "Preferred contact method",
+          "type": "radio",
+          "options": ["Email", "Phone Call", "Video Call", "Post"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "urgent",
+          "label": "Is this matter urgent?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "urgentDetail",
+          "label": "Please describe the urgency",
+          "type": "textarea",
+          "options": null,
+          "conditional": "urgent = 'Yes'",
+          "validation": "required when visible",
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_a_c1_personal",
+      "tab": "Part A",
+      "title": "C1 — Personal Details",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "c1.salut",
+          "label": "Title",
+          "type": "select",
+          "options": ["Mr", "Mrs", "Ms", "Miss", "Dr", "Prof", "Rev", "Mx", "Other"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1.first",
+          "label": "First Name",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1.middle",
+          "label": "Middle Name",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "c1.last",
+          "label": "Last Name",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1.nick",
+          "label": "Preferred Name / Nickname",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "c1.dob",
+          "label": "Date of Birth",
+          "type": "date",
+          "options": null,
+          "conditional": null,
+          "validation": "required; must not be a future date; must not be more than 120 years in the past",
+          "placeholder": null
+        },
+        {
+          "id": "c1.pob",
+          "label": "Place of Birth",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1.gender",
+          "label": "Gender",
+          "type": "select",
+          "options": ["Male", "Female", "Non-binary", "Prefer not to say", "Other"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1.citizen",
+          "label": "Citizenship",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1.pr",
+          "label": "Permanent Resident of Australia?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1.email",
+          "label": "Email Address",
+          "type": "email",
+          "options": null,
+          "conditional": null,
+          "validation": "required; must contain @ and a domain",
+          "placeholder": null
+        },
+        {
+          "id": "c1.mobile",
+          "label": "Mobile Number",
+          "type": "tel",
+          "options": null,
+          "conditional": null,
+          "validation": "required; 8–12 numeric digits (spaces/hyphens stripped)",
+          "placeholder": null
+        },
+        {
+          "id": "c1.homePhone",
+          "label": "Home Phone",
+          "type": "tel",
+          "options": null,
+          "conditional": null,
+          "validation": "8–12 numeric digits (spaces/hyphens stripped) if provided",
+          "placeholder": null
+        },
+        {
+          "id": "c1.addr",
+          "label": "Residential Address",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1.postalSame",
+          "label": "Is postal address the same as residential?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1.postal",
+          "label": "Postal Address",
+          "type": "text",
+          "options": null,
+          "conditional": "c1.postalSame = 'No'",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "c1.occ",
+          "label": "Occupation",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": "Enter occupation, or 'Retired' / 'Student' if applicable"
+        },
+        {
+          "id": "c1.employer",
+          "label": "Employer or Business Name",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": "Enter employer, or 'Self-employed' / 'N/A'"
+        },
+        {
+          "id": "c1.relStatus",
+          "label": "Relationship Status",
+          "type": "select",
+          "options": ["Single", "Married", "De Facto", "Separated", "Divorced", "Widowed"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1.relDate",
+          "label": "Approximate date of relationship (if applicable)",
+          "type": "date",
+          "options": null,
+          "conditional": null,
+          "validation": "required; must not be a future date; must not be more than 120 years in the past",
+          "placeholder": null,
+          "sub": "Enter approximate date, or any past date if not in a relationship"
+        },
+        {
+          "id": "c1.partnerName",
+          "label": "Full name of partner/spouse (if applicable)",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "c1.priorRel",
+          "label": "Prior marriages or de facto relationships?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1.priorRelDetail",
+          "label": "Prior relationship details",
+          "type": "textarea",
+          "options": null,
+          "conditional": "c1.priorRel = 'Yes'",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "c1.priorRelChildren",
+          "label": "Are there children from a prior relationship?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": "c1.priorRel = 'Yes'",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "c1.religion",
+          "label": "Religious or cultural considerations",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": "Enter details, or type 'None' if not applicable"
+        },
+        {
+          "id": "c1.interpreter",
+          "label": "Interpreter required?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1.capacity",
+          "label": "Any concerns about legal capacity?",
+          "type": "radio",
+          "options": ["No — full capacity", "Some concerns", "Please discuss"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1.capacityDetail",
+          "label": "Capacity details",
+          "type": "textarea",
+          "options": null,
+          "conditional": "c1.capacity is not 'No — full capacity'",
+          "validation": "required when visible",
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_a_c2_personal",
+      "tab": "Part A",
+      "title": "C2 — Personal Details",
+      "conditional": "engType starts with 'Couple'",
+      "fields": [
+        {
+          "id": "c2.salut",
+          "label": "Title",
+          "type": "select",
+          "options": ["Mr", "Mrs", "Ms", "Miss", "Dr", "Prof", "Rev", "Mx", "Other"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c2.first",
+          "label": "First Name",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c2.middle",
+          "label": "Middle Name",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "c2.last",
+          "label": "Last Name",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c2.nick",
+          "label": "Preferred Name / Nickname",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "c2.dob",
+          "label": "Date of Birth",
+          "type": "date",
+          "options": null,
+          "conditional": null,
+          "validation": "required; must not be a future date; must not be more than 120 years in the past",
+          "placeholder": null
+        },
+        {
+          "id": "c2.pob",
+          "label": "Place of Birth",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c2.gender",
+          "label": "Gender",
+          "type": "select",
+          "options": ["Male", "Female", "Non-binary", "Prefer not to say", "Other"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c2.citizen",
+          "label": "Citizenship",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c2.pr",
+          "label": "Permanent Resident of Australia?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c2.email",
+          "label": "Email Address",
+          "type": "email",
+          "options": null,
+          "conditional": null,
+          "validation": "required; must contain @ and a domain",
+          "placeholder": null
+        },
+        {
+          "id": "c2.mobile",
+          "label": "Mobile Number",
+          "type": "tel",
+          "options": null,
+          "conditional": null,
+          "validation": "required; 8–12 numeric digits (spaces/hyphens stripped)",
+          "placeholder": null
+        },
+        {
+          "id": "c2.homePhone",
+          "label": "Home Phone",
+          "type": "tel",
+          "options": null,
+          "conditional": null,
+          "validation": "8–12 numeric digits if provided",
+          "placeholder": null
+        },
+        {
+          "id": "c2.addr",
+          "label": "Residential Address",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c2.postalSame",
+          "label": "Is postal address the same as residential?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c2.postal",
+          "label": "Postal Address",
+          "type": "text",
+          "options": null,
+          "conditional": "c2.postalSame = 'No'",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "c2.occ",
+          "label": "Occupation",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": "Enter occupation, or 'Retired' / 'Student' if applicable"
+        },
+        {
+          "id": "c2.employer",
+          "label": "Employer or Business Name",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": "Enter employer, or 'Self-employed' / 'N/A'"
+        },
+        {
+          "id": "c2.relStatus",
+          "label": "Relationship Status",
+          "type": "select",
+          "options": ["Single", "Married", "De Facto", "Separated", "Divorced", "Widowed"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c2.relDate",
+          "label": "Approximate date of relationship (if applicable)",
+          "type": "date",
+          "options": null,
+          "conditional": null,
+          "validation": "required; must not be a future date; must not be more than 120 years in the past",
+          "placeholder": null
+        },
+        {
+          "id": "c2.partnerName",
+          "label": "Full name of partner/spouse (if applicable)",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "c2.priorRel",
+          "label": "Prior marriages or de facto relationships?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c2.priorRelDetail",
+          "label": "Prior relationship details",
+          "type": "textarea",
+          "options": null,
+          "conditional": "c2.priorRel = 'Yes'",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "c2.priorRelChildren",
+          "label": "Are there children from a prior relationship?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": "c2.priorRel = 'Yes'",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "c2.religion",
+          "label": "Religious or cultural considerations",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": "Enter details, or type 'None' if not applicable"
+        },
+        {
+          "id": "c2.interpreter",
+          "label": "Interpreter required?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c2.capacity",
+          "label": "Any concerns about legal capacity?",
+          "type": "radio",
+          "options": ["No — full capacity", "Some concerns", "Please discuss"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c2.capacityDetail",
+          "label": "Capacity details",
+          "type": "textarea",
+          "options": null,
+          "conditional": "c2.capacity is not 'No — full capacity'",
+          "validation": "required when visible",
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_a_children",
+      "tab": "Part A",
+      "title": "Children & Dependants",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "hasChildren",
+          "label": "Do you have any children?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "sameChildren",
+          "label": "Do Client 1 and Client 2 have the same children?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": "isCouple and hasChildren = 'Yes'",
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "childJointCount",
+          "label": "Number of children",
+          "type": "number",
+          "options": null,
+          "conditional": "hasChildren = 'Yes' and (not isCouple or sameChildren = 'Yes')",
+          "validation": "min 0, max 20",
+          "placeholder": null
+        },
+        {
+          "id": "childJoint[n]",
+          "label": "Child N — repeating card",
+          "type": "repeating_group",
+          "repeats": "childJointCount times",
+          "conditional": "hasChildren = 'Yes' and (not isCouple or sameChildren = 'Yes')",
+          "fields": [
+            { "id": "salut",   "label": "Title",           "type": "select", "options": ["Mr", "Mrs", "Ms", "Miss", "Dr", "Prof", "Rev", "Mx", "Other"] },
+            { "id": "first",   "label": "First Name",      "type": "text",   "validation": "required" },
+            { "id": "middle",  "label": "Middle Name",     "type": "text" },
+            { "id": "last",    "label": "Last Name",       "type": "text",   "validation": "required" },
+            { "id": "dob",     "label": "Date of Birth",   "type": "date",   "validation": "must not be future; must not be >120 years past" },
+            { "id": "rel",     "label": "Relationship Type", "type": "select", "options": ["Biological", "Adopted", "Step-child", "Other"] },
+            { "id": "special", "label": "Special needs / disability", "type": "select", "options": ["None", "Physical", "Intellectual", "Mental Health", "Other"] }
+          ]
+        },
+        {
+          "id": "c1ChildrenCount",
+          "label": "Number of children (Client 1)",
+          "type": "number",
+          "options": null,
+          "conditional": "isCouple and sameChildren = 'No'",
+          "validation": "min 0, max 20",
+          "placeholder": null
+        },
+        {
+          "id": "c1Children[n]",
+          "label": "C1 Child N — repeating card (same fields as childJoint)",
+          "type": "repeating_group",
+          "repeats": "c1ChildrenCount times",
+          "conditional": "isCouple and sameChildren = 'No'",
+          "fields": [
+            { "id": "salut",   "label": "Title",             "type": "select", "options": ["Mr", "Mrs", "Ms", "Miss", "Dr", "Prof", "Rev", "Mx", "Other"] },
+            { "id": "first",   "label": "First Name",        "type": "text",   "validation": "required" },
+            { "id": "middle",  "label": "Middle Name",       "type": "text" },
+            { "id": "last",    "label": "Last Name",         "type": "text",   "validation": "required" },
+            { "id": "dob",     "label": "Date of Birth",     "type": "date",   "validation": "must not be future; must not be >120 years past" },
+            { "id": "rel",     "label": "Relationship Type", "type": "select", "options": ["Biological", "Adopted", "Step-child", "Other"] },
+            { "id": "special", "label": "Special needs / disability", "type": "select", "options": ["None", "Physical", "Intellectual", "Mental Health", "Other"] }
+          ]
+        },
+        {
+          "id": "c2ChildrenCount",
+          "label": "Number of children (Client 2)",
+          "type": "number",
+          "options": null,
+          "conditional": "isCouple and sameChildren = 'No'",
+          "validation": "min 0, max 20",
+          "placeholder": null
+        },
+        {
+          "id": "c2Children[n]",
+          "label": "C2 Child N — repeating card (same fields as c1Children)",
+          "type": "repeating_group",
+          "repeats": "c2ChildrenCount times",
+          "conditional": "isCouple and sameChildren = 'No'",
+          "fields": [
+            { "id": "salut",   "label": "Title",             "type": "select", "options": ["Mr", "Mrs", "Ms", "Miss", "Dr", "Prof", "Rev", "Mx", "Other"] },
+            { "id": "first",   "label": "First Name",        "type": "text",   "validation": "required" },
+            { "id": "middle",  "label": "Middle Name",       "type": "text" },
+            { "id": "last",    "label": "Last Name",         "type": "text",   "validation": "required" },
+            { "id": "dob",     "label": "Date of Birth",     "type": "date",   "validation": "must not be future; must not be >120 years past" },
+            { "id": "rel",     "label": "Relationship Type", "type": "select", "options": ["Biological", "Adopted", "Step-child", "Other"] },
+            { "id": "special", "label": "Special needs / disability", "type": "select", "options": ["None", "Physical", "Intellectual", "Mental Health", "Other"] }
+          ]
+        },
+        {
+          "id": "grandchildren",
+          "label": "Do you have or expect grandchildren?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": "hasChildren = 'Yes'",
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "grandchildrenDetail",
+          "label": "Grandchildren details",
+          "type": "textarea",
+          "options": null,
+          "conditional": "grandchildren = 'Yes'",
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "otherDependants",
+          "label": "Are there any other persons financially dependent on you?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "otherDependantsDetail",
+          "label": "Other dependant details",
+          "type": "textarea",
+          "options": null,
+          "conditional": "otherDependants = 'Yes'",
+          "validation": null,
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_a_family",
+      "tab": "Part A",
+      "title": "Family Background",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "c1FatherName",
+          "label": "Father's full name",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": "Enter name, or 'Unknown'"
+        },
+        {
+          "id": "c1FatherAlive",
+          "label": "Is father still living?",
+          "type": "radio",
+          "options": ["Yes", "No", "Unknown"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1MotherName",
+          "label": "Mother's full name (incl. maiden name)",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": "Enter name, or 'Unknown'"
+        },
+        {
+          "id": "c1MotherAlive",
+          "label": "Is mother still living?",
+          "type": "radio",
+          "options": ["Yes", "No", "Unknown"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c2FatherName",
+          "label": "Father's full name (Client 2)",
+          "type": "text",
+          "options": null,
+          "conditional": "isCouple",
+          "validation": "required when visible",
+          "placeholder": "Enter name, or 'Unknown'"
+        },
+        {
+          "id": "c2FatherAlive",
+          "label": "Is father still living? (Client 2)",
+          "type": "radio",
+          "options": ["Yes", "No", "Unknown"],
+          "conditional": "isCouple",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "c2MotherName",
+          "label": "Mother's full name (incl. maiden name) (Client 2)",
+          "type": "text",
+          "options": null,
+          "conditional": "isCouple",
+          "validation": "required when visible",
+          "placeholder": "Enter name, or 'Unknown'"
+        },
+        {
+          "id": "c2MotherAlive",
+          "label": "Is mother still living? (Client 2)",
+          "type": "radio",
+          "options": ["Yes", "No", "Unknown"],
+          "conditional": "isCouple",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "familyProvisionRisk",
+          "label": "Is there a risk of a family provision claim against your estate?",
+          "type": "radio",
+          "options": ["Yes", "No", "Unsure"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "familyProvisionDetail",
+          "label": "Please provide details",
+          "type": "textarea",
+          "options": null,
+          "conditional": "familyProvisionRisk = 'Yes'",
+          "validation": "required when visible",
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_a_disclosure",
+      "tab": "Part A",
+      "title": "Disclosure Preference",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "disclosureLevel",
+          "label": "Financial disclosure preference",
+          "type": "radio",
+          "options": [
+            "full — Full Disclosure: I will provide detailed asset and liability information",
+            "summary — Summary Only: I will provide approximate totals",
+            "discuss — Prefer to Discuss: I will bring this information to my appointment"
+          ],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_a_c1_property",
+      "tab": "Part A",
+      "title": "C1 — Property",
+      "conditional": "disclosureLevel = 'full'",
+      "fields": [
+        {
+          "id": "c1HasProperty",
+          "label": "Do you own any real property?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1PropCount",
+          "label": "Number of properties",
+          "type": "number",
+          "options": null,
+          "conditional": "c1HasProperty = 'Yes'",
+          "validation": "required; min 0, max 20",
+          "placeholder": null
+        },
+        {
+          "id": "c1Props[n]",
+          "label": "Property N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c1PropCount times",
+          "conditional": "c1HasProperty = 'Yes'",
+          "fields": [
+            { "id": "addr",      "label": "Property Address", "type": "text",   "validation": "required" },
+            { "id": "type",      "label": "Property Type",    "type": "select", "options": ["Residential Home", "Investment Property", "Vacant Land", "Commercial", "Rural", "Other"] },
+            { "id": "ownership", "label": "Ownership Type",   "type": "select", "options": ["Sole", "Joint Tenants", "Tenants in Common", "Other"] },
+            { "id": "estValue",  "label": "Estimated Value ($)", "type": "text" },
+            { "id": "year",      "label": "Year Acquired",    "type": "text" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_a_c1_financial",
+      "tab": "Part A",
+      "title": "C1 — Financial Assets",
+      "conditional": "disclosureLevel = 'full'",
+      "fields": [
+        {
+          "id": "c1HasBank",
+          "label": "Do you hold any bank accounts?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1BankCount",
+          "label": "Number of bank accounts",
+          "type": "number",
+          "options": null,
+          "conditional": "c1HasBank = 'Yes'",
+          "validation": "required; min 0, max 20",
+          "placeholder": null
+        },
+        {
+          "id": "c1Banks[n]",
+          "label": "Bank Account N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c1BankCount times",
+          "conditional": "c1HasBank = 'Yes'",
+          "fields": [
+            { "id": "institution", "label": "Institution",   "type": "text",   "validation": "required" },
+            { "id": "type",        "label": "Account Type",  "type": "select", "options": ["Savings", "Transaction/Cheque", "Term Deposit", "Offset", "Other"] },
+            { "id": "balance",     "label": "Balance ($)",   "type": "text",   "validation": "required" },
+            { "id": "ownership",   "label": "Ownership",     "type": "select", "options": ["Sole", "Joint"] }
+          ]
+        },
+        {
+          "id": "c1HasShares",
+          "label": "Do you hold any shares or investments?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1ShareCount",
+          "label": "Number of share portfolios / investment accounts",
+          "type": "number",
+          "options": null,
+          "conditional": "c1HasShares = 'Yes'",
+          "validation": "required; min 0, max 20",
+          "placeholder": null
+        },
+        {
+          "id": "c1Shares[n]",
+          "label": "Share Portfolio N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c1ShareCount times",
+          "conditional": "c1HasShares = 'Yes'",
+          "fields": [
+            { "id": "platform", "label": "Platform / Broker",     "type": "text", "validation": "required" },
+            { "id": "desc",     "label": "Description",            "type": "text", "validation": "required" },
+            { "id": "value",    "label": "Approximate Value ($)",  "type": "text", "validation": "required" }
+          ]
+        },
+        {
+          "id": "c1HasCrypto",
+          "label": "Do you hold any cryptocurrency?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1CryptoDetail",
+          "label": "Cryptocurrency details (type, platform, approx. value)",
+          "type": "textarea",
+          "options": null,
+          "conditional": "c1HasCrypto = 'Yes'",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "c1ForeignAssets",
+          "label": "Do you hold any foreign assets?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1ForeignDetail",
+          "label": "Foreign asset details (type, country, approx. value)",
+          "type": "textarea",
+          "options": null,
+          "conditional": "c1ForeignAssets = 'Yes'",
+          "validation": "required when visible",
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_a_c1_super",
+      "tab": "Part A",
+      "title": "C1 — Superannuation",
+      "conditional": "disclosureLevel = 'full'",
+      "fields": [
+        {
+          "id": "c1HasSuper",
+          "label": "Do you hold any superannuation?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1SuperCount",
+          "label": "Number of super funds",
+          "type": "number",
+          "options": null,
+          "conditional": "c1HasSuper = 'Yes'",
+          "validation": "required; min 0, max 20",
+          "placeholder": null
+        },
+        {
+          "id": "c1Supers[n]",
+          "label": "Super Fund N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c1SuperCount times",
+          "conditional": "c1HasSuper = 'Yes'",
+          "fields": [
+            { "id": "fundName", "label": "Fund Name",    "type": "text",   "validation": "required" },
+            { "id": "abn",      "label": "Fund ABN",     "type": "text",   "validation": "required" },
+            { "id": "balance",  "label": "Balance ($)",  "type": "text",   "validation": "required" },
+            { "id": "bdbn",     "label": "BDBN Status",  "type": "select", "options": ["Yes — Lapsing", "Yes — Non-Lapsing", "No", "Unsure"], "validation": "required" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_a_c1_liabilities",
+      "tab": "Part A",
+      "title": "C1 — Other Assets & Liabilities",
+      "conditional": "disclosureLevel = 'full'",
+      "fields": [
+        {
+          "id": "c1OtherAssetNotes",
+          "label": "Other assets (vehicles, jewellery, art, etc.) — describe or enter 'None'",
+          "type": "textarea",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": "Enter details, or type 'None' if not applicable"
+        },
+        {
+          "id": "c1HasMortgages",
+          "label": "Are you subject to any mortgages?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1MortCount",
+          "label": "Number of mortgages",
+          "type": "number",
+          "options": null,
+          "conditional": "c1HasMortgages = 'Yes'",
+          "validation": "required; min 0, max 20",
+          "placeholder": null
+        },
+        {
+          "id": "c1Morts[n]",
+          "label": "Mortgage N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c1MortCount times",
+          "conditional": "c1HasMortgages = 'Yes'",
+          "fields": [
+            { "id": "lender", "label": "Lender",             "type": "text",   "validation": "required" },
+            { "id": "prop",   "label": "Secured Property",   "type": "text",   "validation": "required" },
+            { "id": "balance","label": "Balance ($)",        "type": "text",   "validation": "required" },
+            { "id": "rate",   "label": "Rate Type",          "type": "select", "options": ["Fixed", "Variable", "Split", "Interest Only", "Other"] }
+          ]
+        },
+        {
+          "id": "c1HasLoans",
+          "label": "Are you subject to debt by way of personal loans or credit cards?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1LoanCount",
+          "label": "Number of loans / credit cards",
+          "type": "number",
+          "options": null,
+          "conditional": "c1HasLoans = 'Yes'",
+          "validation": "required; min 0, max 20",
+          "placeholder": null
+        },
+        {
+          "id": "c1Loans[n]",
+          "label": "Loan N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c1LoanCount times",
+          "conditional": "c1HasLoans = 'Yes'",
+          "fields": [
+            { "id": "lender",  "label": "Lender",     "type": "text",   "validation": "required" },
+            { "id": "type",    "label": "Type",        "type": "select", "options": ["Personal Loan", "Car Loan", "Credit Card", "Buy Now Pay Later", "Student Loan", "Other"] },
+            { "id": "balance", "label": "Balance ($)", "type": "text",   "validation": "required" }
+          ]
+        },
+        {
+          "id": "c1Guarantees",
+          "label": "Have you provided any personal guarantees?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1GuaranteeDetail",
+          "label": "Guarantee details",
+          "type": "textarea",
+          "options": null,
+          "conditional": "c1Guarantees = 'Yes'",
+          "validation": "required when visible",
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_a_c2_property",
+      "tab": "Part A",
+      "title": "C2 — Property",
+      "conditional": "isCouple and disclosureLevel = 'full'",
+      "fields": [
+        { "id": "c2HasProperty", "label": "Do you own any real property?", "type": "radio", "options": ["Yes", "No"], "conditional": null, "validation": "required", "placeholder": null },
+        { "id": "c2PropCount", "label": "Number of properties", "type": "number", "options": null, "conditional": "c2HasProperty = 'Yes'", "validation": "min 0, max 20", "placeholder": null },
+        {
+          "id": "c2Props[n]",
+          "label": "Property N — repeating card (same structure as C1 Properties)",
+          "type": "repeating_group",
+          "repeats": "c2PropCount times",
+          "conditional": "c2HasProperty = 'Yes'",
+          "fields": [
+            { "id": "addr",      "label": "Property Address",   "type": "text",   "validation": "required" },
+            { "id": "type",      "label": "Property Type",      "type": "select", "options": ["Residential Home", "Investment Property", "Vacant Land", "Commercial", "Rural", "Other"] },
+            { "id": "ownership", "label": "Ownership Type",     "type": "select", "options": ["Sole", "Joint Tenants", "Tenants in Common", "Other"] },
+            { "id": "estValue",  "label": "Estimated Value ($)", "type": "text" },
+            { "id": "year",      "label": "Year Acquired",       "type": "text" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_a_c2_financial",
+      "tab": "Part A",
+      "title": "C2 — Financial Assets",
+      "conditional": "isCouple and disclosureLevel = 'full'",
+      "fields": [
+        { "id": "c2HasBank", "label": "Do you hold any bank accounts?", "type": "radio", "options": ["Yes", "No"], "conditional": null, "validation": "required", "placeholder": null },
+        { "id": "c2BankCount", "label": "Number of bank accounts", "type": "number", "conditional": "c2HasBank = 'Yes'", "validation": "min 0, max 20", "placeholder": null },
+        {
+          "id": "c2Banks[n]",
+          "label": "Bank Account N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c2BankCount times",
+          "conditional": "c2HasBank = 'Yes'",
+          "fields": [
+            { "id": "institution", "label": "Institution",  "type": "text",   "validation": "required" },
+            { "id": "type",        "label": "Account Type", "type": "select", "options": ["Savings", "Transaction/Cheque", "Term Deposit", "Offset", "Other"] },
+            { "id": "balance",     "label": "Balance ($)",  "type": "text",   "validation": "required" },
+            { "id": "ownership",   "label": "Ownership",    "type": "select", "options": ["Sole", "Joint"] }
+          ]
+        },
+        { "id": "c2HasShares", "label": "Do you hold any shares or investments?", "type": "radio", "options": ["Yes", "No"], "conditional": null, "validation": "required", "placeholder": null },
+        { "id": "c2ShareCount", "label": "Number of share portfolios / investment accounts", "type": "number", "conditional": "c2HasShares = 'Yes'", "validation": "min 0, max 20", "placeholder": null },
+        {
+          "id": "c2Shares[n]",
+          "label": "Share Portfolio N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c2ShareCount times",
+          "conditional": "c2HasShares = 'Yes'",
+          "fields": [
+            { "id": "platform", "label": "Platform / Broker",    "type": "text", "validation": "required" },
+            { "id": "desc",     "label": "Description",           "type": "text", "validation": "required" },
+            { "id": "value",    "label": "Approximate Value ($)", "type": "text", "validation": "required" }
+          ]
+        },
+        { "id": "c2HasCrypto", "label": "Do you hold any cryptocurrency?", "type": "radio", "options": ["Yes", "No"], "conditional": null, "validation": "required", "placeholder": null },
+        { "id": "c2CryptoDetail", "label": "Cryptocurrency details", "type": "textarea", "conditional": "c2HasCrypto = 'Yes'", "validation": "required when visible", "placeholder": null },
+        { "id": "c2ForeignAssets", "label": "Do you hold any foreign assets?", "type": "radio", "options": ["Yes", "No"], "conditional": null, "validation": "required", "placeholder": null },
+        { "id": "c2ForeignDetail", "label": "Foreign asset details", "type": "textarea", "conditional": "c2ForeignAssets = 'Yes'", "validation": "required when visible", "placeholder": null }
+      ]
+    },
+
+    {
+      "id": "part_a_c2_super",
+      "tab": "Part A",
+      "title": "C2 — Superannuation",
+      "conditional": "isCouple and disclosureLevel = 'full'",
+      "fields": [
+        { "id": "c2HasSuper", "label": "Do you hold any superannuation?", "type": "radio", "options": ["Yes", "No"], "conditional": null, "validation": "required", "placeholder": null },
+        { "id": "c2SuperCount", "label": "Number of super funds", "type": "number", "conditional": "c2HasSuper = 'Yes'", "validation": "min 0, max 20", "placeholder": null },
+        {
+          "id": "c2Supers[n]",
+          "label": "Super Fund N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c2SuperCount times",
+          "conditional": "c2HasSuper = 'Yes'",
+          "fields": [
+            { "id": "fundName", "label": "Fund Name",   "type": "text",   "validation": "required" },
+            { "id": "abn",      "label": "Fund ABN",    "type": "text",   "validation": "required" },
+            { "id": "balance",  "label": "Balance ($)", "type": "text",   "validation": "required" },
+            { "id": "bdbn",     "label": "BDBN Status", "type": "select", "options": ["Yes — Lapsing", "Yes — Non-Lapsing", "No", "Unsure"] }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_a_c2_liabilities",
+      "tab": "Part A",
+      "title": "C2 — Other Assets & Liabilities",
+      "conditional": "isCouple and disclosureLevel = 'full'",
+      "fields": [
+        { "id": "c2OtherAssetNotes", "label": "Other assets (vehicles, jewellery, art, etc.) — describe or enter 'None'", "type": "textarea", "conditional": null, "validation": "required", "placeholder": "Enter details, or type 'None' if not applicable" },
+        { "id": "c2HasMortgages", "label": "Are you subject to any mortgages?", "type": "radio", "options": ["Yes", "No"], "conditional": null, "validation": "required", "placeholder": null },
+        { "id": "c2MortCount", "label": "Number of mortgages", "type": "number", "conditional": "c2HasMortgages = 'Yes'", "validation": "min 0, max 20", "placeholder": null },
+        {
+          "id": "c2Morts[n]",
+          "label": "Mortgage N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c2MortCount times",
+          "conditional": "c2HasMortgages = 'Yes'",
+          "fields": [
+            { "id": "lender",  "label": "Lender",           "type": "text",   "validation": "required" },
+            { "id": "prop",    "label": "Secured Property", "type": "text",   "validation": "required" },
+            { "id": "balance", "label": "Balance ($)",      "type": "text",   "validation": "required" },
+            { "id": "rate",    "label": "Rate Type",        "type": "select", "options": ["Fixed", "Variable", "Split", "Interest Only", "Other"] }
+          ]
+        },
+        { "id": "c2HasLoans", "label": "Are you subject to debt by way of personal loans or credit cards?", "type": "radio", "options": ["Yes", "No"], "conditional": null, "validation": "required", "placeholder": null },
+        { "id": "c2LoanCount", "label": "Number of loans / credit cards", "type": "number", "conditional": "c2HasLoans = 'Yes'", "validation": "min 0, max 20", "placeholder": null },
+        {
+          "id": "c2Loans[n]",
+          "label": "Loan N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c2LoanCount times",
+          "conditional": "c2HasLoans = 'Yes'",
+          "fields": [
+            { "id": "lender",  "label": "Lender",     "type": "text",   "validation": "required" },
+            { "id": "type",    "label": "Type",        "type": "select", "options": ["Personal Loan", "Car Loan", "Credit Card", "Buy Now Pay Later", "Student Loan", "Other"] },
+            { "id": "balance", "label": "Balance ($)", "type": "text",   "validation": "required" }
+          ]
+        },
+        { "id": "c2Guarantees", "label": "Have you provided any personal guarantees?", "type": "radio", "options": ["Yes", "No"], "conditional": null, "validation": "required", "placeholder": null },
+        { "id": "c2GuaranteeDetail", "label": "Guarantee details", "type": "textarea", "conditional": "c2Guarantees = 'Yes'", "validation": "required when visible", "placeholder": null }
+      ]
+    },
+
+    {
+      "id": "part_a_financial_summary",
+      "tab": "Part A",
+      "title": "Financial Summary",
+      "conditional": "disclosureLevel = 'summary'",
+      "notes": "Rendered as an editable table. Each row is a category; each column is a client. C2 columns only appear for couples.",
+      "fields": [
+        { "id": "c1PropTotal",  "label": "Total Real Property (Client 1) ($)",       "type": "text", "conditional": null, "validation": "required", "placeholder": "0" },
+        { "id": "c1BankTotal",  "label": "Total Bank / Cash (Client 1) ($)",         "type": "text", "conditional": null, "validation": "required", "placeholder": "0" },
+        { "id": "c1ShareTotal", "label": "Total Shares / Investments (Client 1) ($)","type": "text", "conditional": null, "validation": "required", "placeholder": "0" },
+        { "id": "c1OtherTotal", "label": "Total Other Assets (Client 1) ($)",        "type": "text", "conditional": null, "validation": "required", "placeholder": "0" },
+        { "id": "c1DebtTotal",  "label": "Total Debts / Liabilities (Client 1) ($)", "type": "text", "conditional": null, "validation": "required", "placeholder": "0" },
+        { "id": "c2PropTotal",  "label": "Total Real Property (Client 2) ($)",        "type": "text", "conditional": "isCouple", "validation": "required when visible", "placeholder": "0" },
+        { "id": "c2BankTotal",  "label": "Total Bank / Cash (Client 2) ($)",          "type": "text", "conditional": "isCouple", "validation": "required when visible", "placeholder": "0" },
+        { "id": "c2ShareTotal", "label": "Total Shares / Investments (Client 2) ($)", "type": "text", "conditional": "isCouple", "validation": "required when visible", "placeholder": "0" },
+        { "id": "c2OtherTotal", "label": "Total Other Assets (Client 2) ($)",         "type": "text", "conditional": "isCouple", "validation": "required when visible", "placeholder": "0" },
+        { "id": "c2DebtTotal",  "label": "Total Debts / Liabilities (Client 2) ($)",  "type": "text", "conditional": "isCouple", "validation": "required when visible", "placeholder": "0" }
+      ]
+    },
+
+    {
+      "id": "part_b_welcome",
+      "tab": "Part B",
+      "title": "Welcome — Part B",
+      "conditional": null,
+      "fields": []
+    },
+
+    {
+      "id": "part_b_c1_companies",
+      "tab": "Part B",
+      "title": "C1 — Companies",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "c1CompanyCount",
+          "label": "How many companies do you have?",
+          "type": "number",
+          "options": null,
+          "conditional": null,
+          "validation": "min 0, max 20",
+          "placeholder": "Enter 0 if none"
+        },
+        {
+          "id": "c1Companies[n]",
+          "label": "Company N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c1CompanyCount times",
+          "conditional": "c1CompanyCount > 0",
+          "fields": [
+            { "id": "name",        "label": "Company name",                          "type": "text" },
+            { "id": "activity",    "label": "What does the company do?",             "type": "select", "options": ["Investment", "Trading", "Trustee Company"] },
+            { "id": "netValue",    "label": "Net asset value ($)",                   "type": "text",   "placeholder": "e.g. 500,000" },
+            { "id": "directors",   "label": "Directors (list all names)",            "type": "textarea", "placeholder": "e.g. John Smith, Jane Smith" },
+            { "id": "shareholders","label": "Shareholders (names and shareholding)", "type": "textarea", "placeholder": "e.g. John Smith 50%, Jane Smith 50%" },
+            { "id": "hasDebt",     "label": "Does the company have any debt?",      "type": "radio",  "options": ["Yes", "No"] },
+            { "id": "debtDetail",  "label": "Please describe the debt",             "type": "textarea", "conditional": "hasDebt = 'Yes'" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_b_c1_biz",
+      "tab": "Part B",
+      "title": "C1 — Business Interests",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "c1HasBiz",
+          "label": "Do you have any other business interests (sole trader, partnership, etc.)?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "c1BizCount",
+          "label": "Number of businesses",
+          "type": "number",
+          "options": null,
+          "conditional": "c1HasBiz = 'Yes'",
+          "validation": "min 0, max 20",
+          "placeholder": null
+        },
+        {
+          "id": "c1Businesses[n]",
+          "label": "Business N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c1BizCount times",
+          "conditional": "c1HasBiz = 'Yes'",
+          "fields": [
+            { "id": "name",      "label": "Business Name",   "type": "text" },
+            { "id": "structure", "label": "Structure",       "type": "select", "options": ["Sole Trader", "Partnership", "Company (Pty Ltd)", "Company (Ltd)", "Trust", "Other"] },
+            { "id": "acn",       "label": "ACN / ABN",       "type": "text" },
+            { "id": "netValue",  "label": "Net Value ($)",   "type": "text" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_b_c1_trusts",
+      "tab": "Part B",
+      "title": "C1 — Trusts",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "c1HasTrusts",
+          "label": "Are you involved in any trusts?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "c1TrustCount",
+          "label": "Number of trusts",
+          "type": "number",
+          "options": null,
+          "conditional": "c1HasTrusts = 'Yes'",
+          "validation": "min 0, max 20",
+          "placeholder": null
+        },
+        {
+          "id": "c1Trusts[n]",
+          "label": "Trust N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c1TrustCount times",
+          "conditional": "c1HasTrusts = 'Yes'",
+          "fields": [
+            { "id": "name",        "label": "Trust Name",                                    "type": "text" },
+            { "id": "type",        "label": "Trust Type",                                    "type": "select", "options": ["Discretionary (Family) Trust", "Unit Trust", "Hybrid Trust", "Testamentary Trust", "Other"] },
+            { "id": "trusteeName", "label": "Name of trustee",                              "type": "text" },
+            { "id": "trusteeType", "label": "Is the trustee a Company or Natural Person(s)?","type": "select", "options": ["Company", "Natural Person(s)"] },
+            { "id": "activity",    "label": "What does the trust do?",                      "type": "select", "options": ["Investment", "Trading"] },
+            { "id": "netValue",    "label": "Net Asset Value ($)",                           "type": "text" },
+            { "id": "hasDebt",     "label": "Does the trust have any debt?",                "type": "radio",  "options": ["Yes", "No"] },
+            { "id": "debtDetail",  "label": "Please describe the debt",                     "type": "textarea", "conditional": "hasDebt = 'Yes'" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_b_c1_smsf",
+      "tab": "Part B",
+      "title": "C1 — SMSF",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "c1HasSmsf",
+          "label": "Do you have a Self-Managed Superannuation Fund (SMSF)?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "c1SmsfCount",
+          "label": "How many SMSFs?",
+          "type": "number",
+          "options": null,
+          "conditional": "c1HasSmsf = 'Yes'",
+          "validation": "min 0, max 10",
+          "placeholder": "Enter 0 if none"
+        },
+        {
+          "id": "c1SmsfList[n]",
+          "label": "SMSF N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c1SmsfCount times",
+          "conditional": "c1HasSmsf = 'Yes'",
+          "fields": [
+            { "id": "name",        "label": "Name of the SMSF",                              "type": "text" },
+            { "id": "trusteeName", "label": "Name of trustee",                              "type": "text" },
+            { "id": "trusteeType", "label": "Is the trustee a Company or Natural Person(s)?","type": "select", "options": ["Company", "Natural Person(s)"] },
+            { "id": "totalValue",  "label": "Approximate total value ($)",                  "type": "text",   "placeholder": "e.g. 1,200,000" },
+            { "id": "memberCount", "label": "Number of members",                             "type": "number", "validation": "min 0, max 10" },
+            { "id": "members[m]",  "label": "Member M — Full name (repeating, memberCount times)", "type": "text" },
+            { "id": "hasLrba",     "label": "Does the SMSF have an LRBA?",                  "type": "radio",  "options": ["Yes", "No"] },
+            { "id": "lrbaAsset",   "label": "Over what asset?",                             "type": "text",   "conditional": "hasLrba = 'Yes'" },
+            { "id": "lrbaAmount",  "label": "How much is the borrowing ($)?",               "type": "text",   "conditional": "hasLrba = 'Yes'" },
+            { "id": "lrbaLender",  "label": "Who is the lender?",                           "type": "text",   "conditional": "hasLrba = 'Yes'" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_b_c2_companies",
+      "tab": "Part B",
+      "title": "C2 — Companies",
+      "conditional": "isCouple",
+      "notes": "Identical structure to C1 Companies with c2 prefix.",
+      "fields": [
+        { "id": "c2CompanyCount", "label": "How many companies do you have?", "type": "number", "placeholder": "Enter 0 if none", "conditional": null, "validation": "min 0, max 20" },
+        {
+          "id": "c2Companies[n]",
+          "label": "Company N — repeating card (identical fields to C1 Companies)",
+          "type": "repeating_group",
+          "repeats": "c2CompanyCount times",
+          "fields": [
+            { "id": "name",        "label": "Company name",                          "type": "text" },
+            { "id": "activity",    "label": "What does the company do?",             "type": "select", "options": ["Investment", "Trading", "Trustee Company"] },
+            { "id": "netValue",    "label": "Net asset value ($)",                   "type": "text" },
+            { "id": "directors",   "label": "Directors (list all names)",            "type": "textarea" },
+            { "id": "shareholders","label": "Shareholders (names and shareholding)", "type": "textarea" },
+            { "id": "hasDebt",     "label": "Does the company have any debt?",      "type": "radio",  "options": ["Yes", "No"] },
+            { "id": "debtDetail",  "label": "Please describe the debt",             "type": "textarea", "conditional": "hasDebt = 'Yes'" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_b_c2_biz",
+      "tab": "Part B",
+      "title": "C2 — Business Interests",
+      "conditional": "isCouple",
+      "fields": [
+        { "id": "c2HasBiz", "label": "Do you have any other business interests (sole trader, partnership, etc.)?", "type": "radio", "options": ["Yes", "No"], "conditional": null, "validation": null, "placeholder": null },
+        { "id": "c2BizCount", "label": "Number of businesses", "type": "number", "conditional": "c2HasBiz = 'Yes'", "validation": "min 0, max 20", "placeholder": null },
+        {
+          "id": "c2Businesses[n]",
+          "label": "Business N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c2BizCount times",
+          "conditional": "c2HasBiz = 'Yes'",
+          "fields": [
+            { "id": "name",      "label": "Business Name", "type": "text" },
+            { "id": "structure", "label": "Structure",     "type": "select", "options": ["Sole Trader", "Partnership", "Company (Pty Ltd)", "Company (Ltd)", "Trust", "Other"] },
+            { "id": "acn",       "label": "ACN / ABN",     "type": "text" },
+            { "id": "netValue",  "label": "Net Value ($)", "type": "text" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_b_c2_trusts",
+      "tab": "Part B",
+      "title": "C2 — Trusts",
+      "conditional": "isCouple",
+      "fields": [
+        { "id": "c2HasTrusts", "label": "Are you involved in any trusts?", "type": "radio", "options": ["Yes", "No"], "conditional": null, "validation": null, "placeholder": null },
+        { "id": "c2TrustCount", "label": "Number of trusts", "type": "number", "conditional": "c2HasTrusts = 'Yes'", "validation": "min 0, max 20", "placeholder": null },
+        {
+          "id": "c2Trusts[n]",
+          "label": "Trust N — repeating card (identical fields to C1 Trusts)",
+          "type": "repeating_group",
+          "repeats": "c2TrustCount times",
+          "conditional": "c2HasTrusts = 'Yes'",
+          "fields": [
+            { "id": "name",        "label": "Trust Name",                                    "type": "text" },
+            { "id": "type",        "label": "Trust Type",                                    "type": "select", "options": ["Discretionary (Family) Trust", "Unit Trust", "Hybrid Trust", "Testamentary Trust", "Other"] },
+            { "id": "trusteeName", "label": "Name of trustee",                              "type": "text" },
+            { "id": "trusteeType", "label": "Is the trustee a Company or Natural Person(s)?","type": "select", "options": ["Company", "Natural Person(s)"] },
+            { "id": "activity",    "label": "What does the trust do?",                      "type": "select", "options": ["Investment", "Trading"] },
+            { "id": "netValue",    "label": "Net Asset Value ($)",                           "type": "text" },
+            { "id": "hasDebt",     "label": "Does the trust have any debt?",                "type": "radio",  "options": ["Yes", "No"] },
+            { "id": "debtDetail",  "label": "Please describe the debt",                     "type": "textarea", "conditional": "hasDebt = 'Yes'" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_b_c2_smsf",
+      "tab": "Part B",
+      "title": "C2 — SMSF",
+      "conditional": "isCouple",
+      "fields": [
+        { "id": "c2HasSmsf", "label": "Do you have a Self-Managed Superannuation Fund (SMSF)?", "type": "radio", "options": ["Yes", "No"], "conditional": null, "validation": null, "placeholder": null },
+        { "id": "c2SmsfCount", "label": "How many SMSFs?", "type": "number", "conditional": "c2HasSmsf = 'Yes'", "validation": "min 0, max 10", "placeholder": "Enter 0 if none" },
+        {
+          "id": "c2SmsfList[n]",
+          "label": "SMSF N — repeating card (identical fields to C1 SMSF)",
+          "type": "repeating_group",
+          "repeats": "c2SmsfCount times",
+          "conditional": "c2HasSmsf = 'Yes'",
+          "fields": [
+            { "id": "name",        "label": "Name of the SMSF",                              "type": "text" },
+            { "id": "trusteeName", "label": "Name of trustee",                              "type": "text" },
+            { "id": "trusteeType", "label": "Is the trustee a Company or Natural Person(s)?","type": "select", "options": ["Company", "Natural Person(s)"] },
+            { "id": "totalValue",  "label": "Approximate total value ($)",                  "type": "text" },
+            { "id": "memberCount", "label": "Number of members",                             "type": "number" },
+            { "id": "members[m]",  "label": "Member M — Full name",                         "type": "text",   "repeats": "memberCount times" },
+            { "id": "hasLrba",     "label": "Does the SMSF have an LRBA?",                  "type": "radio",  "options": ["Yes", "No"] },
+            { "id": "lrbaAsset",   "label": "Over what asset?",                             "type": "text",   "conditional": "hasLrba = 'Yes'" },
+            { "id": "lrbaAmount",  "label": "How much is the borrowing ($)?",               "type": "text",   "conditional": "hasLrba = 'Yes'" },
+            { "id": "lrbaLender",  "label": "Who is the lender?",                           "type": "text",   "conditional": "hasLrba = 'Yes'" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_b_insurance",
+      "tab": "Part B",
+      "title": "Insurance Overview",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "c1HasIns",
+          "label": "Does Client 1 have any life insurance, TPD, trauma or income protection?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "c2HasIns",
+          "label": "Does Client 2 have any life insurance, TPD, trauma or income protection?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": "isCouple",
+          "validation": null,
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_b_c1_life_tpd",
+      "tab": "Part B",
+      "title": "C1 — Life & TPD",
+      "conditional": "c1HasIns = 'Yes'",
+      "fields": [
+        {
+          "id": "c1LifeCount",
+          "label": "Number of Life / TPD policies (enter 0 if none)",
+          "type": "number",
+          "options": null,
+          "conditional": null,
+          "validation": "min 0, max 20",
+          "placeholder": null
+        },
+        {
+          "id": "c1Life[n]",
+          "label": "Policy N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c1LifeCount times",
+          "conditional": "c1LifeCount > 0",
+          "fields": [
+            { "id": "insurer",     "label": "Insurer",               "type": "text" },
+            { "id": "cover",       "label": "Sum Insured ($)",        "type": "text" },
+            { "id": "heldInSuper", "label": "Held inside super?",    "type": "select", "options": ["Yes", "No", "Partially"] },
+            { "id": "beneFixed",   "label": "Binding nomination?",   "type": "select", "options": ["Yes — Lapsing", "Yes — Non-Lapsing", "No", "Unsure"] }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_b_c1_trauma_ip",
+      "tab": "Part B",
+      "title": "C1 — Trauma & Income Protection",
+      "conditional": "c1HasIns = 'Yes'",
+      "fields": [
+        {
+          "id": "c1TraumaCount",
+          "label": "Number of Trauma policies (enter 0 if none)",
+          "type": "number",
+          "options": null,
+          "conditional": null,
+          "validation": "min 0",
+          "placeholder": null
+        },
+        {
+          "id": "c1IncomeCount",
+          "label": "Number of Income Protection policies (enter 0 if none)",
+          "type": "number",
+          "options": null,
+          "conditional": null,
+          "validation": "min 0",
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_b_c2_life_tpd",
+      "tab": "Part B",
+      "title": "C2 — Life & TPD",
+      "conditional": "isCouple and c2HasIns = 'Yes'",
+      "fields": [
+        { "id": "c2LifeCount", "label": "Number of Life / TPD policies (enter 0 if none)", "type": "number", "conditional": null, "validation": "min 0, max 20", "placeholder": null },
+        {
+          "id": "c2Life[n]",
+          "label": "Policy N — repeating card (identical to C1 Life & TPD)",
+          "type": "repeating_group",
+          "repeats": "c2LifeCount times",
+          "fields": [
+            { "id": "insurer",     "label": "Insurer",             "type": "text" },
+            { "id": "cover",       "label": "Sum Insured ($)",      "type": "text" },
+            { "id": "heldInSuper", "label": "Held inside super?",  "type": "select", "options": ["Yes", "No", "Partially"] },
+            { "id": "beneFixed",   "label": "Binding nomination?", "type": "select", "options": ["Yes — Lapsing", "Yes — Non-Lapsing", "No", "Unsure"] }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_b_c2_trauma_ip",
+      "tab": "Part B",
+      "title": "C2 — Trauma & Income Protection",
+      "conditional": "isCouple and c2HasIns = 'Yes'",
+      "fields": [
+        { "id": "c2TraumaCount", "label": "Number of Trauma policies (enter 0 if none)", "type": "number", "conditional": null, "validation": "min 0", "placeholder": null },
+        { "id": "c2IncomeCount", "label": "Number of Income Protection policies (enter 0 if none)", "type": "number", "conditional": null, "validation": "min 0", "placeholder": null }
+      ]
+    },
+
+    {
+      "id": "part_b_advisors",
+      "tab": "Part B",
+      "title": "Professional Advisors",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "accountant",
+          "label": "Accountant Name / Firm",
+          "type": "text",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": "Enter name, or 'None' if not applicable"
+        },
+        {
+          "id": "accountantPhone",
+          "label": "Phone",
+          "type": "tel",
+          "options": null,
+          "conditional": null,
+          "validation": "required; 8–12 numeric digits if provided",
+          "placeholder": "Enter phone, or 'N/A'"
+        },
+        {
+          "id": "accountantEmail",
+          "label": "Email",
+          "type": "email",
+          "options": null,
+          "conditional": null,
+          "validation": "required; must contain @ and a domain if a real email",
+          "placeholder": "Enter email, or 'N/A'"
+        },
+        {
+          "id": "accountantAuthority",
+          "label": "Do you authorise us to contact your accountant?",
+          "type": "radio",
+          "options": ["Yes", "No", "Ask me first"],
+          "conditional": null,
+          "validation": null,
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_b_documents",
+      "tab": "Part B",
+      "title": "Document Upload",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "uploadedFiles",
+          "label": "Upload relevant documents",
+          "type": "file",
+          "options": null,
+          "conditional": null,
+          "validation": "accepts .pdf, .doc, .docx, .jpg, .jpeg, .png, .gif, .webp; multiple files allowed",
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_c_welcome",
+      "tab": "Part C",
+      "title": "Welcome — Part C",
+      "conditional": null,
+      "fields": []
+    },
+
+    {
+      "id": "part_c_will_structure",
+      "tab": "Part C",
+      "title": "Will Structure",
+      "conditional": "isCouple",
+      "fields": [
+        {
+          "id": "mirrorWill",
+          "label": "Will structure preference",
+          "type": "radio",
+          "options": [
+            "Yes — identical terms for both",
+            "No — different terms for each",
+            "Unsure — please advise"
+          ],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_c_c1_primary",
+      "tab": "Part C",
+      "title": "C1 — Distribution: Primary",
+      "conditional": null,
+      "notes": "Uses DistributionScenario component. Scenario label: 'If Client 2 survives Client 1' (couple) or 'Primary distribution' (single).",
+      "fields": [
+        {
+          "id": "c1Scen1.hasGifts",
+          "label": "Are there any specific gifts?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1Scen1.giftCount",
+          "label": "Number of specific gifts",
+          "type": "number",
+          "options": null,
+          "conditional": "c1Scen1.hasGifts = 'Yes'",
+          "validation": "required; min 0, max 20",
+          "placeholder": null
+        },
+        {
+          "id": "c1Scen1.gifts[n]",
+          "label": "Gift N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c1Scen1.giftCount times",
+          "conditional": "c1Scen1.hasGifts = 'Yes'",
+          "fields": [
+            { "id": "bFirst",  "label": "First Name",                                         "type": "text",     "validation": "required" },
+            { "id": "bLast",   "label": "Last Name",                                          "type": "text",     "validation": "required" },
+            { "id": "bRel",    "label": "Relationship",                                       "type": "text",     "validation": "required" },
+            { "id": "bAddr",   "label": "Address",                                            "type": "text",     "validation": "required" },
+            { "id": "desc",    "label": "Description of gift",                                "type": "textarea", "validation": "required" },
+            { "id": "hasSub",  "label": "If this gift no longer exists, is there a substitute?", "type": "radio", "options": ["Yes", "No"], "validation": "required" },
+            { "id": "subDesc", "label": "Describe the substitute",                            "type": "textarea", "conditional": "hasSub = 'Yes'", "placeholder": "Enter details, or type 'None' if not applicable" }
+          ]
+        },
+        {
+          "id": "c1Scen1.resBeneCount",
+          "label": "Number of residuary beneficiaries",
+          "type": "number",
+          "options": null,
+          "conditional": null,
+          "validation": "required; min 0, max 20",
+          "placeholder": null
+        },
+        {
+          "id": "c1Scen1.resBenes[n]",
+          "label": "Residuary Beneficiary N — repeating card",
+          "type": "repeating_group",
+          "repeats": "c1Scen1.resBeneCount times",
+          "conditional": "c1Scen1.resBeneCount > 0",
+          "fields": [
+            { "id": "first", "label": "First Name",       "type": "text",   "validation": "required" },
+            { "id": "last",  "label": "Last Name",        "type": "text",   "validation": "required" },
+            { "id": "rel",   "label": "Relationship",     "type": "text",   "validation": "required" },
+            { "id": "pct",   "label": "% of Residue",    "type": "number", "validation": "required; all percentages must sum to 100%", "placeholder": "e.g. 50" },
+            { "id": "tt",    "label": "Would you like protection for their inheritance in the form of a trust?", "type": "select", "options": ["Yes", "No", "To discuss"] },
+            { "id": "addr",  "label": "Address",         "type": "text",   "validation": "required" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_c_c1_contingency",
+      "tab": "Part C",
+      "title": "C1 — Distribution: Contingency",
+      "conditional": null,
+      "notes": "Uses DistributionScenario component. Scenario label: 'If Client 2 does NOT survive Client 1' (couple). Identical field structure to C1 Primary. State key prefix: c1Scen2.",
+      "fields": [
+        { "id": "c1Scen2.hasGifts", "label": "Are there any specific gifts?", "type": "radio", "options": ["Yes", "No"], "conditional": null, "validation": "required", "placeholder": null },
+        { "id": "c1Scen2.giftCount", "label": "Number of specific gifts", "type": "number", "conditional": "c1Scen2.hasGifts = 'Yes'", "validation": "min 0, max 20", "placeholder": null },
+        {
+          "id": "c1Scen2.gifts[n]",
+          "label": "Gift N — repeating card (same fields as C1 Primary gifts)",
+          "type": "repeating_group",
+          "repeats": "c1Scen2.giftCount times",
+          "conditional": "c1Scen2.hasGifts = 'Yes'",
+          "fields": [
+            { "id": "bFirst", "label": "First Name",          "type": "text",     "validation": "required" },
+            { "id": "bLast",  "label": "Last Name",           "type": "text",     "validation": "required" },
+            { "id": "bRel",   "label": "Relationship",        "type": "text",     "validation": "required" },
+            { "id": "bAddr",  "label": "Address",             "type": "text",     "validation": "required" },
+            { "id": "desc",   "label": "Description of gift", "type": "textarea", "validation": "required" },
+            { "id": "hasSub", "label": "If this gift no longer exists, is there a substitute?", "type": "radio", "options": ["Yes", "No"] },
+            { "id": "subDesc","label": "Describe the substitute", "type": "textarea", "conditional": "hasSub = 'Yes'" }
+          ]
+        },
+        { "id": "c1Scen2.resBeneCount", "label": "Number of residuary beneficiaries", "type": "number", "conditional": null, "validation": "required; min 0, max 20", "placeholder": null },
+        {
+          "id": "c1Scen2.resBenes[n]",
+          "label": "Residuary Beneficiary N — repeating card (same fields as C1 Primary resBenes)",
+          "type": "repeating_group",
+          "repeats": "c1Scen2.resBeneCount times",
+          "fields": [
+            { "id": "first", "label": "First Name",    "type": "text",   "validation": "required" },
+            { "id": "last",  "label": "Last Name",     "type": "text",   "validation": "required" },
+            { "id": "rel",   "label": "Relationship",  "type": "text",   "validation": "required" },
+            { "id": "pct",   "label": "% of Residue", "type": "number", "validation": "must sum to 100%" },
+            { "id": "tt",    "label": "Would you like protection for their inheritance in the form of a trust?", "type": "select", "options": ["Yes", "No", "To discuss"] },
+            { "id": "addr",  "label": "Address",       "type": "text",   "validation": "required" }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_c_c2_primary",
+      "tab": "Part C",
+      "title": "C2 — Distribution: Primary",
+      "conditional": "isCouple and mirrorWill is not 'Yes — identical terms for both'",
+      "notes": "Scenario label: 'If Client 1 survives Client 2'. State key prefix: c2Scen1. Identical field structure to C1 Primary.",
+      "fields": [
+        { "id": "c2Scen1.hasGifts",    "label": "Are there any specific gifts?",      "type": "radio",  "options": ["Yes", "No"] },
+        { "id": "c2Scen1.giftCount",   "label": "Number of specific gifts",            "type": "number", "conditional": "c2Scen1.hasGifts = 'Yes'" },
+        { "id": "c2Scen1.gifts[n]",    "label": "Gift N — repeating card (see C1 Primary for field list)", "type": "repeating_group", "repeats": "c2Scen1.giftCount times" },
+        { "id": "c2Scen1.resBeneCount","label": "Number of residuary beneficiaries",   "type": "number" },
+        { "id": "c2Scen1.resBenes[n]", "label": "Residuary Beneficiary N — repeating card (see C1 Primary)", "type": "repeating_group", "repeats": "c2Scen1.resBeneCount times" }
+      ]
+    },
+
+    {
+      "id": "part_c_c2_contingency",
+      "tab": "Part C",
+      "title": "C2 — Distribution: Contingency",
+      "conditional": "isCouple and mirrorWill is not 'Yes — identical terms for both'",
+      "notes": "Scenario label: 'If Client 1 does NOT survive Client 2'. State key prefix: c2Scen2. Identical field structure to C1 Primary.",
+      "fields": [
+        { "id": "c2Scen2.hasGifts",    "label": "Are there any specific gifts?",      "type": "radio",  "options": ["Yes", "No"] },
+        { "id": "c2Scen2.giftCount",   "label": "Number of specific gifts",            "type": "number", "conditional": "c2Scen2.hasGifts = 'Yes'" },
+        { "id": "c2Scen2.gifts[n]",    "label": "Gift N — repeating card (see C1 Primary)", "type": "repeating_group", "repeats": "c2Scen2.giftCount times" },
+        { "id": "c2Scen2.resBeneCount","label": "Number of residuary beneficiaries",   "type": "number" },
+        { "id": "c2Scen2.resBenes[n]", "label": "Residuary Beneficiary N — repeating card (see C1 Primary)", "type": "repeating_group", "repeats": "c2Scen2.resBeneCount times" }
+      ]
+    },
+
+    {
+      "id": "part_c_benef_profiles",
+      "tab": "Part C",
+      "title": "Beneficiary Profiles",
+      "conditional": null,
+      "notes": "One card per named beneficiary automatically derived from all four distribution scenarios. Card count is dynamic.",
+      "fields": [
+        {
+          "id": "beneProfiles[name].literacy",
+          "label": "Financial maturity",
+          "type": "select",
+          "options": [
+            "High — capable of managing a large inheritance",
+            "Moderate — may benefit from staged distributions",
+            "Low — likely to need protection",
+            "At risk occupation",
+            "Minor — under 18",
+            "Unknown / To discuss"
+          ],
+          "conditional": "one entry per unique beneficiary name derived from distribution pages",
+          "validation": null,
+          "placeholder": null
+        },
+        {
+          "id": "beneProfiles[name].needsTT",
+          "label": "Would you like protection for their inheritance in the form of a trust?",
+          "type": "radio",
+          "options": ["Yes", "No", "To discuss"],
+          "conditional": "one entry per unique beneficiary name",
+          "validation": null,
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_c_c1_executors",
+      "tab": "Part C",
+      "title": "C1 — Executors",
+      "conditional": null,
+      "notes": "Uses PersonList component with showAgreed=true, showAddr=true.",
+      "fields": [
+        {
+          "id": "c1ExecCount",
+          "label": "Number of executors",
+          "type": "number",
+          "options": null,
+          "conditional": null,
+          "validation": "required; minimum 1 recommended",
+          "placeholder": "0"
+        },
+        {
+          "id": "c1Execs[n]",
+          "label": "Executor N — repeating card (PersonList)",
+          "type": "repeating_group",
+          "repeats": "c1ExecCount times",
+          "fields": [
+            { "id": "salut",  "label": "Title",         "type": "select", "options": ["Mr", "Mrs", "Ms", "Miss", "Dr", "Prof", "Rev", "Other"] },
+            { "id": "first",  "label": "First Name",    "type": "text",   "validation": "required" },
+            { "id": "middle", "label": "Middle Name",   "type": "text" },
+            { "id": "last",   "label": "Last Name",     "type": "text",   "validation": "required" },
+            { "id": "rel",    "label": "Relationship",  "type": "text",   "validation": "required" },
+            { "id": "email",  "label": "Email",         "type": "email",  "validation": "required; must contain @ and a domain" },
+            { "id": "mobile", "label": "Mobile",        "type": "tel",    "validation": "required; 8–12 numeric digits" },
+            { "id": "addr",   "label": "Address",       "type": "text",   "validation": "required" },
+            { "id": "agreed", "label": "Has this person agreed to act?", "type": "radio", "options": ["Yes", "No", "Not yet asked"] }
+          ]
+        },
+        {
+          "id": "c1WillLoc",
+          "label": "Preferred Will storage location",
+          "type": "select",
+          "options": ["With Nautilus Law Group", "At home (safe/lockbox)", "With my bank", "With another solicitor", "Other"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_c_c2_executors",
+      "tab": "Part C",
+      "title": "C2 — Executors",
+      "conditional": "isCouple",
+      "notes": "Identical structure to C1 Executors. State key prefix: c2Execs, c2WillLoc.",
+      "fields": [
+        { "id": "c2ExecCount", "label": "Number of executors", "type": "number", "conditional": null, "validation": "required; minimum 1", "placeholder": "0" },
+        {
+          "id": "c2Execs[n]",
+          "label": "Executor N — repeating card (PersonList, same fields as C1 Executors)",
+          "type": "repeating_group",
+          "repeats": "c2ExecCount times",
+          "fields": [
+            { "id": "salut",  "label": "Title",         "type": "select", "options": ["Mr", "Mrs", "Ms", "Miss", "Dr", "Prof", "Rev", "Other"] },
+            { "id": "first",  "label": "First Name",    "type": "text",   "validation": "required" },
+            { "id": "middle", "label": "Middle Name",   "type": "text" },
+            { "id": "last",   "label": "Last Name",     "type": "text",   "validation": "required" },
+            { "id": "rel",    "label": "Relationship",  "type": "text",   "validation": "required" },
+            { "id": "email",  "label": "Email",         "type": "email",  "validation": "required; must contain @ and a domain" },
+            { "id": "mobile", "label": "Mobile",        "type": "tel",    "validation": "required; 8–12 numeric digits" },
+            { "id": "addr",   "label": "Address",       "type": "text",   "validation": "required" },
+            { "id": "agreed", "label": "Has this person agreed to act?", "type": "radio", "options": ["Yes", "No", "Not yet asked"] }
+          ]
+        },
+        { "id": "c2WillLoc", "label": "Preferred Will storage location", "type": "select", "options": ["With Nautilus Law Group", "At home (safe/lockbox)", "With my bank", "With another solicitor", "Other"], "conditional": null, "validation": "required", "placeholder": null }
+      ]
+    },
+
+    {
+      "id": "part_c_guardians",
+      "tab": "Part C",
+      "title": "Guardians for Minor Children",
+      "conditional": "at least one child has a DOB less than 18 years before today",
+      "notes": "Uses PersonList component with showAgreed=true, showAddr=true.",
+      "fields": [
+        {
+          "id": "guardianCount",
+          "label": "Number of guardians",
+          "type": "number",
+          "options": null,
+          "conditional": null,
+          "validation": "required; minimum 1",
+          "placeholder": "0"
+        },
+        {
+          "id": "guardians[n]",
+          "label": "Guardian N — repeating card (PersonList)",
+          "type": "repeating_group",
+          "repeats": "guardianCount times",
+          "fields": [
+            { "id": "salut",  "label": "Title",         "type": "select", "options": ["Mr", "Mrs", "Ms", "Miss", "Dr", "Prof", "Rev", "Other"] },
+            { "id": "first",  "label": "First Name",    "type": "text",   "validation": "required" },
+            { "id": "middle", "label": "Middle Name",   "type": "text" },
+            { "id": "last",   "label": "Last Name",     "type": "text",   "validation": "required" },
+            { "id": "rel",    "label": "Relationship",  "type": "text",   "validation": "required" },
+            { "id": "email",  "label": "Email",         "type": "email",  "validation": "required; must contain @ and a domain" },
+            { "id": "mobile", "label": "Mobile",        "type": "tel",    "validation": "required; 8–12 numeric digits" },
+            { "id": "addr",   "label": "Address",       "type": "text",   "validation": "required" },
+            { "id": "agreed", "label": "Has this person agreed to act?", "type": "radio", "options": ["Yes", "No", "Not yet asked"] }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_c_existing_wills",
+      "tab": "Part C",
+      "title": "Existing Wills",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "c1HasExistingWill",
+          "label": "Does Client 1 have an existing Will?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1WillDate",
+          "label": "Approximate date of existing Will",
+          "type": "date",
+          "options": null,
+          "conditional": "c1HasExistingWill = 'Yes'",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "c1WillKept",
+          "label": "Where is the existing Will kept?",
+          "type": "select",
+          "options": ["At home", "With a solicitor", "With a bank", "With a registry", "Unknown"],
+          "conditional": "c1HasExistingWill = 'Yes'",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "c2HasExistingWill",
+          "label": "Does Client 2 have an existing Will?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": "isCouple",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "c2WillDate",
+          "label": "Approximate date (Client 2 Will)",
+          "type": "date",
+          "options": null,
+          "conditional": "isCouple and c2HasExistingWill = 'Yes'",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "c2WillKept",
+          "label": "Where is it kept? (Client 2 Will)",
+          "type": "select",
+          "options": ["At home", "With a solicitor", "With a bank", "With a registry", "Unknown"],
+          "conditional": "isCouple and c2HasExistingWill = 'Yes'",
+          "validation": "required when visible",
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_d_welcome",
+      "tab": "Part D",
+      "title": "Welcome — Part D",
+      "conditional": null,
+      "fields": []
+    },
+
+    {
+      "id": "part_d_c1_epa_health",
+      "tab": "Part D",
+      "title": "C1 — EPA: Health & Personal",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "c1EpaHealth",
+          "label": "EPA for health & personal decisions (Client 1)",
+          "type": "radio",
+          "options": [
+            "Yes — I wish to make a new EPA",
+            "Yes — I wish to update an existing EPA",
+            "No — I do not wish to make one at this time",
+            "To discuss"
+          ],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1HealthAttCount",
+          "label": "Number of health attorneys",
+          "type": "number",
+          "options": null,
+          "conditional": "c1EpaHealth starts with 'Yes'",
+          "validation": "required; minimum 1",
+          "placeholder": "0"
+        },
+        {
+          "id": "c1HealthAtts[n]",
+          "label": "Health Attorney N — repeating card (PersonList)",
+          "type": "repeating_group",
+          "repeats": "c1HealthAttCount times",
+          "conditional": "c1EpaHealth starts with 'Yes'",
+          "fields": [
+            { "id": "salut",  "label": "Title",         "type": "select", "options": ["Mr", "Mrs", "Ms", "Miss", "Dr", "Prof", "Rev", "Other"] },
+            { "id": "first",  "label": "First Name",    "type": "text",   "validation": "required" },
+            { "id": "middle", "label": "Middle Name",   "type": "text" },
+            { "id": "last",   "label": "Last Name",     "type": "text",   "validation": "required" },
+            { "id": "rel",    "label": "Relationship",  "type": "text",   "validation": "required" },
+            { "id": "email",  "label": "Email",         "type": "email",  "validation": "required; must contain @ and a domain" },
+            { "id": "mobile", "label": "Mobile",        "type": "tel",    "validation": "required; 8–12 numeric digits" },
+            { "id": "addr",   "label": "Address",       "type": "text",   "validation": "required" },
+            { "id": "agreed", "label": "Has this person agreed to act?", "type": "radio", "options": ["Yes", "No", "Not yet asked"] }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_d_c1_medical",
+      "tab": "Part D",
+      "title": "C1 — Medical & End of Life",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "c1Ahd",
+          "label": "Do you wish to make an Advance Health Directive (AHD)?",
+          "type": "radio",
+          "options": ["Yes — I wish to make one", "No", "To discuss"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1LifeSustaining",
+          "label": "Regarding life-sustaining treatment (in cases of terminal illness or permanent unconsciousness)",
+          "type": "radio",
+          "options": [
+            "I wish all reasonable treatment to be provided",
+            "I wish treatment to be withdrawn if there is no reasonable chance of recovery",
+            "I wish to discuss this with my attorney and medical team",
+            "To discuss with my solicitor"
+          ],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1OrganDonation",
+          "label": "Organ donation wishes",
+          "type": "radio",
+          "options": [
+            "I consent to donation of any/all organs and tissue",
+            "I consent to donation of specific organs only (please specify in additional info)",
+            "I do not consent to organ donation",
+            "To discuss / no decision at this time"
+          ],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        }
+      ]
+    },
+
+    {
+      "id": "part_d_c1_epa_fin",
+      "tab": "Part D",
+      "title": "C1 — EPA: Financial",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "c1EpaFin",
+          "label": "EPA for financial decisions (Client 1)",
+          "type": "radio",
+          "options": [
+            "Yes — I wish to make a new EPA",
+            "Yes — I wish to update an existing EPA",
+            "No — I do not wish to make one at this time",
+            "To discuss"
+          ],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1EpaFinTrigger",
+          "label": "When does the EPA take effect?",
+          "type": "radio",
+          "options": [
+            "Immediately upon signing",
+            "Only if I lose capacity (as certified by a doctor)",
+            "To discuss"
+          ],
+          "conditional": "c1EpaFin starts with 'Yes'",
+          "validation": "required when visible",
+          "placeholder": null
+        },
+        {
+          "id": "c1FinAttCount",
+          "label": "Number of financial attorneys",
+          "type": "number",
+          "options": null,
+          "conditional": "c1EpaFin starts with 'Yes'",
+          "validation": "required; minimum 1",
+          "placeholder": "0"
+        },
+        {
+          "id": "c1FinAtts[n]",
+          "label": "Financial Attorney N — repeating card (PersonList, same fields as Health Attorneys)",
+          "type": "repeating_group",
+          "repeats": "c1FinAttCount times",
+          "conditional": "c1EpaFin starts with 'Yes'",
+          "fields": [
+            { "id": "salut",  "label": "Title",         "type": "select", "options": ["Mr", "Mrs", "Ms", "Miss", "Dr", "Prof", "Rev", "Other"] },
+            { "id": "first",  "label": "First Name",    "type": "text",   "validation": "required" },
+            { "id": "middle", "label": "Middle Name",   "type": "text" },
+            { "id": "last",   "label": "Last Name",     "type": "text",   "validation": "required" },
+            { "id": "rel",    "label": "Relationship",  "type": "text",   "validation": "required" },
+            { "id": "email",  "label": "Email",         "type": "email",  "validation": "required; must contain @ and a domain" },
+            { "id": "mobile", "label": "Mobile",        "type": "tel",    "validation": "required; 8–12 numeric digits" },
+            { "id": "addr",   "label": "Address",       "type": "text",   "validation": "required" },
+            { "id": "agreed", "label": "Has this person agreed to act?", "type": "radio", "options": ["Yes", "No", "Not yet asked"] }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "part_d_c1_funeral",
+      "tab": "Part D",
+      "title": "C1 — Funeral & Legacy Wishes",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "c1BurialPref",
+          "label": "Burial / Cremation preference",
+          "type": "radio",
+          "options": ["Burial", "Cremation", "No preference", "To discuss"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1FuneralReligion",
+          "label": "Religious or cultural observances (if any)",
+          "type": "textarea",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": "Enter details, or type 'None' if not applicable"
+        },
+        {
+          "id": "c1Legacy",
+          "label": "Legacy wishes / messages to loved ones",
+          "type": "textarea",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": "Enter details, or type 'None' if not applicable"
+        }
+      ]
+    },
+
+    {
+      "id": "part_d_c2_epa_health",
+      "tab": "Part D",
+      "title": "C2 — EPA: Health & Personal",
+      "conditional": "isCouple",
+      "notes": "Identical structure to C1 EPA Health. State key prefix: c2EpaHealth, c2HealthAttCount, c2HealthAtts.",
+      "fields": [
+        { "id": "c2EpaHealth", "label": "EPA for health & personal decisions (Client 2)", "type": "radio", "options": ["Yes — I wish to make a new EPA", "Yes — I wish to update an existing EPA", "No — I do not wish to make one at this time", "To discuss"], "conditional": null, "validation": "required", "placeholder": null },
+        { "id": "c2HealthAttCount", "label": "Number of health attorneys", "type": "number", "conditional": "c2EpaHealth starts with 'Yes'", "validation": "required; minimum 1", "placeholder": "0" },
+        { "id": "c2HealthAtts[n]", "label": "Health Attorney N — repeating card (PersonList, same fields as C1)", "type": "repeating_group", "repeats": "c2HealthAttCount times", "conditional": "c2EpaHealth starts with 'Yes'" }
+      ]
+    },
+
+    {
+      "id": "part_d_c2_medical",
+      "tab": "Part D",
+      "title": "C2 — Medical & End of Life",
+      "conditional": "isCouple",
+      "fields": [
+        { "id": "c2Ahd", "label": "Do you wish to make an Advance Health Directive (AHD)?", "type": "radio", "options": ["Yes — I wish to make one", "No", "To discuss"], "conditional": null, "validation": "required", "placeholder": null },
+        { "id": "c2LifeSustaining", "label": "Regarding life-sustaining treatment", "type": "radio", "options": ["I wish all reasonable treatment to be provided", "I wish treatment to be withdrawn if there is no reasonable chance of recovery", "I wish to discuss this with my attorney and medical team", "To discuss with my solicitor"], "conditional": null, "validation": "required", "placeholder": null },
+        { "id": "c2OrganDonation", "label": "Organ donation wishes", "type": "radio", "options": ["I consent to donation of any/all organs and tissue", "I consent to donation of specific organs only (please specify in additional info)", "I do not consent to organ donation", "To discuss / no decision at this time"], "conditional": null, "validation": "required", "placeholder": null }
+      ]
+    },
+
+    {
+      "id": "part_d_c2_epa_fin",
+      "tab": "Part D",
+      "title": "C2 — EPA: Financial",
+      "conditional": "isCouple",
+      "notes": "Identical structure to C1 EPA Financial. State key prefix: c2EpaFin, c2EpaFinTrigger, c2FinAttCount, c2FinAtts.",
+      "fields": [
+        { "id": "c2EpaFin", "label": "EPA for financial decisions (Client 2)", "type": "radio", "options": ["Yes — I wish to make a new EPA", "Yes — I wish to update an existing EPA", "No — I do not wish to make one at this time", "To discuss"], "conditional": null, "validation": "required", "placeholder": null },
+        { "id": "c2EpaFinTrigger", "label": "When does the EPA take effect?", "type": "radio", "options": ["Immediately upon signing", "Only if I lose capacity (as certified by a doctor)", "To discuss"], "conditional": "c2EpaFin starts with 'Yes'", "validation": "required when visible", "placeholder": null },
+        { "id": "c2FinAttCount", "label": "Number of financial attorneys", "type": "number", "conditional": "c2EpaFin starts with 'Yes'", "validation": "required; minimum 1", "placeholder": "0" },
+        { "id": "c2FinAtts[n]", "label": "Financial Attorney N — repeating card (PersonList, same fields as C1)", "type": "repeating_group", "repeats": "c2FinAttCount times", "conditional": "c2EpaFin starts with 'Yes'" }
+      ]
+    },
+
+    {
+      "id": "part_d_c2_funeral",
+      "tab": "Part D",
+      "title": "C2 — Funeral & Legacy Wishes",
+      "conditional": "isCouple",
+      "fields": [
+        { "id": "c2BurialPref", "label": "Burial / Cremation preference", "type": "radio", "options": ["Burial", "Cremation", "No preference", "To discuss"], "conditional": null, "validation": "required", "placeholder": null },
+        { "id": "c2FuneralReligion", "label": "Religious or cultural observances (if any)", "type": "textarea", "conditional": null, "validation": "required", "placeholder": "Enter details, or type 'None' if not applicable" },
+        { "id": "c2Legacy", "label": "Legacy wishes / messages to loved ones", "type": "textarea", "conditional": null, "validation": "required", "placeholder": "Enter details, or type 'None' if not applicable" }
+      ]
+    },
+
+    {
+      "id": "part_d_additional",
+      "tab": "Part D",
+      "title": "Additional Information",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "c1Litigation",
+          "label": "Is Client 1 currently involved in any litigation, dispute, or legal proceedings?",
+          "type": "radio",
+          "options": ["Yes", "No"],
+          "conditional": null,
+          "validation": "required",
+          "placeholder": null
+        },
+        {
+          "id": "c1AdditionalInfo",
+          "label": "Is there anything else you would like us to know or consider?",
+          "type": "textarea",
+          "options": null,
+          "conditional": null,
+          "validation": "required",
+          "placeholder": "Enter details, or type 'None' if not applicable"
+        }
+      ]
+    },
+
+    {
+      "id": "part_d_declaration",
+      "tab": "Part D",
+      "title": "Declaration",
+      "conditional": null,
+      "fields": [
+        {
+          "id": "c1SignDate",
+          "label": "Declaration Date (Client 1)",
+          "type": "date",
+          "options": null,
+          "conditional": null,
+          "validation": "required; must not be a future date",
+          "placeholder": null
+        },
+        {
+          "id": "c2SignDate",
+          "label": "Declaration Date (Client 2)",
+          "type": "date",
+          "options": null,
+          "conditional": "isCouple",
+          "validation": "required when visible; must not be a future date",
+          "placeholder": null
+        }
+      ]
+    }
+
+  ],
+
+  "summary": {
+    "total_sections": 50,
+    "sections_by_tab": {
+      "Part A": 15,
+      "Part B": 18,
+      "Part C": 11,
+      "Part D": 11,
+      "submit_pages_not_counted": ["Part A Complete", "Part B Complete", "Part C Complete", "Submit"]
+    },
+    "top_level_fields": 198,
+    "notes_on_field_count": [
+      "Top-level field count includes all direct fields plus repeating-group header fields (e.g. count inputs).",
+      "Sub-fields inside repeating_group cards are not double-counted in the top-level total.",
+      "Total unique sub-fields across all repeating groups (templates): ~130 additional leaf fields.",
+      "Combined total including all repeating-group template fields: ~328 unique fields.",
+      "Dynamic beneficiary profile cards (beneProfiles) count as 2 fields per beneficiary; number of beneficiaries is user-determined.",
+      "SMSF member name fields repeat memberCount times within each SMSF card; documented as one template entry."
+    ],
+    "conditional_sections": 22,
+    "always_visible_sections": 28,
+    "validation_rules_applied": [
+      "email: must contain @ and a valid domain (blur hint, non-blocking)",
+      "tel: must be 8–12 numeric digits after stripping spaces and hyphens (blur hint, non-blocking)",
+      "date (dob/relationship): must not be in the future; must not be more than 120 years in the past (blur hint, non-blocking)",
+      "date (declaration): must not be in the future",
+      "residuary percentages: all resBenes percentages must sum to 100% (shown as live counter)",
+      "required fields: validated on Next/Proceed; error summary scrolled to top of card"
+    ],
+    "repeating_sections": [
+      "childJoint[]", "c1Children[]", "c2Children[]",
+      "c1Props[]", "c2Props[]",
+      "c1Banks[]", "c1Shares[]", "c2Banks[]", "c2Shares[]",
+      "c1Supers[]", "c2Supers[]",
+      "c1Morts[]", "c1Loans[]", "c2Morts[]", "c2Loans[]",
+      "c1Companies[]", "c2Companies[]",
+      "c1Businesses[]", "c2Businesses[]",
+      "c1Trusts[]", "c2Trusts[]",
+      "c1SmsfList[]", "c2SmsfList[]",
+      "c1Life[]", "c2Life[]",
+      "c1Scen1.gifts[]", "c1Scen1.resBenes[]",
+      "c1Scen2.gifts[]", "c1Scen2.resBenes[]",
+      "c2Scen1.gifts[]", "c2Scen1.resBenes[]",
+      "c2Scen2.gifts[]", "c2Scen2.resBenes[]",
+      "c1Execs[]", "c2Execs[]",
+      "guardians[]",
+      "c1HealthAtts[]", "c1FinAtts[]",
+      "c2HealthAtts[]", "c2FinAtts[]"
+    ]
+  }
+}

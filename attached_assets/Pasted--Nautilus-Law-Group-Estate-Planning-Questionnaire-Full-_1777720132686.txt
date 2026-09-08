@@ -1,0 +1,508 @@
+# Nautilus Law Group — Estate Planning Questionnaire
+## Full Build Prompt for Claude Code on Replit
+
+---
+
+## PROJECT OVERVIEW
+
+Build a production-ready multi-part estate planning client questionnaire as a React web application. This is a real law firm intake form that collects client data across 4 parts and submits the full payload via webhook to Make.com on final submission.
+
+---
+
+## TECH STACK
+
+- **React 18** with Vite (not Create React App)
+- **No UI library** — all styling is custom CSS-in-JS (inline styles) using a centralised design token object
+- **No TypeScript** — plain JavaScript only
+- **No backend** — purely frontend, webhook POST on submission
+- Single page application, no routing needed
+
+---
+
+## SETUP INSTRUCTIONS FOR REPLIT
+
+1. Create a new Replit using the **React Vite** template
+2. Delete all boilerplate inside `src/`
+3. Create the following file structure:
+
+```
+src/
+  main.jsx
+  App.jsx
+  constants/
+    colors.js
+  components/
+    Field.jsx
+    SectionHeader.jsx
+    AdviceBox.jsx
+    InfoBox.jsx
+    SectionLabel.jsx
+    PersonList.jsx
+    DistributionScenario.jsx
+  parts/
+    PartA.jsx
+    PartB.jsx
+    PartC.jsx
+    PartD.jsx
+  hooks/
+    usePartA.js
+    usePartB.js
+    usePartC.js
+    usePartD.js
+  submission/
+    ThankYou.jsx
+    webhook.js
+```
+
+---
+
+## DESIGN TOKENS — `src/constants/colors.js`
+
+```js
+export const C = {
+  teal: "#1d4a5a",
+  tealD: "#152f3a",
+  tealL: "#2a6878",
+  bg: "#f4f7f8",
+  bgD: "#e8eef1",
+  bgBorder: "#c5d4da",
+  white: "#ffffff",
+  slate: "#4a8fa0",
+  slateL: "#8ab8c4",
+  slatePale: "#e6f0f3",
+  warm: "#b5832a",
+  warmL: "#e0c98a",
+  warmPale: "#fdf6e8",
+  amber: "#8a5e0a",
+  text: "#1d2d35",
+  textL: "#56727f",
+  border: "#c5d4da",
+  red: "#8B3A3A",
+  green: "#2A6B4A",
+  greenL: "#EAF5EE",
+};
+```
+
+> **NOTE:** Font family and logo will be provided separately. For now use `font-family: Georgia, serif` for headings and `sans-serif` for body/labels. All font references must be centralised in `colors.js` as `fontHeading` and `fontBody` so they can be swapped in one place later.
+
+---
+
+## WEBHOOK CONFIG — `src/submission/webhook.js`
+
+```js
+export const WEBHOOK_URL = "https://hook.eu2.make.com/fou12e2mjy2wgv2h0e3jgqor7fu81rec";
+
+export async function submitToWebhook(aData, bData, cData, dData) {
+  const payload = buildPayload(aData, bData, cData, dData);
+  const response = await fetch(WEBHOOK_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return true;
+}
+```
+
+The `buildPayload` function must produce this exact JSON structure:
+
+```json
+{
+  "submitted_at": "<ISO timestamp>",
+  "form_version": "v3",
+  "engagement": {
+    "type": "",
+    "state": "",
+    "referral": "",
+    "referrer_name": "",
+    "referrer_firm": "",
+    "referrer_email": "",
+    "referrer_phone": "",
+    "contact_preference": "",
+    "urgent": "",
+    "urgent_detail": ""
+  },
+  "client_1": {
+    "salutation": "", "first": "", "middle": "", "last": "",
+    "preferred_name": "", "previous_names": "",
+    "dob": "", "place_of_birth": "", "gender": "",
+    "citizenship": "", "permanent_resident": "",
+    "tfn": "",
+    "email": "", "mobile": "", "home_phone": "",
+    "address": "", "postal_address": "",
+    "occupation": "", "employer": "",
+    "relationship_status": "", "relationship_date": "",
+    "prior_relationships": "",
+    "religion": "", "interpreter_required": "",
+    "capacity": "",
+    "financial": {
+      "disclosure_level": "",
+      "properties": [],
+      "bank_accounts": [],
+      "shares": [],
+      "crypto": null,
+      "foreign_assets": null,
+      "superannuation": [],
+      "mortgages": [],
+      "loans": [],
+      "guarantees": null,
+      "other_assets": "",
+      "summary_totals": null
+    },
+    "business": [],
+    "trusts": [],
+    "smsf": "",
+    "insurance": {
+      "has_insurance": "",
+      "life_tpd": [],
+      "trauma_count": 0,
+      "income_protection_count": 0
+    },
+    "will": {
+      "has_existing_will": "",
+      "existing_will_date": "",
+      "existing_will_location": "",
+      "will_storage_preference": "",
+      "executors": [],
+      "distribution_primary": {},
+      "distribution_contingency": {}
+    },
+    "epa": {
+      "health_personal": "",
+      "health_attorneys": [],
+      "financial": "",
+      "financial_attorneys": [],
+      "financial_epa_trigger": "",
+      "ahd": "",
+      "life_sustaining": "",
+      "organ_donation": ""
+    },
+    "funeral": {
+      "burial_preference": "",
+      "religious_observances": "",
+      "legacy_wishes": ""
+    },
+    "litigation": "",
+    "additional_info": "",
+    "declaration_date": ""
+  },
+  "client_2": null,
+  "family": {
+    "has_children": "",
+    "children": [],
+    "has_grandchildren": "",
+    "other_dependants": null,
+    "family_provision_risk": "",
+    "family_provision_detail": "",
+    "client1_father": "",
+    "client1_mother": ""
+  },
+  "guardians": [],
+  "beneficiary_profiles": {},
+  "professional_advisors": {
+    "accountant": "",
+    "accountant_phone": "",
+    "accountant_email": "",
+    "accountant_authority": ""
+  }
+}
+```
+
+`client_2` must be `null` for single client engagements, or a full mirror of `client_1` structure for couple engagements.
+
+---
+
+## FORM LOGIC — FULL SPECIFICATION
+
+### Global Rules
+- State is managed at the top level in `App.jsx` using `useState` for `aData`, `bData`, `cData`, `dData`
+- All state updates use immutable patterns (spread operator)
+- Each part has its own custom hook (`usePartA`, etc.) that returns: `{ pages, pg, setPg, total, pct, title, renderPage }`
+- Pages within each part are dynamically filtered based on prior answers (see conditional logic below)
+- Navigation: Back / Next buttons. "Next" on final page of a part advances to the next part tab
+- A left sidebar shows all page titles for the current part; visited pages show a ✓ prefix
+
+---
+
+### PART A — Identity, Family & Assets
+
+**Page: Welcome**
+- Engagement type: Single Client / Couple (Joint Matter) / Couple (Separate Matters) — radio, required
+- State/territory: NSW / VIC / QLD / SA / WA / TAS / NT / ACT — select, default NSW
+- Referral source: select with options
+- If referral source starts with "Referral": show referrer first name, last name, firm, phone, email
+- Contact preference: Email / Phone Call / Video Call / Post — radio
+- Urgent: Yes / No — radio; if Yes, show urgency detail textarea
+
+**Page: C1 — Personal Details**
+All fields: Title (select), First, Middle, Last, Preferred name, Previous legal names, DOB (date, required), Place of birth, Gender (select), Citizenship, Permanent Resident (radio), TFN (tel, show warning about encryption), Email (required), Mobile (required), Home phone, Residential address (required), "Is postal address same?" radio — if No show postal address field, Occupation, Employer, Relationship status (select), Date of relationship (date), Prior relationships (radio) — if Yes show details + children from prior relationship, Religion, Interpreter required (radio), Capacity (radio with 3 options) — if not "No — full capacity" show detail textarea
+
+**Page: C2 — Personal Details**
+Shown only if engagement type is Couple. Identical fields to C1.
+
+**Page: Children**
+- Has children: Yes/No radio
+- If Yes: count of joint children (number) → dynamic list; each child: Title, First, Middle, Last, DOB, Relationship type (select: Biological/Adopted/Step-child/Other), Special needs (select)
+- Has grandchildren: Yes/No → if Yes show detail
+- Other financial dependants: Yes/No → if Yes show detail
+
+**Page: Family Background**
+- C1 father name, father living (radio)
+- C1 mother name (incl maiden), mother living (radio)
+- Family provision claim risk: Yes/No/Unsure → if Yes show detail
+
+**Page: Disclosure Preference**
+- Radio: "full" / "summary" / "discuss"
+- Label descriptions for each option
+- This controls which financial pages appear
+
+**Conditional financial pages (shown only if disclosure = "full"):**
+
+**Page: C1 — Property**
+Count of properties → dynamic list; each: address, type (select), ownership (select: Sole/Joint Tenants/Tenants in Common/Other), estimated value, year purchased
+
+**Page: C1 — Financial Assets**
+Bank accounts: count → list; each: institution, account type (select), balance, ownership (Sole/Joint)
+Shares/investments: count → list; each: platform, description, value
+Crypto: Yes/No → if Yes detail textarea
+Foreign assets: Yes/No → if Yes detail textarea
+
+**Page: C1 — Superannuation**
+Count → list; each: fund name, ABN, balance, BDBN status (select: Yes-lapsing/Yes-non-lapsing/No/Unsure), nominated beneficiary, BDBN expiry date
+
+**Page: C1 — Other Assets & Liabilities**
+Other assets: textarea
+Mortgages: count → list; each: lender, secured property, balance, rate type (select)
+Personal loans: count → list; each: lender, type (select), balance
+Personal guarantees: Yes/No → if Yes detail textarea
+
+**If couple, repeat C2 versions of all four financial pages**
+
+**Shown only if disclosure = "summary":**
+
+**Page: Financial Summary**
+Table with rows: Total real property, Total bank/cash, Total shares/investments, Total other assets, Total mortgages/debts
+Columns: Client 1, Client 2 (if couple), Joint
+All cells are text inputs
+
+**Page: Part A Summary**
+Green completion banner
+
+---
+
+### PART B — Business, Trusts, SMSFs & Insurance
+
+**Page: Welcome to Part B**
+Info panel only
+
+**Page: C1 — Business Interests**
+Has business interests: Yes/No
+If Yes: count → list; each: name, structure (select), ACN/ABN, net value
+
+**Page: C1 — Trusts**
+Has trusts: Yes/No
+Show AdviceBox about trust control on death
+If Yes: count → list; each: name, type (select), net value
+
+**Page: C1 — SMSF**
+Has SMSF: Yes/No
+If Yes: show info panel (full SMSF detail fields to be expanded in v2)
+
+**Page: Insurance Overview**
+C1 has insurance: Yes/No
+C2 has insurance: Yes/No (if couple)
+
+**Pages: C1 — Life & TPD** (hidden if C1 has no insurance)
+Count of life/TPD policies → list; each: insurer, sum insured, held inside super (select), binding nomination (select)
+
+**Pages: C1 — Trauma & Income Protection** (hidden if C1 has no insurance)
+Count of trauma policies (number)
+Count of income protection policies (number)
+
+**If couple, repeat C2 versions of Business, Trusts, SMSF, Life & TPD, Trauma & IP**
+
+**Page: Professional Advisors**
+Accountant: name/firm, phone, email
+Authorise contact: Yes/No/Ask me first radio
+
+**Page: Part B Summary**
+Green completion banner
+
+---
+
+### PART C — Wills, Beneficiaries & Executors
+
+**Page: Welcome to Part C**
+Info panel only
+
+**Page: Will Structure** (couples only)
+Mirror will: Yes identical / No different / Unsure
+Show AdviceBox about mirror will limitations
+
+**Page: C1 — Distribution: Primary**
+Uses `DistributionScenario` component
+Scenario label: "If [C2 name] survives [C1 name]" for couples, "Primary distribution" for singles
+
+**Page: C1 — Distribution: Contingency**
+Scenario label: "If [C2 name] does not survive [C1 name]" for couples
+
+**Pages: C2 — Distribution: Primary & Contingency**
+Only shown if couple AND mirror will is NOT "Yes — identical terms for both"
+
+**DistributionScenario component logic:**
+- Has specific gifts: Yes/No
+- If Yes: count → list; each: beneficiary first/middle/last, address, relationship, description of gift (textarea), if gift doesn't exist is there a substitute (radio) → if Yes show substitute description
+- Number of residuary beneficiaries → list; each: first/middle/last, address, relationship, percentage of residue, Testamentary Trust? (select: Yes/No/To discuss)
+
+**Page: Beneficiary Profiles**
+Automatically collects all unique beneficiaries named across all distribution scenarios
+For each: financial maturity assessment (select), needs Testamentary Trust (radio)
+Show AdviceBox explaining Testamentary Trusts
+If no beneficiaries named yet, show warning
+
+**Page: C1 — Executors**
+PersonList component: count → list; each has all standard person fields plus "Has this person agreed to act?" radio
+Will storage location: select
+
+**Page: C2 — Executors** (couples only)
+
+**Page: Guardians** (shown only if any child has age < 18 based on DOB in aData)
+PersonList for guardians including "agreed to act" field
+
+**Page: Existing Wills**
+C1 existing will: Yes/No → if Yes: approximate date, where kept (select)
+C2 existing will (if couple): same
+
+**Page: Part C Summary**
+Green completion banner
+
+---
+
+### PART D — EPA, Medical Wishes & Funeral Directions
+
+**Page: Welcome to Part D**
+AdviceBox explaining difference between Will and EPA
+
+**Pages: [ClientName] — EPA: Health & Personal** (for each client)
+EPA for health decisions: Yes new / Yes update / No / To discuss
+If Yes: PersonList for health attorneys with "agreed to act"
+
+**Pages: [ClientName] — Medical & End of Life** (for each client)
+Advance Health Directive: Yes/No/To discuss
+Life-sustaining treatment wishes: radio with 4 options
+Organ donation: radio with 4 options
+
+**Pages: [ClientName] — EPA: Financial** (for each client)
+EPA for financial decisions: Yes new / Yes update / No / To discuss
+If Yes: PersonList for financial attorneys + "When does EPA take effect?" radio
+
+**Pages: [ClientName] — Funeral & Legacy Wishes** (for each client)
+Burial/cremation preference: radio
+Religious observances: textarea
+Legacy wishes: textarea
+
+**Page: Additional Information**
+C1 involved in litigation: Yes/No
+C1 additional info: textarea
+
+**Page: Declaration**
+Legalese confirmation text displayed in info box
+C1 declaration date (date input)
+C2 declaration date (date input, if couple)
+
+**Page: Thank You**
+On mount: fire webhook POST via `submitToWebhook(aData, bData, cData, dData)`
+Show spinner (animated) while sending
+On success: green confirmation banner + thank you message
+On error: red error message with Retry button that re-attempts the submission
+
+---
+
+## REUSABLE COMPONENTS
+
+### `Field.jsx`
+Props: `label`, `type` (text/email/tel/date/number/textarea/select/radio), `opts` (array for select/radio), `value`, `onChange`, `required`, `placeholder`, `rows`, `sub` (subtitle label), `warn` (warning message shown above input in amber box)
+Required fields show a red asterisk. All inputs use the design token border/background.
+
+### `SectionHeader.jsx`
+Props: `icon` (emoji), `title`, `sub`
+Renders icon + Georgia serif title + optional subtitle + horizontal rule
+
+### `AdviceBox.jsx`
+Props: `title`, `children`
+Collapsible panel with amber styling. Default collapsed. Toggle arrow.
+
+### `InfoBox.jsx`
+Props: `children`, `color`, `border`
+Non-collapsible info panel. Defaults to slate/pale blue palette.
+
+### `SectionLabel.jsx`
+Props: `text`
+Small teal label bar used to separate sub-sections within a page
+
+### `PersonList.jsx`
+Props: `countLabel`, `listKey`, `countKey`, `D`, `update`, `noun`, `showDOB`, `showNick`, `showAgreed`, `showAddress`
+Renders a number input for count, then a dynamic list of person cards. Each card: Title, First, Middle, Last, Preferred name (if showNick), DOB (if showDOB), Relationship, Email, Mobile, Address (if showAddress), "Has agreed to act?" radio (if showAgreed)
+
+### `DistributionScenario.jsx`
+Props: `prefix`, `D`, `update`, `scenLabel`, `clientName`
+See full logic in Part C spec above
+
+---
+
+## LAYOUT & NAVIGATION
+
+**Header bar** (sticky, dark teal):
+- Left: shell emoji + "Nautilus Law Group" small text + "Estate Planning Questionnaire" title
+- Right: version badge "v3"
+
+**Tab bar** (below header, medium teal):
+- 4 tabs: Part A (Identity & Assets), Part B (Business & Insurance), Part C (Wills & Executors), Part D (EPA & Medical)
+- Active tab has white background, inactive is transparent
+
+**Left sidebar** (white, 200px):
+- List of page titles for current part
+- Completed pages show ✓ prefix in green
+- Current page highlighted in teal
+- Clicking a page title jumps directly to it
+
+**Main content area**:
+- White card with border, rounded corners, padding 22px 26px
+- Progress bar above card (teal fill, shows % complete within current part)
+- "Page X/Y — Z%" label next to bar
+- Back / Next buttons below card
+- Current page title centred between buttons
+- "Proceed to Part X" button replaces Next on last page of each part (green)
+- "All Parts Complete" button on last page of Part D (green, disabled after submission)
+
+---
+
+## ENVIRONMENT VARIABLE
+
+Store the webhook URL in a Replit Secret (environment variable):
+- Secret name: `VITE_WEBHOOK_URL`
+- Value: `https://hook.eu2.make.com/fou12e2mjy2wgv2h0e3jgqor7fu81rec`
+- Access in code: `import.meta.env.VITE_WEBHOOK_URL`
+
+---
+
+## DEPLOYMENT ON REPLIT
+
+After building:
+1. Run `npm run build` — Vite outputs to `dist/`
+2. In Replit, set the run command to: `npx serve dist`
+3. Replit will assign a public `.replit.app` URL automatically
+4. For a custom domain: go to Replit → Deployments → Custom Domain → add your domain and point DNS CNAME to `<your-repl>.replit.app`
+
+---
+
+## IMPORTANT CONSTRAINTS
+
+- No localStorage or sessionStorage — all state in React useState only
+- No external UI libraries (no MUI, no Ant Design, no Chakra)
+- No TypeScript
+- All colours and fonts via the centralised `C` token object — no hardcoded hex values anywhere else in the codebase
+- The webhook fires ONCE only — on mount of the ThankYou component — with a loading/success/error state machine
+- The form must be fully functional on mobile (responsive, minimum 360px width)
+- All dynamic lists (PersonList, properties, bank accounts etc.) use array index as key only as a last resort — prefer stable keys where possible
+- Percentages in residuary beneficiary distribution should soft-validate to sum to 100% and show a warning if they don't (but do not block submission)

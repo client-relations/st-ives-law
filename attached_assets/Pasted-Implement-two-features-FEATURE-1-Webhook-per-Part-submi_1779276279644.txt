@@ -1,0 +1,45 @@
+Implement two features:
+
+## FEATURE 1 — Webhook per Part submission
+
+At the end of each Part (A, B, C, D), when the user clicks the final "Part Complete" button, POST to the existing webhook already configured in the app.
+
+Each call should POST JSON in this format:
+{
+  "event": "part_a_submitted",        // part_a_submitted / part_b_submitted / part_c_submitted / part_d_submitted
+  "submitted_at": "2026-05-20T10:00:00Z",
+  "session_id": "abc123",             // unique ID for this client session (see Feature 2)
+  "client_name": "John Smith",        // c1.first + c1.last from form state
+  "data": { ...all form state for that part... }
+}
+
+The "data" field should contain only the relevant part's state:
+- Part A: personal details, relationship, children, family, disclosure, assets/liabilities
+- Part B: companies, trusts, SMSF, business interests, insurance, advisors, documents
+- Part C: will structure, distributions, beneficiary profiles, executors, guardians, existing wills
+- Part D: EPA, medical wishes, funeral wishes, additional info, declaration
+
+Show a non-blocking toast notification when each webhook fires: "Part A data has been submitted successfully" (or B/C/D). If the webhook fails, show a gentle warning but do not block the user from continuing.
+
+## FEATURE 2 — Auto-save and resume progress
+
+Implement persistent form state using Replit's built-in key-value database (@replit/database).
+
+HOW IT WORKS:
+1. On first visit, generate a random UUID as a session_id and store it in localStorage under the key "nlg_session_id"
+2. On every state change, auto-save the full form state to the Replit DB under the key "session:{session_id}" — debounce saves to every 3 seconds to avoid hammering the DB
+3. On app load, check localStorage for an existing session_id. If found, fetch the saved state from the DB and restore it into the form — the user picks up exactly where they left off
+4. Show a subtle banner at the top when a saved session is restored: "Welcome back — your progress has been restored." with an X to dismiss
+5. Add a "Clear and start over" button somewhere unobtrusive (e.g. bottom of the welcome page) that deletes the DB entry and clears localStorage, giving a fresh session
+
+IMPORTANT:
+- Auto-save should be silent — no notification on every save, only on restore
+- The session_id should persist across browser closes (localStorage, not sessionStorage)
+- If the DB fetch fails on load (e.g. session expired), fail silently and start fresh
+- Install @replit/database if not already installed
+
+After implementing both features, add 2 Playwright tests:
+1. Auto-save test — fill in c1.first and c1.last on the personal details page, wait 4 seconds, reload the page, verify the values are still present
+2. Webhook test — mock the existing webhook endpoint, complete Part A, verify the POST was made with event = "part_a_submitted" and the correct client name
+
+Run the full test suite (all existing tests + 2 new = 26 tests) and confirm all pass.

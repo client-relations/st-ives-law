@@ -1,0 +1,22 @@
+Now write a Playwright end-to-end test suite that covers every item that was just fixed or added. Save it as tests/questionnaire.spec.js. The tests should:
+
+1. Mandatory fields removed — verify no field has the `required` attribute and no asterisk (*) appears in labels
+2. Client 2 parent radio buttons — select "Yes" for Client 2 father, verify Client 1 father stays independently set to "No"
+3. Health Attorney 2 radio buttons — verify all three options (Yes, No, Not yet asked) can be clicked and selected independently
+4. Guardians section hidden when no minor children — complete the children section with a child aged 25, verify the Guardians section does not appear
+5. Guardians section shown when minor child exists — enter a child aged 10, verify the Guardians section appears
+6. Cascading dropdowns — fill Financial Maturity for beneficiary 1, verify beneficiary 2's dropdown is also independently interactable
+7. Primary Distribution scenario text — verify the info box contains the word "Primary Distribution applies if that spouse survives you"
+8. Contingency Distribution scenario text — verify the info box contains "back up choice"
+9. Testamentary Trust dropdown options — verify "Yes — strongly recommended" does not exist anywhere in the DOM
+10. Testamentary Trust label — verify the text "Would you like protection for their inheritance in the form of a trust?" exists
+11. Testamentary Trust description — verify the expandable box contains "third party managed distributions"
+12. Financial Maturity options — verify "At risk occupation" appears as an option in the dropdown
+13. Mortgage question wording — verify "Are you subject to any mortgages?" exists and old wording does not
+14. Loan question wording — verify "Are you subject to debt by way of personal loans or credit cards?" exists
+15. Companies section — verify a "How many companies" question exists in Business & Insurance tab, enter 2 and verify two company forms appear
+16. SMSF limited recourse — select Yes for borrowing arrangement and verify sub-fields appear
+17. Document upload — verify a file input exists and accepts PDF/DOC/DOCX
+
+Run with: npx playwright test
+Generate an HTML report with: npx playwright test --reporter=html

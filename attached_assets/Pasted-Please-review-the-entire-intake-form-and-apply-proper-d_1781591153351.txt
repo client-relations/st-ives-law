@@ -1,0 +1,63 @@
+Please review the entire intake form and apply proper data validation to all input fields. Do not just follow this list mechanically — think through every field in the form yourself and apply the most appropriate validation based on what the field is collecting. Use your judgment to catch anything not listed here.
+
+Here is the validation to enforce:
+
+EMAIL FIELDS:
+- Must match standard email format (user@domain.com)
+- Reject entries without @ symbol or valid domain
+- Apply to: client email, executor email, attorney email, guardian email, beneficiary email, referrer email, accountant email
+
+PHONE NUMBER FIELDS:
+- Australian format only
+- Mobile: must start with 04, exactly 10 digits
+- Home/work phone: must start with 02, 03, 07, or 08, exactly 10 digits
+- Allow spaces but strip before validating
+- Reject letters and special characters
+- Apply to: client mobile, client home phone, referrer phone, accountant phone, executor mobile, attorney mobile, guardian mobile
+
+DATE FIELDS:
+- Must be valid calendar dates
+- Must NEVER be in the future — reject any future date across all date fields
+- Date of birth for clients: must be at least 18 years in the past
+- Date of birth for executors/attorneys/guardians: must be in the past
+- Declaration date: must not be in the future
+- Existing will date: must not be in the future
+- Relationship date: must not be in the future
+- Reject invalid dates like 31/02/2000
+
+NAME FIELDS:
+- Must not be empty for required fields
+- No numbers or special characters in first/last name
+- Minimum 2 characters
+
+PERCENTAGE FIELDS (beneficiary share):
+- Must be a number between 1 and 100
+- All beneficiary shares within a group must add up to exactly 100%
+- Show a running total and error if total does not equal 100%
+- Block form submission if shares do not sum to 100%
+
+ADDRESS FIELDS:
+- Must not be empty for required fields
+- Minimum 10 characters
+
+ABN/ACN FIELDS:
+- ABN: exactly 11 digits after stripping spaces
+- ACN: exactly 9 digits after stripping spaces
+
+DOLLAR/VALUE FIELDS (financial section):
+- Numeric only
+- No negative values
+- No letters or special characters except decimal point
+
+TEXT AREA FIELDS:
+- Optional: maximum 1000 characters
+- Required: minimum 10 characters
+
+GENERAL RULES:
+- Show inline error messages immediately on blur
+- Highlight invalid fields in red with a clear error message below the field
+- Prevent form submission if any required field fails validation
+- Do not clear the field value when showing an error
+- Strip leading/trailing whitespace from all fields before validating
+
+Go through every single field in every section of the form. Think independently about what validation makes sense for each field. If something looks wrong or inconsistent beyond what is listed above, fix it using your best judgment.

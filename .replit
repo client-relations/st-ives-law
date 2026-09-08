@@ -1,0 +1,44 @@
+modules = ["nodejs-24"]
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+runButton = "Project"
+
+[agent]
+stack = "PNPM_WORKSPACE"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 80
+
+[[ports]]
+localPort = 8082
+externalPort = 3002
+
+[[ports]]
+localPort = 23590
+externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+VITE_WEBHOOK_URL = "https://hook.eu2.make.com/fou12e2mjy2wgv2h0e3jgqor7fu81rec"
+R2_ENDPOINT = "https://299a5e54175b44e257ed39fdfae850ab.r2.cloudflarestorage.com"
+R2_BUCKET = "smokeballnautilus"
+R2_PUBLIC_URL = "https://pub-5fd94fe8d800420583e304b66e367a05.r2.dev"

@@ -1,0 +1,28 @@
+NAUTILUS LAW DASHBOARD - SUMMARY OF CHANGES
+
+UI CHANGES
+- Reorganized dashboard layout: Navigation sidebar (left), "New Leads" button (lower left)
+- Pending Leads section with filters (search by name, lawyer, date range)
+- Qualified Leads section with 6-column Kanban board:
+  * Sent (forms sent to client)
+  * Opened (client opened form)
+  * In Progress (client filling out)
+  * Completed (client completed)
+  * Submitted to Smokeball (sent to CRM)
+  * Overdue (awaiting response past deadline)
+- Fixed header: ADMIN lawyer name and Filter Overdue button stay at top
+- Horizontal scrolling: Only Kanban columns scroll, filters/header stay fixed
+- Increased board height to show more cards at once
+- Qualify/Reject buttons trigger form creation and email notification
+
+BACKEND CHANGES
+- qualifyLead() function: Creates form and triggers webhook to send to client
+- rejectLead() and deprioritizeLead() functions for lead status updates
+- Form progress tracking: markFormComplete(), updateFormProgress()
+- Smokeball integration: submitFormToSmokeball()
+
+SUPABASE CHANGES
+- Enabled Row-Level Security (RLS) policies for data access control
+- Real-time data sync for pending leads, qualified leads, and forms
+- Email verification required for form access (token + email match)
+- Demo mode: test@test.com / password123 for testing

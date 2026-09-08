@@ -1,0 +1,143 @@
+# Brand Token Update — Nautilus Law Group
+## Only update `src/constants/colors.js` — do not touch any other file
+
+Replace the entire contents of `src/constants/colors.js` with the following:
+
+```js
+// ─── NAUTILUS LAW GROUP — BRAND TOKENS ───────────────────────────────────────
+// Extracted from nautiluslaw.com.au
+// To update brand: only edit this file. Nothing else needs to change.
+
+export const C = {
+
+  // ── Core brand colours (from website) ──────────────────────────────────────
+  teal:       "#4a8fa0",   // primary — mid teal (nav bar, buttons, accents)
+  tealD:      "#2c6070",   // dark teal — header bar, hover states
+  tealL:      "#7ab8c8",   // light teal — sidebar highlights, borders
+  bg:         "#eaf4f4",   // page background — the seafoam/pale teal from hero
+  bgD:        "#d6ebec",   // slightly darker bg — card borders, zebra rows
+  bgBorder:   "#b8d8db",   // border colour throughout
+  white:      "#ffffff",
+  slate:      "#5a9aaa",
+  slateL:     "#93c4ce",
+  slatePale:  "#e0f0f3",
+
+  // ── Warm accent (gold/amber from shell photography) ─────────────────────────
+  warm:       "#b5832a",
+  warmL:      "#ddb96a",
+  warmPale:   "#fdf6e8",
+  amber:      "#7a5510",
+
+  // ── Typography colours ──────────────────────────────────────────────────────
+  text:       "#2b2b2b",   // near-black — body text (matches site's dark charcoal)
+  textL:      "#5a6e74",   // muted label text
+  border:     "#b8d8db",
+
+  // ── Status colours ──────────────────────────────────────────────────────────
+  red:        "#8B3A3A",
+  green:      "#2A6B4A",
+  greenL:     "#EAF5EE",
+
+  // ── Typography ──────────────────────────────────────────────────────────────
+  // Nautilus website uses:
+  //   Headings  → "Raleway", sans-serif (uppercase tracking, as seen in "WELCOME TO", "JUSTICE SERVED", "PRACTICE AREAS")
+  //   Body/Nav  → "Open Sans", sans-serif (clean, readable — used in nav links and body copy)
+  //   Accent    → "Georgia", serif (optional — for pull quotes or legal text blocks)
+  fontHeading: "'Raleway', 'Trebuchet MS', sans-serif",
+  fontBody:    "'Open Sans', 'Helvetica Neue', sans-serif",
+  fontAccent:  "Georgia, serif",
+
+  // ── Font sizes ───────────────────────────────────────────────────────────────
+  sizeXs:     "10px",
+  sizeSm:     "12px",
+  sizeBase:   "13px",
+  sizeMd:     "15px",
+  sizeLg:     "18px",
+  sizeXl:     "22px",
+  sizeHero:   "28px",
+
+  // ── Letter spacing (Nautilus uses wide uppercase tracking) ──────────────────
+  trackingWide:   "0.08em",
+  trackingXWide:  "0.15em",
+
+  // ── Logo ─────────────────────────────────────────────────────────────────────
+  // Replace logoUrl with the actual hosted logo path once deployed
+  logoUrl:    "https://nautiluslaw.com.au/wp-content/uploads/2017/01/nautilus-law-group-logo.png",
+  logoAlt:    "Nautilus Law Group",
+};
+```
+
+---
+
+## After updating colors.js — also make these targeted changes:
+
+### 1. Add Google Fonts import to `index.html`
+Inside the `<head>` tag, add:
+```html
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+```
+
+### 2. Update header logo in `App.jsx`
+Replace the shell emoji + text logo block with:
+```jsx
+<div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+  <img
+    src={C.logoUrl}
+    alt={C.logoAlt}
+    style={{ height: 38, objectFit: "contain" }}
+    onError={e => { e.target.style.display = "none"; }}
+  />
+  <span style={{
+    color: C.warmL,
+    fontSize: C.sizeXs,
+    fontFamily: C.fontBody,
+    letterSpacing: C.trackingXWide,
+    textTransform: "uppercase"
+  }}>
+    Estate Planning Questionnaire
+  </span>
+</div>
+```
+
+### 3. Update all heading font references in `SectionHeader.jsx`
+```jsx
+// Change fontFamily from "Georgia, serif" to:
+fontFamily: C.fontHeading,
+letterSpacing: C.trackingWide,
+textTransform: "uppercase",
+fontSize: C.sizeLg,
+```
+
+### 4. Update all body/label font references
+In `Field.jsx`, `AdviceBox.jsx`, `InfoBox.jsx`, `SectionLabel.jsx` — replace every instance of:
+```js
+fontFamily: "sans-serif"
+```
+with:
+```js
+fontFamily: C.fontBody
+```
+
+### 5. Update tab bar font in `App.jsx`
+```jsx
+// Tab labels
+fontFamily: C.fontBody,
+letterSpacing: C.trackingWide,
+textTransform: "uppercase",
+fontSize: C.sizeXs,
+fontWeight: 700,
+```
+
+---
+
+## Webhook check — verify this is present in `src/submission/webhook.js`
+
+Confirm the file contains:
+```js
+export const WEBHOOK_URL = import.meta.env.VITE_WEBHOOK_URL
+  || "https://hook.eu2.make.com/fou12e2mjy2wgv2h0e3jgqor7fu81rec";
+```
+
+And that `ThankYou.jsx` calls `submitToWebhook(aData, bData, cData, dData)` inside a `useEffect` on mount with loading / success / error states. If this is missing, implement it now.

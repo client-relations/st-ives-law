@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Nautilus Law Group — Estate Planning Questionnaire"
+version = "1.0.0"
+id = "artifacts/questionnaire"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23590
+
+[services.development]
+run = "pnpm --filter @workspace/questionnaire run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/questionnaire", "run", "build" ]
+publicDir = "artifacts/questionnaire/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23590"
+BASE_PATH = "/"

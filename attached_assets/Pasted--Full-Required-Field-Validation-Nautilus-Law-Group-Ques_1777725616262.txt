@@ -1,0 +1,689 @@
+# Full Required-Field Validation — Nautilus Law Group Questionnaire
+## Paste into Claude Code in Replit — do not rebuild from scratch
+
+---
+
+## RULES (read before implementing)
+
+1. **Every visible field is required.** If it renders on screen, the user must fill it before Next is enabled.
+2. **Conditional fields** — if a field only appears because of a prior answer (e.g. urgency detail, postal address, prior relationship details), it is required the moment it appears.
+3. **Dynamic list fields** — a count of 0 is acceptable (user has none). But if count > 0, every field inside every list item is required.
+4. **Gateway Yes/No questions** precede all dynamic lists (properties, bank accounts, super, businesses, trusts, insurance). The gateway answer itself is required. If Yes, the list items' fields are all required. If No, no list fields appear.
+5. **Back navigation is always allowed** — never block going backwards.
+6. **Next button behaviour** — on click, run validation for the current page. If any errors exist: block navigation, show error banner at top of page listing all missing fields, highlight each failing field red with inline message, scroll to top. If no errors: clear errors and advance.
+7. **Percentage totals** — residuary beneficiary percentages must sum to exactly 100% when count > 0. This is a hard block, not a warning.
+
+---
+
+## STEP 1 — Replace `src/utils/validation.js` entirely
+
+```js
+export function validatePage(pageTitle, aData, bData, cData, dData) {
+  const errors = [];
+
+  const req = (val, field, message) => {
+    const empty =
+      val === undefined ||
+      val === null ||
+      (typeof val === "string" && val.trim() === "") ||
+      (typeof val === "number" && isNaN(val));
+    if (empty) errors.push({ field, message });
+  };
+
+  const reqListItem = (items, count, noun, fields) => {
+    (items || []).slice(0, count).forEach((item, i) => {
+      fields.forEach(({ key, label }) => {
+        if (!item[key] || String(item[key]).trim() === "") {
+          errors.push({
+            field: `${noun}_${i}_${key}`,
+            message: `${noun.replace(/_/g," ")} ${i + 1}: ${label} is required`,
+          });
+        }
+      });
+    });
+  };
+
+  // ─── PART A: Welcome ───────────────────────────────────────────────────────
+  if (pageTitle === "Welcome") {
+    req(aData.engType,     "engType",     "Engagement type is required");
+    req(aData.state,       "state",       "State or territory is required");
+    req(aData.referral,    "referral",    "How you heard about us is required");
+    req(aData.contactPref, "contactPref", "Contact preference is required");
+    req(aData.urgent,      "urgent",      "Please indicate if there is urgency");
+    if (aData.urgent === "Yes") {
+      req(aData.urgentDetail, "urgentDetail", "Please describe the urgency");
+    }
+    if ((aData.referral || "").startsWith("Referral")) {
+      req(aData.refFirst, "refFirst", "Referrer first name is required");
+      req(aData.refLast,  "refLast",  "Referrer last name is required");
+      req(aData.refFirm,  "refFirm",  "Referrer organisation is required");
+      req(aData.refPhone, "refPhone", "Referrer phone is required");
+      req(aData.refEmail, "refEmail", "Referrer email is required");
+    }
+  }
+
+  // ─── PART A: C1 Personal Details ──────────────────────────────────────────
+  if (pageTitle === "C1 — Personal Details") {
+    const c = aData.c1 || {};
+    req(c.salut,      "c1.salut",      "Title is required");
+    req(c.first,      "c1.first",      "First name is required");
+    req(c.last,       "c1.last",       "Last name is required");
+    req(c.dob,        "c1.dob",        "Date of birth is required");
+    req(c.pob,        "c1.pob",        "Place of birth is required");
+    req(c.gender,     "c1.gender",     "Gender is required");
+    req(c.citizen,    "c1.citizen",    "Citizenship is required");
+    req(c.pr,         "c1.pr",         "Permanent resident status is required");
+    req(c.email,      "c1.email",      "Email address is required");
+    req(c.mobile,     "c1.mobile",     "Mobile number is required");
+    req(c.addr,       "c1.addr",       "Residential address is required");
+    req(c.postalSame, "c1.postalSame", "Please indicate if postal address is the same");
+    if (c.postalSame === "No") {
+      req(c.postal, "c1.postal", "Postal address is required");
+    }
+    req(c.occ,          "c1.occ",          "Occupation is required");
+    req(c.employer,     "c1.employer",     "Employer or business name is required");
+    req(c.relStatus,    "c1.relStatus",    "Relationship status is required");
+    req(c.relDate,      "c1.relDate",      "Approximate date of relationship is required");
+    req(c.priorRel,     "c1.priorRel",     "Prior relationships question is required");
+    if (c.priorRel === "Yes") {
+      req(c.priorRelDetail,    "c1.priorRelDetail",    "Prior relationship details are required");
+      req(c.priorRelChildren,  "c1.priorRelChildren",  "Please indicate if there are children from a prior relationship");
+    }
+    req(c.religion,    "c1.religion",    "Religious or cultural considerations field is required (enter 'None' if not applicable)");
+    req(c.interpreter, "c1.interpreter", "Interpreter requirement is required");
+    req(c.capacity,    "c1.capacity",    "Capacity status is required");
+    if (c.capacity && c.capacity !== "No — full capacity") {
+      req(c.capacityDetail, "c1.capacityDetail", "Capacity details are required");
+    }
+  }
+
+  // ─── PART A: C2 Personal Details ──────────────────────────────────────────
+  if (pageTitle === "C2 — Personal Details") {
+    const c = aData.c2 || {};
+    req(c.salut,      "c2.salut",      "Title is required");
+    req(c.first,      "c2.first",      "First name is required");
+    req(c.last,       "c2.last",       "Last name is required");
+    req(c.dob,        "c2.dob",        "Date of birth is required");
+    req(c.pob,        "c2.pob",        "Place of birth is required");
+    req(c.gender,     "c2.gender",     "Gender is required");
+    req(c.citizen,    "c2.citizen",    "Citizenship is required");
+    req(c.pr,         "c2.pr",         "Permanent resident status is required");
+    req(c.email,      "c2.email",      "Email address is required");
+    req(c.mobile,     "c2.mobile",     "Mobile number is required");
+    req(c.addr,       "c2.addr",       "Residential address is required");
+    req(c.postalSame, "c2.postalSame", "Please indicate if postal address is the same");
+    if (c.postalSame === "No") {
+      req(c.postal, "c2.postal", "Postal address is required");
+    }
+    req(c.occ,          "c2.occ",          "Occupation is required");
+    req(c.employer,     "c2.employer",     "Employer or business name is required");
+    req(c.relStatus,    "c2.relStatus",    "Relationship status is required");
+    req(c.relDate,      "c2.relDate",      "Approximate date of relationship is required");
+    req(c.priorRel,     "c2.priorRel",     "Prior relationships question is required");
+    if (c.priorRel === "Yes") {
+      req(c.priorRelDetail,   "c2.priorRelDetail",   "Prior relationship details are required");
+      req(c.priorRelChildren, "c2.priorRelChildren", "Please indicate if there are children from a prior relationship");
+    }
+    req(c.religion,    "c2.religion",    "Religious or cultural considerations field is required (enter 'None' if not applicable)");
+    req(c.interpreter, "c2.interpreter", "Interpreter requirement is required");
+    req(c.capacity,    "c2.capacity",    "Capacity status is required");
+    if (c.capacity && c.capacity !== "No — full capacity") {
+      req(c.capacityDetail, "c2.capacityDetail", "Capacity details are required");
+    }
+  }
+
+  // ─── PART A: Children ─────────────────────────────────────────────────────
+  if (pageTitle === "Children") {
+    req(aData.hasChildren, "hasChildren", "Please indicate if you have children");
+    if (aData.hasChildren === "Yes") {
+      req(aData.childJointCount, "childJointCount", "Please enter the number of children");
+      const count = parseInt(aData.childJointCount || 0);
+      reqListItem(aData.childJoint, count, "child", [
+        { key: "first", label: "First name" },
+        { key: "last",  label: "Last name"  },
+        { key: "dob",   label: "Date of birth" },
+        { key: "rel",   label: "Relationship type" },
+        { key: "special", label: "Special needs / disability" },
+      ]);
+      req(aData.grandchildren, "grandchildren", "Please indicate if you have or expect grandchildren");
+      if (aData.grandchildren === "Yes") {
+        req(aData.grandchildrenDetail, "grandchildrenDetail", "Please provide grandchildren details");
+      }
+    }
+    req(aData.otherDependants, "otherDependants", "Please indicate if you financially support any other person");
+    if (aData.otherDependants === "Yes") {
+      req(aData.otherDependantsDetail, "otherDependantsDetail", "Please provide details of other dependants");
+    }
+  }
+
+  // ─── PART A: Family Background ────────────────────────────────────────────
+  if (pageTitle === "Family Background") {
+    req(aData.c1FatherName,  "c1FatherName",  "Father's full name is required (enter 'Unknown' if not known)");
+    req(aData.c1FatherAlive, "c1FatherAlive", "Father's living status is required");
+    req(aData.c1MotherName,  "c1MotherName",  "Mother's full name is required (enter 'Unknown' if not known)");
+    req(aData.c1MotherAlive, "c1MotherAlive", "Mother's living status is required");
+    req(aData.familyProvisionRisk, "familyProvisionRisk", "Family provision claim risk is required");
+    if (aData.familyProvisionRisk === "Yes") {
+      req(aData.familyProvisionDetail, "familyProvisionDetail", "Family provision details are required");
+    }
+  }
+
+  // ─── PART A: Disclosure Preference ───────────────────────────────────────
+  if (pageTitle === "Disclosure Preference") {
+    req(aData.disclosureLevel, "disclosureLevel", "Please select a financial disclosure preference");
+  }
+
+  // ─── PART A: C1 Property ─────────────────────────────────────────────────
+  if (pageTitle === "C1 — Property") {
+    req(aData.c1HasProperty, "c1HasProperty", "Please indicate if you own any real property");
+    if (aData.c1HasProperty === "Yes") {
+      req(aData.c1PropCount, "c1PropCount", "Please enter the number of properties");
+      const count = parseInt(aData.c1PropCount || 0);
+      reqListItem(aData.c1Props, count, "property", [
+        { key: "addr",      label: "Address"          },
+        { key: "type",      label: "Property type"    },
+        { key: "ownership", label: "Ownership"        },
+        { key: "estValue",  label: "Estimated value"  },
+        { key: "year",      label: "Year purchased"   },
+      ]);
+    }
+  }
+
+  // ─── PART A: C1 Financial Assets ─────────────────────────────────────────
+  if (pageTitle === "C1 — Financial Assets") {
+    req(aData.c1HasBank, "c1HasBank", "Please indicate if you hold any bank accounts");
+    if (aData.c1HasBank === "Yes") {
+      req(aData.c1BankCount, "c1BankCount", "Please enter the number of bank accounts");
+      reqListItem(aData.c1Banks, parseInt(aData.c1BankCount || 0), "bank_account", [
+        { key: "institution", label: "Institution"   },
+        { key: "type",        label: "Account type"  },
+        { key: "balance",     label: "Balance"       },
+        { key: "ownership",   label: "Ownership"     },
+      ]);
+    }
+    req(aData.c1HasShares, "c1HasShares", "Please indicate if you hold any shares or investments");
+    if (aData.c1HasShares === "Yes") {
+      req(aData.c1ShareCount, "c1ShareCount", "Please enter the number of share portfolios");
+      reqListItem(aData.c1Shares, parseInt(aData.c1ShareCount || 0), "share_portfolio", [
+        { key: "platform", label: "Platform / broker" },
+        { key: "desc",     label: "Description"       },
+        { key: "value",    label: "Approximate value" },
+      ]);
+    }
+    req(aData.c1HasCrypto,       "c1HasCrypto",       "Please indicate if you hold any cryptocurrency");
+    if (aData.c1HasCrypto === "Yes") {
+      req(aData.c1CryptoDetail, "c1CryptoDetail", "Please provide cryptocurrency details");
+    }
+    req(aData.c1ForeignAssets,   "c1ForeignAssets",   "Please indicate if you hold any foreign assets");
+    if (aData.c1ForeignAssets === "Yes") {
+      req(aData.c1ForeignDetail, "c1ForeignDetail", "Please provide foreign asset details");
+    }
+  }
+
+  // ─── PART A: C1 Superannuation ────────────────────────────────────────────
+  if (pageTitle === "C1 — Superannuation") {
+    req(aData.c1HasSuper, "c1HasSuper", "Please indicate if you hold any superannuation");
+    if (aData.c1HasSuper === "Yes") {
+      req(aData.c1SuperCount, "c1SuperCount", "Please enter the number of super funds");
+      reqListItem(aData.c1Supers, parseInt(aData.c1SuperCount || 0), "super_fund", [
+        { key: "fundName", label: "Fund name"                },
+        { key: "abn",      label: "Fund ABN"                 },
+        { key: "balance",  label: "Approximate balance"      },
+        { key: "bdbn",     label: "Binding nomination status"},
+      ]);
+    }
+  }
+
+  // ─── PART A: C1 Other Assets & Liabilities ────────────────────────────────
+  if (pageTitle === "C1 — Other Assets & Liabilities") {
+    req(aData.c1OtherAssetNotes, "c1OtherAssetNotes", "Please describe other assets or enter 'None'");
+    req(aData.c1HasMortgages, "c1HasMortgages", "Please indicate if you hold any mortgages");
+    if (aData.c1HasMortgages === "Yes") {
+      req(aData.c1MortCount, "c1MortCount", "Please enter the number of mortgages");
+      reqListItem(aData.c1Morts, parseInt(aData.c1MortCount || 0), "mortgage", [
+        { key: "lender",  label: "Lender"            },
+        { key: "prop",    label: "Secured property"  },
+        { key: "balance", label: "Balance"           },
+        { key: "rate",    label: "Rate type"         },
+      ]);
+    }
+    req(aData.c1HasLoans, "c1HasLoans", "Please indicate if you hold any personal loans");
+    if (aData.c1HasLoans === "Yes") {
+      req(aData.c1LoanCount, "c1LoanCount", "Please enter the number of loans");
+      reqListItem(aData.c1Loans, parseInt(aData.c1LoanCount || 0), "loan", [
+        { key: "lender",  label: "Lender"   },
+        { key: "type",    label: "Loan type"},
+        { key: "balance", label: "Balance"  },
+      ]);
+    }
+    req(aData.c1Guarantees, "c1Guarantees", "Please indicate if you have provided any personal guarantees");
+    if (aData.c1Guarantees === "Yes") {
+      req(aData.c1GuaranteeDetail, "c1GuaranteeDetail", "Please provide guarantee details");
+    }
+  }
+
+  // ─── Repeat C2 versions of financial pages when couple ────────────────────
+  // (Apply identical logic prefixed with c2 for pages:
+  //  "C2 — Property", "C2 — Financial Assets", "C2 — Superannuation",
+  //  "C2 — Other Assets & Liabilities")
+  // Pattern is identical to C1 above — replace all "c1" keys with "c2"
+
+  // ─── PART A: Financial Summary (summary disclosure only) ─────────────────
+  if (pageTitle === "Financial Summary") {
+    req(aData.c1PropTotal,  "c1PropTotal",  "Client 1 total property value is required (enter 0 if none)");
+    req(aData.c1BankTotal,  "c1BankTotal",  "Client 1 total bank/cash is required (enter 0 if none)");
+    req(aData.c1ShareTotal, "c1ShareTotal", "Client 1 total shares/investments is required (enter 0 if none)");
+    req(aData.c1OtherTotal, "c1OtherTotal", "Client 1 total other assets is required (enter 0 if none)");
+    req(aData.c1DebtTotal,  "c1DebtTotal",  "Client 1 total debts is required (enter 0 if none)");
+  }
+
+  // ─── PART B: C1 Business ─────────────────────────────────────────────────
+  if (pageTitle === "C1 — Business Interests") {
+    req(bData.c1HasBiz, "c1HasBiz", "Please indicate if you have any business interests");
+    if (bData.c1HasBiz === "Yes") {
+      req(bData.c1BizCount, "c1BizCount", "Please enter the number of businesses");
+      reqListItem(bData.c1Businesses, parseInt(bData.c1BizCount || 0), "business", [
+        { key: "name",      label: "Business name"  },
+        { key: "structure", label: "Structure"      },
+        { key: "acn",       label: "ACN / ABN"      },
+        { key: "netValue",  label: "Net value"      },
+      ]);
+    }
+  }
+
+  // ─── PART B: C1 Trusts ────────────────────────────────────────────────────
+  if (pageTitle === "C1 — Trusts") {
+    req(bData.c1HasTrusts, "c1HasTrusts", "Please indicate if you are involved in any trusts");
+    if (bData.c1HasTrusts === "Yes") {
+      req(bData.c1TrustCount, "c1TrustCount", "Please enter the number of trusts");
+      reqListItem(bData.c1Trusts, parseInt(bData.c1TrustCount || 0), "trust", [
+        { key: "name",     label: "Trust name"       },
+        { key: "type",     label: "Trust type"       },
+        { key: "netValue", label: "Net asset value"  },
+      ]);
+    }
+  }
+
+  // ─── PART B: C1 SMSF ─────────────────────────────────────────────────────
+  if (pageTitle === "C1 — SMSF") {
+    req(bData.c1HasSmsf, "c1HasSmsf", "Please indicate if you have an SMSF");
+  }
+
+  // ─── PART B: Insurance Overview ──────────────────────────────────────────
+  if (pageTitle === "Insurance Overview") {
+    req(bData.c1HasIns, "c1HasIns", "Please indicate if Client 1 holds any personal insurance");
+    // c2HasIns required if couple — handled by passing aData.engType context
+    if ((aData.engType || "").startsWith("Couple")) {
+      req(bData.c2HasIns, "c2HasIns", "Please indicate if Client 2 holds any personal insurance");
+    }
+  }
+
+  // ─── PART B: C1 Life & TPD ───────────────────────────────────────────────
+  if (pageTitle === "C1 — Life & TPD") {
+    req(bData.c1LifeCount, "c1LifeCount", "Please enter the number of Life / TPD policies (enter 0 if none)");
+    reqListItem(bData.c1Life, parseInt(bData.c1LifeCount || 0), "life_policy", [
+      { key: "insurer",     label: "Insurer"                 },
+      { key: "cover",       label: "Sum insured"             },
+      { key: "heldInSuper", label: "Held inside super"       },
+      { key: "beneFixed",   label: "Binding nomination"      },
+    ]);
+  }
+
+  // ─── PART B: C1 Trauma & IP ──────────────────────────────────────────────
+  if (pageTitle === "C1 — Trauma & Income Protection") {
+    req(bData.c1TraumaCount, "c1TraumaCount",  "Please enter the number of Trauma policies (enter 0 if none)");
+    req(bData.c1IncomeCount, "c1IncomeCount",  "Please enter the number of Income Protection policies (enter 0 if none)");
+  }
+
+  // ─── PART B: Professional Advisors ───────────────────────────────────────
+  if (pageTitle === "Professional Advisors") {
+    req(bData.accountant,          "accountant",          "Accountant name and firm is required (enter 'None' if not applicable)");
+    req(bData.accountantPhone,     "accountantPhone",     "Accountant phone is required (enter 'N/A' if not applicable)");
+    req(bData.accountantEmail,     "accountantEmail",     "Accountant email is required (enter 'N/A' if not applicable)");
+    req(bData.accountantAuthority, "accountantAuthority", "Please indicate whether we may contact your accountant");
+  }
+
+  // ─── PART C: Will Structure ───────────────────────────────────────────────
+  if (pageTitle === "Will Structure") {
+    req(cData.mirrorWill, "mirrorWill", "Please select a Will structure");
+  }
+
+  // ─── PART C: Distribution helper ─────────────────────────────────────────
+  const validateDist = (scen, prefix) => {
+    req(scen?.hasGifts, `${prefix}.hasGifts`, "Please indicate whether there are specific gifts");
+    if (scen?.hasGifts === "Yes") {
+      req(scen?.giftCount, `${prefix}.giftCount`, "Please enter the number of specific gifts");
+      reqListItem(scen?.gifts, parseInt(scen?.giftCount || 0), `${prefix}_gift`, [
+        { key: "bFirst", label: "Beneficiary first name" },
+        { key: "bLast",  label: "Beneficiary last name"  },
+        { key: "bAddr",  label: "Beneficiary address"    },
+        { key: "bRel",   label: "Relationship"           },
+        { key: "desc",   label: "Gift description"       },
+        { key: "hasSub", label: "Substitute gift?"       },
+      ]);
+      // Conditional: substitute description
+      (scen?.gifts || []).slice(0, parseInt(scen?.giftCount || 0)).forEach((g, i) => {
+        if (g.hasSub === "Yes") {
+          req(g.subDesc, `${prefix}_gift_${i}_subDesc`, `Gift ${i+1}: substitute description is required`);
+        }
+      });
+    }
+    req(scen?.resBeneCount, `${prefix}.resBeneCount`, "Please enter the number of residuary beneficiaries");
+    const rCount = parseInt(scen?.resBeneCount || 0);
+    if (rCount > 0) {
+      reqListItem(scen?.resBenes, rCount, `${prefix}_resbene`, [
+        { key: "first", label: "First name"   },
+        { key: "last",  label: "Last name"    },
+        { key: "addr",  label: "Address"      },
+        { key: "rel",   label: "Relationship" },
+        { key: "pct",   label: "Percentage"   },
+        { key: "tt",    label: "Testamentary Trust preference" },
+      ]);
+      // Percentage sum validation
+      const total = (scen?.resBenes || []).slice(0, rCount)
+        .reduce((sum, b) => sum + (parseFloat(b.pct) || 0), 0);
+      if (Math.abs(total - 100) > 0.01) {
+        errors.push({
+          field: `${prefix}_pct_total`,
+          message: `Residuary percentages must add up to 100% (currently ${total.toFixed(1)}%)`,
+        });
+      }
+    }
+  };
+
+  if (pageTitle === "C1 — Distribution: Primary")     validateDist(cData.c1Scen1, "c1Scen1");
+  if (pageTitle === "C1 — Distribution: Contingency") validateDist(cData.c1Scen2, "c1Scen2");
+  if (pageTitle === "C2 — Distribution: Primary")     validateDist(cData.c2Scen1, "c2Scen1");
+  if (pageTitle === "C2 — Distribution: Contingency") validateDist(cData.c2Scen2, "c2Scen2");
+
+  // ─── PART C: Beneficiary Profiles ────────────────────────────────────────
+  if (pageTitle === "Beneficiary Profiles") {
+    const profiles = cData.beneProfiles || {};
+    Object.entries(profiles).forEach(([name, prof]) => {
+      if (!prof.literacy) {
+        errors.push({ field: `bene_${name}_literacy`, message: `${name}: financial maturity assessment is required` });
+      }
+      if (!prof.needsTT) {
+        errors.push({ field: `bene_${name}_needsTT`, message: `${name}: Testamentary Trust assessment is required` });
+      }
+    });
+  }
+
+  // ─── PART C: C1 Executors ────────────────────────────────────────────────
+  if (pageTitle === "C1 — Executors") {
+    req(cData.c1ExecCount, "c1ExecCount", "Please enter the number of executors");
+    const count = parseInt(cData.c1ExecCount || 0);
+    if (count === 0) {
+      errors.push({ field: "c1ExecCount_min", message: "At least one executor must be nominated" });
+    }
+    reqListItem(cData.c1Execs, count, "c1_executor", [
+      { key: "first",  label: "First name"               },
+      { key: "last",   label: "Last name"                },
+      { key: "email",  label: "Email"                    },
+      { key: "mobile", label: "Mobile"                   },
+      { key: "addr",   label: "Address"                  },
+      { key: "rel",    label: "Relationship"             },
+      { key: "agreed", label: "Has agreed to act"        },
+    ]);
+    req(cData.c1WillLoc, "c1WillLoc", "Please indicate where the original Will will be kept");
+  }
+
+  // ─── PART C: C2 Executors ────────────────────────────────────────────────
+  if (pageTitle === "C2 — Executors") {
+    req(cData.c2ExecCount, "c2ExecCount", "Please enter the number of executors for Client 2");
+    const count = parseInt(cData.c2ExecCount || 0);
+    if (count === 0) {
+      errors.push({ field: "c2ExecCount_min", message: "At least one executor must be nominated for Client 2" });
+    }
+    reqListItem(cData.c2Execs, count, "c2_executor", [
+      { key: "first",  label: "First name"        },
+      { key: "last",   label: "Last name"         },
+      { key: "email",  label: "Email"             },
+      { key: "mobile", label: "Mobile"            },
+      { key: "addr",   label: "Address"           },
+      { key: "rel",    label: "Relationship"      },
+      { key: "agreed", label: "Has agreed to act" },
+    ]);
+  }
+
+  // ─── PART C: Guardians ───────────────────────────────────────────────────
+  if (pageTitle === "Guardians") {
+    req(cData.guardianCount, "guardianCount", "Please enter the number of guardians");
+    const count = parseInt(cData.guardianCount || 0);
+    if (count === 0) {
+      errors.push({ field: "guardianCount_min", message: "At least one guardian must be nominated" });
+    }
+    reqListItem(cData.guardians, count, "guardian", [
+      { key: "first",  label: "First name"        },
+      { key: "last",   label: "Last name"         },
+      { key: "rel",    label: "Relationship"      },
+      { key: "agreed", label: "Has agreed to act" },
+    ]);
+  }
+
+  // ─── PART C: Existing Wills ──────────────────────────────────────────────
+  if (pageTitle === "Existing Wills") {
+    req(cData.c1HasExistingWill, "c1HasExistingWill", "Please indicate if Client 1 has an existing Will");
+    if (cData.c1HasExistingWill === "Yes") {
+      req(cData.c1WillDate, "c1WillDate", "Approximate date of existing Will is required");
+      req(cData.c1WillKept, "c1WillKept", "Please indicate where the existing Will is kept");
+    }
+    if ((aData.engType || "").startsWith("Couple")) {
+      req(cData.c2HasExistingWill, "c2HasExistingWill", "Please indicate if Client 2 has an existing Will");
+      if (cData.c2HasExistingWill === "Yes") {
+        req(cData.c2WillDate, "c2WillDate", "Approximate date of Client 2's existing Will is required");
+        req(cData.c2WillKept, "c2WillKept", "Please indicate where Client 2's existing Will is kept");
+      }
+    }
+  }
+
+  // ─── PART D: EPA & Medical ───────────────────────────────────────────────
+  // Build dynamic page titles using client preferred names
+  const n1 = aData?.c1?.nick || aData?.c1?.first || "Client 1";
+  const n2 = aData?.c2?.nick || aData?.c2?.first || "Client 2";
+
+  if (pageTitle === `${n1} — EPA: Health & Personal`) {
+    req(dData.c1EpaHealth, "c1EpaHealth", "Please indicate your EPA preference for health decisions");
+    if ((dData.c1EpaHealth || "").startsWith("Yes")) {
+      req(dData.c1HealthAttCount, "c1HealthAttCount", "Please enter the number of health attorneys");
+      const count = parseInt(dData.c1HealthAttCount || 0);
+      if (count === 0) {
+        errors.push({ field: "c1HealthAttCount_min", message: "At least one health attorney must be nominated" });
+      }
+      reqListItem(dData.c1HealthAtts, count, "c1_health_att", [
+        { key: "first",  label: "First name"        },
+        { key: "last",   label: "Last name"         },
+        { key: "rel",    label: "Relationship"      },
+        { key: "email",  label: "Email"             },
+        { key: "mobile", label: "Mobile"            },
+        { key: "agreed", label: "Has agreed to act" },
+      ]);
+    }
+  }
+
+  if (pageTitle === `${n1} — Medical & End of Life`) {
+    req(dData.c1Ahd,             "c1Ahd",             "Please indicate your Advance Health Directive preference");
+    req(dData.c1LifeSustaining,  "c1LifeSustaining",  "Please indicate your life-sustaining treatment wishes");
+    req(dData.c1OrganDonation,   "c1OrganDonation",   "Please indicate your organ donation wishes");
+  }
+
+  if (pageTitle === `${n1} — EPA: Financial`) {
+    req(dData.c1EpaFin, "c1EpaFin", "Please indicate your EPA preference for financial decisions");
+    if ((dData.c1EpaFin || "").startsWith("Yes")) {
+      req(dData.c1EpaFinTrigger, "c1EpaFinTrigger", "Please indicate when the financial EPA takes effect");
+      req(dData.c1FinAttCount,   "c1FinAttCount",   "Please enter the number of financial attorneys");
+      const count = parseInt(dData.c1FinAttCount || 0);
+      if (count === 0) {
+        errors.push({ field: "c1FinAttCount_min", message: "At least one financial attorney must be nominated" });
+      }
+      reqListItem(dData.c1FinAtts, count, "c1_fin_att", [
+        { key: "first",  label: "First name"        },
+        { key: "last",   label: "Last name"         },
+        { key: "rel",    label: "Relationship"      },
+        { key: "email",  label: "Email"             },
+        { key: "mobile", label: "Mobile"            },
+        { key: "agreed", label: "Has agreed to act" },
+      ]);
+    }
+  }
+
+  if (pageTitle === `${n1} — Funeral & Legacy Wishes`) {
+    req(dData.c1BurialPref,      "c1BurialPref",      "Please indicate burial or cremation preference");
+    req(dData.c1FuneralReligion, "c1FuneralReligion", "Please describe religious or cultural observances (enter 'None' if not applicable)");
+    req(dData.c1Legacy,          "c1Legacy",          "Please describe legacy wishes (enter 'None' if not applicable)");
+  }
+
+  // Repeat for C2 if couple — identical pattern with n2 / c2 prefix
+  if ((aData.engType || "").startsWith("Couple")) {
+    if (pageTitle === `${n2} — EPA: Health & Personal`) {
+      req(dData.c2EpaHealth, "c2EpaHealth", "Please indicate Client 2's EPA preference for health decisions");
+    }
+    if (pageTitle === `${n2} — Medical & End of Life`) {
+      req(dData.c2Ahd,            "c2Ahd",            "Please indicate Client 2's AHD preference");
+      req(dData.c2LifeSustaining, "c2LifeSustaining",  "Please indicate Client 2's life-sustaining treatment wishes");
+      req(dData.c2OrganDonation,  "c2OrganDonation",   "Please indicate Client 2's organ donation wishes");
+    }
+    if (pageTitle === `${n2} — EPA: Financial`) {
+      req(dData.c2EpaFin, "c2EpaFin", "Please indicate Client 2's EPA preference for financial decisions");
+    }
+    if (pageTitle === `${n2} — Funeral & Legacy Wishes`) {
+      req(dData.c2BurialPref,      "c2BurialPref",      "Burial preference required for Client 2");
+      req(dData.c2FuneralReligion, "c2FuneralReligion", "Religious observances required for Client 2 (enter 'None' if not applicable)");
+      req(dData.c2Legacy,          "c2Legacy",          "Legacy wishes required for Client 2 (enter 'None' if not applicable)");
+    }
+  }
+
+  // ─── PART D: Additional Information ──────────────────────────────────────
+  if (pageTitle === "Additional Information") {
+    req(dData.c1Litigation,      "c1Litigation",      "Please indicate if Client 1 is involved in any litigation");
+    req(dData.c1AdditionalInfo,  "c1AdditionalInfo",  "Please enter any additional information (enter 'None' if not applicable)");
+  }
+
+  // ─── PART D: Declaration ─────────────────────────────────────────────────
+  if (pageTitle === "Declaration") {
+    req(dData.c1SignDate, "c1SignDate", "Declaration date is required for Client 1");
+    if ((aData.engType || "").startsWith("Couple")) {
+      req(dData.c2SignDate, "c2SignDate", "Declaration date is required for Client 2");
+    }
+  }
+
+  return errors;
+}
+```
+
+---
+
+## STEP 2 — Keep `src/utils/useValidation.js` unchanged
+
+No changes needed to this file.
+
+---
+
+## STEP 3 — Update `Field.jsx` — red highlight + inline error
+
+The `Field` component must accept an `error` prop (string | null). When present:
+- Input/select/textarea border becomes `C.red`
+- Background becomes `#fff5f5`
+- Label text becomes `C.red`
+- A `⚠ {error}` message renders below the input in `C.red`, `C.sizeXs`
+
+For **radio** fields with an error: wrap the radio group in a div with a red left border (`3px solid C.red`) and light red background.
+
+---
+
+## STEP 4 — Keep `ErrorBanner.jsx` unchanged
+
+No changes needed.
+
+---
+
+## STEP 5 — Update each part hook — wire handleNext
+
+In `usePartA.js`, `usePartB.js`, `usePartC.js`, `usePartD.js`:
+
+```js
+import { useState } from "react";
+import { useValidation } from "../utils/useValidation";
+import { validatePage } from "../utils/validation";
+
+// Inside hook body — add:
+const { errors, setErrors, hasError, getError, clearErrors } = useValidation();
+
+const handleNext = (aData, bData, cData, dData) => {
+  const pageErrors = validatePage(title, aData, bData, cData, dData);
+  if (pageErrors.length > 0) {
+    setErrors(pageErrors);
+    document.getElementById("main-content")?.scrollTo({ top: 0, behavior: "smooth" });
+    return false; // blocked
+  }
+  clearErrors();
+  setPg(p => p + 1);
+  return true;
+};
+
+// Return:
+return { pages, pg: safePg, setPg, handleNext, total, pct, title, renderPage, errors, hasError, getError, clearErrors };
+```
+
+---
+
+## STEP 6 — Update `App.jsx`
+
+### Next button
+```jsx
+<button
+  onClick={() => part.handleNext(aData, bData, cData, dData)}
+  style={{ ... }}
+>
+  Next →
+</button>
+```
+
+### "Proceed to Part X" button — also validate before advancing
+```jsx
+onClick={() => {
+  const ok = part.handleNext(aData, bData, cData, dData);
+  if (ok) { setActivePart(a => a + 1); parts[activePart + 1].setPg(0); }
+}}
+```
+
+### Back button — always works, clears errors
+```jsx
+onClick={() => { part.clearErrors(); part.setPg(p => Math.max(0, p - 1)); }}
+```
+
+### Add ErrorBanner above the page card
+```jsx
+import { ErrorBanner } from "../components/ErrorBanner";
+
+// In render:
+<ErrorBanner errors={part.errors} />
+<div style={{ background: C.white, borderRadius: 10, ... }}>
+  {part.renderPage()}
+</div>
+```
+
+### Add id to main element
+```jsx
+<main id="main-content" style={{ flex: 1, overflowY: "auto", ... }}>
+```
+
+---
+
+## STEP 7 — Pass error state into every Field in every page render
+
+In every part's `renderPage()` function, every `<Field>` component that maps to a validated key must receive:
+```jsx
+error={getError("field.key")}
+```
+
+For list items inside `PersonList.jsx` and `DistributionScenario.jsx`, pass `getError` as a prop and thread it through to each Field inside the list.
+
+---
+
+## IMPORTANT NOTES FOR IMPLEMENTATION
+
+- Fields like "religion", "additional info", "legacy wishes", and "funeral observances" are required but clients may have nothing to say — the placeholder text and label must make clear they can enter **"None"** to proceed. Update placeholder props for these fields to: `ph="Enter details, or type 'None' if not applicable"`
+- The `c1HasProperty`, `c1HasBank`, `c1HasShares`, `c1HasSuper`, `c1HasMortgages`, `c1HasLoans` gateway Yes/No fields must be **added to the form state and rendered** on their respective pages if not already present — these are new gateway questions being introduced.
+- Summary page (`Part A Summary`, `Part B Summary`, `Part C Summary`) and Welcome pages for each part have no validation — Next advances freely.
+- The `Thank You` / submission page has no Next button — webhook fires on mount.

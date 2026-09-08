@@ -1,0 +1,41 @@
+Please review the entire form and fix the following edge cases. All changes should be made in the form itself — do NOT modify the webhook payload construction.
+
+1. APOSTROPHES IN NAMES (e.g. O'Brien, D'Souza)
+- Ensure apostrophes in any name field are accepted and stored correctly
+- No stripping or escaping of apostrophes in the form state
+- Apply to: all first name, last name, middle name, preferred name, business name, trust name fields
+
+2. HYPHENATED NAMES (e.g. Mary-Jane, Smith-Jones)
+- Confirm hyphens in name fields are accepted and stored correctly
+- No stripping or replacement of hyphens
+- Apply to: all name fields
+
+3. DATE FORMAT
+- The form inputs use YYYY-MM-DD internally (type="date") — keep this as-is
+- Do NOT convert dates in the form or in the payload
+- Just ensure that empty or null date fields are stored as empty string, not null or undefined
+
+4. PHONE NUMBER FORMAT
+- Normalise phone numbers IN THE FORM STATE at the point the user leaves the field (on blur)
+- Normalisation steps:
+  a. Strip all spaces, hyphens, brackets, and non-digit characters
+  b. If the number starts with 0, replace the leading 0 with +61
+  c. If the number is already in +61 format, leave it as-is
+  d. If the field is empty, leave as empty string
+- Update the displayed value in the input to show the normalised format after blur
+- Apply to every phone field in the form: client mobile, client home phone, executor mobile, attorney mobile, guardian mobile, referrer phone, accountant phone
+
+5. EMAIL WITH + ALIAS (e.g. user+test@gmail.com)
+- Ensure the + character in email addresses is NOT stripped or blocked
+- Update the email validation regex to allow + in the local part:
+  /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/
+- Apply to all email fields in the form
+
+6. VERY LONG TEXT IN FREE-TEXT FIELDS
+- Apply a maximum of 1000 characters to all textarea fields
+- Apply a maximum of 255 characters to all single-line text inputs
+- Show a character counter when the user approaches the limit
+- Block input beyond the maximum
+- Apply to all free-text fields across the entire form
+
+Please go through the entire form codebase and ensure all 6 of these are handled. Use your judgment to catch any related issues not explicitly listed.

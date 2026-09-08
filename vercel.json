@@ -1,0 +1,11 @@
+{
+  "buildCommand": "cd artifacts/questionnaire && npm run build",
+  "outputDirectory": "artifacts/questionnaire/dist",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

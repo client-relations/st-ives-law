@@ -1,0 +1,50 @@
+Please update the form's visual design to make it professional and on-brand with the Nautilus Law Group website (nautiluslaw.com.au). This is purely cosmetic — no functionality changes whatsoever.
+
+1. LOGO
+- Scrape the Nautilus Law Group logo from https://nautiluslaw.com.au and use it in the form header
+- Place it top left, same position as the website
+- If scraping fails, fetch from the page source directly and embed as base64
+
+2. HEADER / BANNER
+- Add a top contact bar above the main nav showing:
+  - Phone: 07 5574 3560 (with phone icon)
+  - Email: info@nautiluslaw.com.au (with email icon)
+  - Facebook icon linking to their Facebook
+  - X (Twitter) icon linking to their X profile
+  - Match the style of the top bar on nautiluslaw.com.au exactly
+- Below the contact bar, add a header/banner section:
+  - Use the nautilus shell beach image from the website (https://nautiluslaw.com.au) as a subtle background texture — low opacity, do not overpower the content
+  - Show the Nautilus Law Group logo prominently in this banner area
+  - Keep the banner clean and professional
+
+3. INTRODUCTORY BANNER (first page only)
+- On the very first page of the form (the welcome/landing page before Part A begins), add a full-width banner or callout that says:
+  "Start your estate planning journey with us. Complete this intake form."
+- Style it in the brand font and colour scheme
+- Do NOT show this on Part A, B, C or D pages — only on the initial landing/welcome screen
+
+4. FONT
+- Visit https://nautiluslaw.com.au and inspect the CSS to find the exact font family used in the navigation bar
+- Apply that same font family across the entire form for all headings, labels, body text and buttons
+- Import via Google Fonts if it is a Google Font, otherwise use the same @font-face or CDN link found in the website CSS
+
+5. COLOUR SCHEME
+- Visit https://nautiluslaw.com.au and extract the exact hex colour values used on the website
+- Apply the same white and light blue/teal colour scheme across the form
+- Check the current form colours against the website and correct any mismatches
+- The primary brand colours should be used for: nav bar, buttons, section headers, active states, links
+- Background should remain white/off-white as it is now
+
+6. CLEAN UP
+- Remove the "v3" badge from the top right corner completely
+- Remove any other debug labels, version numbers, environment indicators or placeholder text visible in the UI
+- Remove any other non-professional elements that do not belong in a client-facing form
+- Go through the entire form and clean up anything that looks unfinished or out of place
+
+7. GENERAL POLISH
+- Ensure consistent spacing, padding and alignment across all pages
+- Buttons should match the website button style (see "Start Your Estate Planning" button on nautiluslaw.com.au)
+- Form section headers should feel consistent with the website typography
+- The overall form should feel like a natural extension of the Nautilus Law Group website
+
+Do not change any form logic, field names, validation rules, page flow, or webhook behaviour. Only visual and styling changes.

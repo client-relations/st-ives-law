@@ -1,0 +1,411 @@
+# Required Field Validation — Nautilus Law Group Questionnaire
+## Add to existing Replit project — do not rebuild from scratch
+
+---
+
+## OBJECTIVE
+
+Users must not be able to advance to the next page unless all required fields on the current page are filled. Implement inline validation that triggers on "Next" button click, highlights missing fields, and scrolls to the first error.
+
+---
+
+## STEP 1 — Create `src/utils/validation.js`
+
+This file defines which fields are required on each page and exports a validation function.
+
+```js
+// Returns array of error objects: [{ field: "fieldKey", message: "..." }]
+// Called on Next button click with (pageTitle, data) where data = relevant part's state
+
+export function validatePage(pageTitle, aData, bData, cData, dData) {
+  const errors = [];
+
+  const req = (val, field, message) => {
+    if (!val || (typeof val === "string" && val.trim() === "")) {
+      errors.push({ field, message });
+    }
+  };
+
+  // ─── PART A ────────────────────────────────────────────────────────────────
+
+  if (pageTitle === "Welcome") {
+    req(aData.engType,      "engType",     "Please select the engagement type");
+    req(aData.state,        "state",       "Please select your state or territory");
+    req(aData.contactPref,  "contactPref", "Please select a contact preference");
+    if (aData.urgent === "Yes") {
+      req(aData.urgentDetail, "urgentDetail", "Please describe the urgency");
+    }
+    if ((aData.referral || "").startsWith("Referral")) {
+      req(aData.refFirst, "refFirst", "Please enter the referrer's first name");
+      req(aData.refLast,  "refLast",  "Please enter the referrer's last name");
+    }
+  }
+
+  if (pageTitle === "C1 — Personal Details") {
+    req(aData.c1?.first,      "c1.first",      "First name is required");
+    req(aData.c1?.last,       "c1.last",       "Last name is required");
+    req(aData.c1?.dob,        "c1.dob",        "Date of birth is required");
+    req(aData.c1?.email,      "c1.email",      "Email address is required");
+    req(aData.c1?.mobile,     "c1.mobile",     "Mobile number is required");
+    req(aData.c1?.addr,       "c1.addr",       "Residential address is required");
+    req(aData.c1?.relStatus,  "c1.relStatus",  "Relationship status is required");
+    req(aData.c1?.capacity,   "c1.capacity",   "Please indicate capacity status");
+    if (aData.c1?.capacity && aData.c1.capacity !== "No — full capacity") {
+      req(aData.c1?.capacityDetail, "c1.capacityDetail", "Please provide capacity details");
+    }
+    if (aData.c1?.postalSame === "No") {
+      req(aData.c1?.postal, "c1.postal", "Postal address is required");
+    }
+    if (aData.c1?.priorRel === "Yes") {
+      req(aData.c1?.priorRelDetail, "c1.priorRelDetail", "Please provide prior relationship details");
+    }
+  }
+
+  if (pageTitle === "C2 — Personal Details") {
+    req(aData.c2?.first,      "c2.first",      "First name is required");
+    req(aData.c2?.last,       "c2.last",       "Last name is required");
+    req(aData.c2?.dob,        "c2.dob",        "Date of birth is required");
+    req(aData.c2?.email,      "c2.email",      "Email address is required");
+    req(aData.c2?.mobile,     "c2.mobile",     "Mobile number is required");
+    req(aData.c2?.addr,       "c2.addr",       "Residential address is required");
+    req(aData.c2?.relStatus,  "c2.relStatus",  "Relationship status is required");
+    req(aData.c2?.capacity,   "c2.capacity",   "Please indicate capacity status");
+  }
+
+  if (pageTitle === "Children") {
+    req(aData.hasChildren, "hasChildren", "Please indicate if you have children");
+    const count = parseInt(aData.childJointCount || 0);
+    (aData.childJoint || []).slice(0, count).forEach((c, i) => {
+      if (!c.first) errors.push({ field: `child_${i}_first`, message: `Child ${i + 1}: first name is required` });
+      if (!c.last)  errors.push({ field: `child_${i}_last`,  message: `Child ${i + 1}: last name is required` });
+      if (!c.dob)   errors.push({ field: `child_${i}_dob`,   message: `Child ${i + 1}: date of birth is required` });
+    });
+  }
+
+  if (pageTitle === "Family Background") {
+    req(aData.familyProvisionRisk, "familyProvisionRisk", "Please indicate family provision claim risk");
+    if (aData.familyProvisionRisk === "Yes") {
+      req(aData.familyProvisionDetail, "familyProvisionDetail", "Please provide family provision details");
+    }
+  }
+
+  if (pageTitle === "Disclosure Preference") {
+    req(aData.disclosureLevel, "disclosureLevel", "Please select a financial disclosure preference");
+  }
+
+  // ─── PART B ────────────────────────────────────────────────────────────────
+
+  if (pageTitle === "Insurance Overview") {
+    req(bData.c1HasIns, "c1HasIns", "Please indicate if Client 1 holds insurance");
+  }
+
+  if (pageTitle === "Professional Advisors") {
+    // Optional page — no required fields, but if accountant name filled, require authority answer
+    if (bData.accountant) {
+      req(bData.accountantAuthority, "accountantAuthority", "Please indicate whether we may contact your accountant");
+    }
+  }
+
+  // ─── PART C ────────────────────────────────────────────────────────────────
+
+  if (pageTitle === "Will Structure") {
+    req(cData.mirrorWill, "mirrorWill", "Please select a Will structure");
+  }
+
+  if (pageTitle === "C1 — Distribution: Primary") {
+    req(cData.c1Scen1?.hasGifts,    "c1Scen1.hasGifts",    "Please indicate whether there are specific gifts");
+    req(cData.c1Scen1?.resBeneCount !== undefined ? String(cData.c1Scen1?.resBeneCount) : "",
+        "c1Scen1.resBeneCount", "Please enter the number of residuary beneficiaries");
+    const count = parseInt(cData.c1Scen1?.resBeneCount || 0);
+    (cData.c1Scen1?.resBenes || []).slice(0, count).forEach((b, i) => {
+      if (!b.first) errors.push({ field: `c1s1_bene_${i}_first`, message: `Beneficiary ${i+1}: first name required` });
+      if (!b.last)  errors.push({ field: `c1s1_bene_${i}_last`,  message: `Beneficiary ${i+1}: last name required` });
+      if (!b.pct)   errors.push({ field: `c1s1_bene_${i}_pct`,   message: `Beneficiary ${i+1}: percentage required` });
+    });
+    // Soft-validate percentages sum to 100
+    const total = (cData.c1Scen1?.resBenes || []).slice(0, count)
+      .reduce((sum, b) => sum + (parseFloat(b.pct) || 0), 0);
+    if (count > 0 && Math.abs(total - 100) > 0.01) {
+      errors.push({ field: "c1Scen1_pct_total", message: `Residuary percentages must add up to 100% (currently ${total}%)` });
+    }
+  }
+
+  if (pageTitle === "C1 — Distribution: Contingency") {
+    req(cData.c1Scen2?.hasGifts, "c1Scen2.hasGifts", "Please indicate whether there are specific gifts");
+    const count = parseInt(cData.c1Scen2?.resBeneCount || 0);
+    (cData.c1Scen2?.resBenes || []).slice(0, count).forEach((b, i) => {
+      if (!b.first) errors.push({ field: `c1s2_bene_${i}_first`, message: `Beneficiary ${i+1}: first name required` });
+      if (!b.last)  errors.push({ field: `c1s2_bene_${i}_last`,  message: `Beneficiary ${i+1}: last name required` });
+    });
+  }
+
+  if (pageTitle === "Existing Wills") {
+    req(cData.c1HasExistingWill, "c1HasExistingWill", "Please indicate if Client 1 has an existing Will");
+    if (cData.c1HasExistingWill === "Yes") {
+      req(cData.c1WillKept, "c1WillKept", "Please indicate where the existing Will is kept");
+    }
+  }
+
+  if (pageTitle === "C1 — Executors") {
+    const count = parseInt(cData.c1ExecCount || 0);
+    if (count === 0) {
+      errors.push({ field: "c1ExecCount", message: "At least one executor must be nominated" });
+    }
+    (cData.c1Execs || []).slice(0, count).forEach((e, i) => {
+      if (!e.first) errors.push({ field: `c1exec_${i}_first`, message: `Executor ${i+1}: first name required` });
+      if (!e.last)  errors.push({ field: `c1exec_${i}_last`,  message: `Executor ${i+1}: last name required` });
+      if (!e.agreed) errors.push({ field: `c1exec_${i}_agreed`, message: `Executor ${i+1}: please indicate if they have agreed to act` });
+    });
+    req(cData.c1WillLoc, "c1WillLoc", "Please indicate where the original Will will be kept");
+  }
+
+  // ─── PART D ────────────────────────────────────────────────────────────────
+
+  const c1EpaHealthTitle = `${aData?.c1?.nick || aData?.c1?.first || "Client 1"} — EPA: Health & Personal`;
+  const c1MedTitle       = `${aData?.c1?.nick || aData?.c1?.first || "Client 1"} — Medical & End of Life`;
+  const c1EpaFinTitle    = `${aData?.c1?.nick || aData?.c1?.first || "Client 1"} — EPA: Financial`;
+
+  if (pageTitle === c1EpaHealthTitle) {
+    req(dData.c1EpaHealth, "c1EpaHealth", "Please indicate your EPA preference for health decisions");
+  }
+
+  if (pageTitle === c1MedTitle) {
+    req(dData.c1LifeSustaining, "c1LifeSustaining", "Please indicate your wishes regarding life-sustaining treatment");
+    req(dData.c1OrganDonation,  "c1OrganDonation",  "Please indicate your organ donation wishes");
+  }
+
+  if (pageTitle === c1EpaFinTitle) {
+    req(dData.c1EpaFin, "c1EpaFin", "Please indicate your EPA preference for financial decisions");
+    if ((dData.c1EpaFin || "").startsWith("Yes")) {
+      req(dData.c1EpaFinTrigger, "c1EpaFinTrigger", "Please indicate when the financial EPA takes effect");
+      const count = parseInt(dData.c1FinAttCount || 0);
+      if (count === 0) {
+        errors.push({ field: "c1FinAttCount", message: "At least one financial attorney must be nominated" });
+      }
+    }
+  }
+
+  if (pageTitle === "Declaration") {
+    req(dData.c1SignDate, "c1SignDate", "Please enter the declaration date for Client 1");
+  }
+
+  return errors;
+}
+```
+
+---
+
+## STEP 2 — Create `src/utils/useValidation.js`
+
+```js
+import { useState } from "react";
+
+export function useValidation() {
+  const [errors, setErrors] = useState([]);  // [{ field, message }]
+
+  const hasError = (field) => errors.some(e => e.field === field);
+  const getError = (field) => errors.find(e => e.field === field)?.message || null;
+  const clearErrors = () => setErrors([]);
+
+  return { errors, setErrors, hasError, getError, clearErrors };
+}
+```
+
+---
+
+## STEP 3 — Update `Field.jsx` to accept and display errors
+
+Add an `error` prop. When present, show a red message below the input and apply a red border.
+
+```jsx
+// Add to Field component props:
+// error = null  (string message if field has an error)
+
+function Field({ label, type, opts, value, onChange, required, ph, rows=3, sub, warn, error }) {
+  const borderColor = error ? "#8B3A3A" : C.border;
+  const inp = {
+    padding: "8px 10px",
+    border: `1px solid ${borderColor}`,
+    borderRadius: 5,
+    fontSize: C.sizeBase,
+    color: C.text,
+    background: error ? "#fff5f5" : C.white,
+    width: "100%",
+    boxSizing: "border-box",
+    fontFamily: C.fontBody,
+    outline: "none",
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", marginBottom: 12 }}>
+      <label style={{ fontSize: C.sizeSm, fontWeight: 600, color: error ? C.red : C.text, marginBottom: 4, fontFamily: C.fontBody }}>
+        {label}{required && <span style={{ color: C.red, marginLeft: 3 }}>*</span>}
+        {sub && <span style={{ fontWeight: 400, color: C.textL, marginLeft: 6, fontSize: C.sizeXs }}>{sub}</span>}
+      </label>
+      {warn && (
+        <div style={{ fontSize: C.sizeXs, background: C.warmPale, border: `1px solid ${C.warmL}`, borderRadius: 4, padding: "5px 9px", marginBottom: 6, color: C.amber, fontFamily: C.fontBody }}>
+          {warn}
+        </div>
+      )}
+
+      {/* render input/select/radio/textarea as before, passing inp style */}
+      {/* ... existing render logic ... */}
+
+      {error && (
+        <div style={{ color: C.red, fontSize: C.sizeXs, marginTop: 4, fontFamily: C.fontBody, display: "flex", alignItems: "center", gap: 4 }}>
+          ⚠ {error}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+## STEP 4 — Add error summary banner component
+
+Create `src/components/ErrorBanner.jsx`:
+
+```jsx
+import { C } from "../constants/colors";
+
+export function ErrorBanner({ errors }) {
+  if (!errors || errors.length === 0) return null;
+  return (
+    <div style={{
+      background: "#fff0f0",
+      border: `1px solid ${C.red}`,
+      borderRadius: 6,
+      padding: "12px 16px",
+      marginBottom: 16,
+      fontFamily: C.fontBody,
+    }}>
+      <div style={{ fontWeight: 700, color: C.red, fontSize: C.sizeSm, marginBottom: 6 }}>
+        ⚠ Please complete the following required fields before continuing:
+      </div>
+      <ul style={{ margin: 0, paddingLeft: 18 }}>
+        {errors.map((e, i) => (
+          <li key={i} style={{ fontSize: C.sizeSm, color: C.red, marginBottom: 2 }}>{e.message}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+---
+
+## STEP 5 — Wire validation into each part hook
+
+In each part hook (`usePartA.js`, `usePartB.js`, `usePartC.js`, `usePartD.js`), update the hook to:
+
+1. Import `useValidation` and `validatePage`
+2. Run validation on Next click
+3. Block navigation if errors exist
+4. Scroll to top of main content on error
+5. Pass `errors`, `hasError`, `getError` back in the return object
+
+```js
+// Inside each part hook — replace the setPg increment with this:
+import { useValidation } from "../utils/useValidation";
+import { validatePage } from "../utils/validation";
+
+// Inside the hook body:
+const { errors, setErrors, hasError, getError, clearErrors } = useValidation();
+
+const handleNext = (aData, bData, cData, dData) => {
+  const pageErrors = validatePage(title, aData, bData, cData, dData);
+  if (pageErrors.length > 0) {
+    setErrors(pageErrors);
+    // Scroll to top of content area
+    document.getElementById("main-content")?.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+  clearErrors();
+  setPg(p => p + 1);
+};
+
+// Return from hook:
+return { pages, pg: safePg, setPg, handleNext, total, pct, title, renderPage, errors, hasError, getError };
+```
+
+---
+
+## STEP 6 — Update `App.jsx` Next button
+
+Replace the existing Next button `onClick` with:
+
+```jsx
+<button
+  onClick={() => part.handleNext(aData, bData, cData, dData)}
+  style={{
+    padding: "9px 20px",
+    borderRadius: 5,
+    border: "none",
+    background: C.teal,
+    color: "white",
+    cursor: "pointer",
+    fontFamily: C.fontBody,
+    fontSize: C.sizeBase,
+    fontWeight: 600,
+  }}
+>
+  Next →
+</button>
+```
+
+Add `id="main-content"` to the `<main>` element so the scroll target works:
+```jsx
+<main id="main-content" style={{ flex: 1, padding: "20px 26px", ... overflowY: "auto" }}>
+```
+
+---
+
+## STEP 7 — Pass error state into renderPage and show ErrorBanner
+
+In `App.jsx`, render the `ErrorBanner` above the page card:
+
+```jsx
+<ErrorBanner errors={part.errors} />
+<div style={{ background: C.white, borderRadius: 10, ... }}>
+  {part.renderPage()}
+</div>
+```
+
+And in each page render function, pass `hasError` and `getError` to individual `Field` components where validation applies, e.g.:
+
+```jsx
+<Field
+  label="First name"
+  required
+  value={c.first || ""}
+  onChange={v => upC(cx, "first", v)}
+  error={getError("c1.first")}
+/>
+```
+
+---
+
+## REQUIRED FIELD SUMMARY (for reference)
+
+| Page | Required Fields |
+|---|---|
+| Welcome | Engagement type, State, Contact preference |
+| C1 Personal | First, Last, DOB, Email, Mobile, Address, Relationship status, Capacity |
+| C2 Personal | First, Last, DOB, Email, Mobile, Address, Relationship status, Capacity |
+| Children | Has children (Y/N); if Yes → each child: first, last, DOB |
+| Family Background | Family provision risk |
+| Disclosure Preference | Disclosure level selection |
+| Insurance Overview | C1 has insurance (Y/N) |
+| Will Structure | Mirror will selection |
+| C1 Distribution Primary | Has gifts (Y/N); each beneficiary: first, last, %; percentages must total 100 |
+| C1 Distribution Contingency | Has gifts (Y/N); each beneficiary: first, last |
+| Existing Wills | Has existing will (Y/N) |
+| C1 Executors | At least 1 executor with first, last, agreed; Will storage location |
+| EPA Health | EPA preference |
+| Medical & End of Life | Life-sustaining treatment wishes, Organ donation |
+| EPA Financial | EPA preference; if Yes → trigger timing + at least 1 attorney |
+| Declaration | C1 declaration date |
+
+All other pages (business details, financial assets, funeral wishes, etc.) are **optional** — users can proceed without filling them but all Y/N gateway questions must be answered.

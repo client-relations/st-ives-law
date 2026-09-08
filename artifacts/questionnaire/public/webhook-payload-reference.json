@@ -1,0 +1,1139 @@
+{
+  "_schema_info": {
+    "title": "Nautilus Law Group — Estate Planning Questionnaire: Webhook Payload Reference",
+    "description": "Complete field-by-field reference for the Make.com webhook POST body. Every field sent on form submission is documented here with its type, allowed values, validation rules, and the condition under which it appears. Fields marked required:true will block form progression if empty. Fields with a condition key only appear when that condition is true. null values in the payload indicate the field is not applicable for this submission (e.g. client_2 is null for single clients).",
+    "form_version": "v3",
+    "submission_method": "HTTP POST",
+    "content_type": "application/json",
+    "endpoint_env_var": "VITE_WEBHOOK_URL",
+    "validation_summary": "Validation runs page-by-page as the user clicks Next. All required fields on the current page must be filled before advancing. Conditional required fields (e.g. urgentDetail) are only required when their parent field has a specific value."
+  },
+
+  "form_version": {
+    "_type": "string",
+    "_description": "Hardcoded form version identifier",
+    "_value": "v3"
+  },
+
+  "submitted_at": {
+    "_type": "string",
+    "_format": "ISO 8601 UTC datetime",
+    "_description": "Timestamp of when the form was submitted",
+    "_example": "2026-06-16T03:45:00.000Z"
+  },
+
+  "session_id": {
+    "_type": "string",
+    "_description": "Browser session identifier generated per visit, used for deduplication"
+  },
+
+  "engagement": {
+    "_description": "Top-level engagement metadata about this matter",
+    "type": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": [
+        "Single Client",
+        "Couple (Joint Matter)",
+        "Couple (Separate Matters)"
+      ],
+      "_description": "Determines whether client_2 is populated and whether couple-specific pages appear",
+      "_impact": "If starts with 'Couple', client_2 object is populated; otherwise client_2 is null"
+    },
+    "state": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"],
+      "_description": "Australian state or territory where the client resides"
+    },
+    "urgent": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": ["Yes", "No"],
+      "_description": "Whether the matter is urgent"
+    },
+    "urgent_detail": {
+      "_type": "string",
+      "_required": "conditional",
+      "_condition": "urgent === 'Yes'",
+      "_description": "Free text explanation of urgency"
+    },
+    "referral": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": [
+        "Previous Client",
+        "Referral — Accountant",
+        "Referral — Financial Planner",
+        "Referral — Solicitor",
+        "Referral — Family/Friend",
+        "Referral — Real Estate Agent",
+        "Google Search",
+        "Website",
+        "Social Media",
+        "Other"
+      ],
+      "_description": "How the client heard about Nautilus Law Group"
+    },
+    "referrer_name": {
+      "_type": "string",
+      "_required": "conditional",
+      "_condition": "referral starts with 'Referral'",
+      "_description": "Full name of the referrer (first + last joined with space)",
+      "_source": "Concatenation of refFirst and refLast fields"
+    },
+    "referrer_firm": {
+      "_type": "string",
+      "_required": "conditional",
+      "_condition": "referral starts with 'Referral'",
+      "_description": "Firm or organisation of the referrer"
+    },
+    "referrer_email": {
+      "_type": "string",
+      "_required": "conditional",
+      "_condition": "referral starts with 'Referral'",
+      "_format": "email"
+    },
+    "referrer_phone": {
+      "_type": "string",
+      "_required": "conditional",
+      "_condition": "referral starts with 'Referral'",
+      "_format": "phone"
+    },
+    "contact_preference": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": ["Email", "Phone Call", "Video Call", "Post"],
+      "_description": "Client's preferred method of contact"
+    }
+  },
+
+  "client_1": {
+    "_description": "Always present. Full profile for the primary client.",
+    "_schema_ref": "See CLIENT_SCHEMA below — applies identically to client_1 and client_2",
+
+    "salutation": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": [
+        "Mr",
+        "Mrs",
+        "Ms",
+        "Miss",
+        "Dr",
+        "Prof",
+        "Rev",
+        "Mx",
+        "Other"
+      ]
+    },
+    "first": {
+      "_type": "string",
+      "_required": true,
+      "_description": "Legal first name"
+    },
+    "middle": {
+      "_type": "string",
+      "_required": false,
+      "_description": "Middle name(s)"
+    },
+    "last": {
+      "_type": "string",
+      "_required": true,
+      "_description": "Legal last name"
+    },
+    "preferred_name": {
+      "_type": "string",
+      "_required": false,
+      "_description": "Nickname or preferred name"
+    },
+    "dob": {
+      "_type": "string",
+      "_required": true,
+      "_format": "YYYY-MM-DD",
+      "_description": "Date of birth"
+    },
+    "gender": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": [
+        "Male",
+        "Female",
+        "Non-binary",
+        "Prefer not to say",
+        "Other"
+      ]
+    },
+    "email": { "_type": "string", "_required": true, "_format": "email" },
+    "mobile": {
+      "_type": "string",
+      "_required": true,
+      "_format": "Australian mobile (04XX XXX XXX)"
+    },
+    "home_phone": { "_type": "string", "_required": false },
+    "address": {
+      "_type": "string",
+      "_required": true,
+      "_description": "Residential address"
+    },
+    "postal_address": {
+      "_type": "string",
+      "_required": true,
+      "_description": "Postal address. If postalSame=Yes, equals residential address. If No, separately entered."
+    },
+    "occupation": {
+      "_type": "string",
+      "_required": true,
+      "_description": "Occupation; 'Retired' or 'Student' accepted"
+    },
+    "employer": {
+      "_type": "string",
+      "_required": true,
+      "_description": "Employer or business name; 'Self-employed' or 'N/A' accepted"
+    },
+    "relationship_status": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": [
+        "Single",
+        "Married",
+        "De Facto",
+        "Separated",
+        "Divorced",
+        "Widowed"
+      ]
+    },
+    "relationship_date": {
+      "_type": "string",
+      "_required": true,
+      "_format": "YYYY-MM-DD",
+      "_description": "Approximate date relationship began; any past date accepted if not in a relationship"
+    },
+    "partner_name": {
+      "_type": "string",
+      "_required": false,
+      "_description": "Full name of spouse or partner if applicable"
+    },
+    "place_of_birth": {
+      "_type": "string",
+      "_required": true,
+      "_description": "City/country of birth"
+    },
+    "citizenship": {
+      "_type": "string",
+      "_required": true,
+      "_description": "Country of citizenship"
+    },
+    "permanent_resident": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": ["Yes", "No"],
+      "_description": "Australian permanent resident status"
+    },
+    "prior_relationships": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": ["Yes", "No"],
+      "_description": "Prior marriages or de facto relationships"
+    },
+    "prior_relationship_detail": {
+      "_type": "string",
+      "_required": "conditional",
+      "_condition": "prior_relationships === 'Yes'",
+      "_description": "Details of prior relationships (free text)"
+    },
+    "prior_relationship_children": {
+      "_type": "string",
+      "_required": "conditional",
+      "_condition": "prior_relationships === 'Yes'",
+      "_allowed_values": ["Yes", "No"],
+      "_description": "Whether there are children from a prior relationship"
+    },
+    "religion": {
+      "_type": "string",
+      "_required": true,
+      "_description": "Religious or cultural considerations; 'None' accepted"
+    },
+    "interpreter_required": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": ["Yes", "No"]
+    },
+    "capacity": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": [
+        "No — full capacity",
+        "Some concerns",
+        "Please discuss"
+      ],
+      "_description": "Legal capacity assessment"
+    },
+    "capacity_detail": {
+      "_type": "string",
+      "_required": "conditional",
+      "_condition": "capacity !== 'No — full capacity'",
+      "_description": "Details of capacity concerns"
+    },
+    "litigation": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": ["Yes", "No"],
+      "_description": "Whether client 1 is involved in litigation or legal proceedings (Part D — Additional Information)"
+    },
+    "additional_info": {
+      "_type": "string",
+      "_required": true,
+      "_description": "Anything else the client wants Nautilus to know; 'None' accepted"
+    },
+    "declaration_date": {
+      "_type": "string",
+      "_required": true,
+      "_format": "YYYY-MM-DD",
+      "_description": "Date client signed the declaration in Part D"
+    },
+
+    "financial": {
+      "_description": "Asset and liability information. Structure depends on disclosure_level.",
+      "disclosure_level": {
+        "_type": "string",
+        "_required": true,
+        "_allowed_values": ["full", "summary", "discuss"],
+        "_description": "Controls which financial pages are shown and which financial fields are populated",
+        "_impact": "full = detailed per-asset fields populated; summary = only summary_totals populated; discuss = all financial arrays empty"
+      },
+      "properties": {
+        "_type": "array",
+        "_condition": "disclosure_level === 'full'",
+        "_description": "Real property holdings. Empty array if disclosure_level is not 'full' or client has no property.",
+        "_items": {
+          "address": { "_type": "string", "_required": true },
+          "type": {
+            "_type": "string",
+            "_required": true,
+            "_allowed_values": [
+              "Residential Home",
+              "Investment Property",
+              "Vacant Land",
+              "Commercial",
+              "Rural",
+              "Other"
+            ]
+          },
+          "ownership": {
+            "_type": "string",
+            "_required": true,
+            "_allowed_values": [
+              "Sole",
+              "Joint Tenants",
+              "Tenants in Common",
+              "Other"
+            ]
+          },
+          "value": {
+            "_type": "string",
+            "_required": false,
+            "_description": "Estimated value in dollars (free text, e.g. '850000')",
+            "_source_field": "estValue in form state"
+          },
+          "year_purchased": {
+            "_type": "string",
+            "_required": false,
+            "_source_field": "year in form state"
+          }
+        }
+      },
+      "bank_accounts": {
+        "_type": "array",
+        "_condition": "disclosure_level === 'full'",
+        "_items": {
+          "institution": { "_type": "string", "_required": false },
+          "account_type": {
+            "_type": "string",
+            "_required": false,
+            "_allowed_values": [
+              "Savings",
+              "Transaction/Cheque",
+              "Term Deposit",
+              "Offset",
+              "Other"
+            ]
+          },
+          "balance": {
+            "_type": "string",
+            "_required": false,
+            "_description": "Approximate balance in dollars"
+          },
+          "ownership": {
+            "_type": "string",
+            "_required": false,
+            "_allowed_values": [
+              "Sole",
+              "Joint Tenants",
+              "Tenants in Common",
+              "Other"
+            ]
+          }
+        }
+      },
+      "shares": {
+        "_type": "array",
+        "_condition": "disclosure_level === 'full'",
+        "_items": {
+          "platform": {
+            "_type": "string",
+            "_required": false,
+            "_description": "Brokerage or platform name"
+          },
+          "description": { "_type": "string", "_required": false },
+          "value": { "_type": "string", "_required": false }
+        }
+      },
+      "crypto": {
+        "_type": "string or null",
+        "_description": "Free text description of crypto holdings. null if client answered No to 'Do you have crypto?'",
+        "_condition": "c1HasCrypto === 'Yes'"
+      },
+      "foreign_assets": {
+        "_type": "string or null",
+        "_description": "Free text description of foreign assets. null if No.",
+        "_condition": "c1ForeignAssets === 'Yes'"
+      },
+      "superannuation": {
+        "_type": "array",
+        "_condition": "disclosure_level === 'full'",
+        "_items": {
+          "fund": { "_type": "string", "_description": "Fund name" },
+          "abn": { "_type": "string" },
+          "balance": {
+            "_type": "string",
+            "_description": "Approximate balance in dollars"
+          },
+          "bdbn": {
+            "_type": "string",
+            "_allowed_values": [
+              "Yes — Lapsing",
+              "Yes — Non-Lapsing",
+              "No",
+              "Unsure"
+            ],
+            "_description": "Binding Death Benefit Nomination status"
+          },
+          "nominated_beneficiary": {
+            "_type": "string",
+            "_description": "Name of nominated beneficiary"
+          },
+          "bdbn_expiry": {
+            "_type": "string",
+            "_description": "BDBN expiry date if lapsing"
+          }
+        }
+      },
+      "mortgages": {
+        "_type": "array",
+        "_condition": "disclosure_level === 'full'",
+        "_items": {
+          "lender": { "_type": "string" },
+          "secured_property": {
+            "_type": "string",
+            "_description": "Address of property secured by mortgage"
+          },
+          "balance": {
+            "_type": "string",
+            "_description": "Outstanding balance in dollars"
+          },
+          "rate_type": {
+            "_type": "string",
+            "_allowed_values": [
+              "Fixed",
+              "Variable",
+              "Split",
+              "Interest Only",
+              "Other"
+            ]
+          }
+        }
+      },
+      "loans": {
+        "_type": "array",
+        "_condition": "disclosure_level === 'full'",
+        "_items": {
+          "lender": { "_type": "string" },
+          "type": {
+            "_type": "string",
+            "_allowed_values": [
+              "Personal Loan",
+              "Car Loan",
+              "Credit Card",
+              "Buy Now Pay Later",
+              "Student Loan",
+              "Other"
+            ]
+          },
+          "balance": {
+            "_type": "string",
+            "_description": "Outstanding balance in dollars"
+          }
+        }
+      },
+      "guarantees": {
+        "_type": "string or null",
+        "_description": "Free text description of guarantees given. null if No.",
+        "_condition": "c1Guarantees === 'Yes'"
+      },
+      "other_assets": {
+        "_type": "string",
+        "_description": "Free text notes on other assets not captured above (artwork, vehicles, etc.)"
+      },
+      "summary_totals": {
+        "_type": "object or null",
+        "_condition": "disclosure_level === 'summary'",
+        "_description": "Approximate totals only — shown instead of itemised assets when client chose summary disclosure. null if disclosure_level !== 'summary'.",
+        "properties": {
+          "_type": "string",
+          "_description": "Approximate total property value in dollars"
+        },
+        "bank": {
+          "_type": "string",
+          "_description": "Approximate total bank/savings value"
+        },
+        "shares": {
+          "_type": "string",
+          "_description": "Approximate total shares/investments value"
+        },
+        "other": {
+          "_type": "string",
+          "_description": "Approximate total other assets value"
+        },
+        "debt": {
+          "_type": "string",
+          "_description": "Approximate total debt/liabilities value"
+        }
+      }
+    },
+
+    "business": {
+      "_description": "Business interests, trusts, SMSFs, and insurance from Part B",
+      "businesses": {
+        "_type": "array",
+        "_description": "Sole trader or partnership interests (not companies, which are a separate Part B page not currently mapped to the payload — see note)",
+        "_note": "Companies entered on the Companies page in Part B are currently NOT mapped into the webhook payload. Only businesses from the 'Business Interests' page (sole trader/partnership) are mapped here via bData.c1Businesses.",
+        "_items": {
+          "name": { "_type": "string" },
+          "structure": {
+            "_type": "string",
+            "_allowed_values": [
+              "Sole Trader",
+              "Partnership",
+              "Company (Pty Ltd)",
+              "Company (Ltd)",
+              "Trust",
+              "Other"
+            ]
+          },
+          "acn_abn": {
+            "_type": "string",
+            "_source_field": "acn in form state"
+          },
+          "value": {
+            "_type": "string",
+            "_description": "Net value in dollars",
+            "_source_field": "netValue in form state"
+          }
+        }
+      },
+      "trusts": {
+        "_type": "array",
+        "_items": {
+          "name": { "_type": "string" },
+          "type": {
+            "_type": "string",
+            "_allowed_values": [
+              "Discretionary (Family) Trust",
+              "Unit Trust",
+              "Hybrid Trust",
+              "Testamentary Trust",
+              "Other"
+            ]
+          },
+          "value": {
+            "_type": "string",
+            "_description": "Net asset value",
+            "_source_field": "netValue in form state"
+          }
+        }
+      },
+      "smsf": {
+        "_type": "string",
+        "_allowed_values": ["Yes", "No", ""],
+        "_description": "Whether client has an SMSF. Note: full SMSF detail (members, LRBA, trustee) is collected in the form but not included in the payload — only the Yes/No flag is sent.",
+        "_source_field": "bData.c1HasSmsf"
+      },
+      "insurance": {
+        "has_insurance": {
+          "_type": "string",
+          "_allowed_values": ["Yes", "No"],
+          "_source_field": "bData.c1HasIns"
+        },
+        "life_tpd": {
+          "_type": "array",
+          "_condition": "has_insurance === 'Yes'",
+          "_description": "Life and TPD insurance policies",
+          "_items": {
+            "insurer": { "_type": "string" },
+            "sum_insured": {
+              "_type": "string",
+              "_description": "Sum insured in dollars",
+              "_source_field": "cover in form state"
+            },
+            "inside_super": {
+              "_type": "string",
+              "_allowed_values": ["Yes", "No", "Partially"],
+              "_source_field": "heldInSuper in form state"
+            },
+            "binding_nomination": {
+              "_type": "string",
+              "_allowed_values": [
+                "Yes — Lapsing",
+                "Yes — Non-Lapsing",
+                "No",
+                "Unsure"
+              ],
+              "_source_field": "beneFixed in form state"
+            }
+          }
+        },
+        "trauma_count": {
+          "_type": "string or number",
+          "_condition": "has_insurance === 'Yes'",
+          "_description": "Number of trauma insurance policies (count only — policy details not captured)"
+        },
+        "income_protection_count": {
+          "_type": "string or number",
+          "_condition": "has_insurance === 'Yes'",
+          "_description": "Number of income protection policies (count only — policy details not captured)"
+        }
+      }
+    },
+
+    "will": {
+      "_description": "Will distribution and executor details from Part C",
+      "has_existing_will": {
+        "_type": "string",
+        "_required": true,
+        "_allowed_values": ["Yes", "No"]
+      },
+      "existing_will_date": {
+        "_type": "string",
+        "_format": "YYYY-MM-DD",
+        "_condition": "has_existing_will === 'Yes'",
+        "_description": "Approximate date of existing Will"
+      },
+      "existing_will_location": {
+        "_type": "string",
+        "_condition": "has_existing_will === 'Yes'",
+        "_allowed_values": [
+          "At home",
+          "With a solicitor",
+          "With a bank",
+          "With a registry",
+          "Unknown"
+        ],
+        "_description": "Where the existing Will is currently kept"
+      },
+      "will_storage_preference": {
+        "_type": "string",
+        "_required": true,
+        "_allowed_values": [
+          "With Nautilus Law Group",
+          "At home (safe/lockbox)",
+          "With my bank",
+          "With another solicitor",
+          "Other"
+        ],
+        "_description": "Where the client wants the new Will to be stored"
+      },
+      "executors": {
+        "_type": "array",
+        "_description": "Appointed executors. At least 1 required (2 recommended). Each is a Person object.",
+        "_items": {
+          "_schema_ref": "PERSON_SCHEMA",
+          "title": { "_type": "string" },
+          "first": { "_type": "string", "_required": true },
+          "middle": { "_type": "string" },
+          "last": { "_type": "string", "_required": true },
+          "preferred_name": { "_type": "string" },
+          "dob": { "_type": "string", "_format": "YYYY-MM-DD" },
+          "relationship": {
+            "_type": "string",
+            "_description": "Relationship to the client"
+          },
+          "email": { "_type": "string", "_format": "email" },
+          "mobile": { "_type": "string" },
+          "address": { "_type": "string" },
+          "agreed_to_act": {
+            "_type": "string",
+            "_allowed_values": ["Yes", "No", "Not yet asked"],
+            "_description": "Whether this person has agreed to act as executor"
+          }
+        }
+      },
+      "distribution_primary": {
+        "_description": "Primary distribution scenario — the client's first-choice distribution of their estate",
+        "_type": "object",
+        "hasGifts": {
+          "_type": "string",
+          "_required": true,
+          "_allowed_values": ["Yes", "No"],
+          "_description": "Whether there are any specific gifts"
+        },
+        "giftCount": {
+          "_type": "number",
+          "_condition": "hasGifts === 'Yes'",
+          "_description": "Number of specific gifts"
+        },
+        "gifts": {
+          "_type": "array",
+          "_condition": "hasGifts === 'Yes'",
+          "_items": {
+            "bFirst": {
+              "_type": "string",
+              "_required": true,
+              "_description": "Beneficiary first name"
+            },
+            "bLast": {
+              "_type": "string",
+              "_required": true,
+              "_description": "Beneficiary last name"
+            },
+            "bAddr": {
+              "_type": "string",
+              "_required": true,
+              "_description": "Beneficiary address"
+            },
+            "bRel": {
+              "_type": "string",
+              "_required": true,
+              "_description": "Beneficiary relationship to client",
+              "_allowed_values": "See RELATIONSHIP_OPTIONS constant"
+            },
+            "desc": {
+              "_type": "string",
+              "_required": true,
+              "_description": "Description of the specific gift (e.g. 'My 1967 Mustang')"
+            },
+            "hasSub": {
+              "_type": "string",
+              "_required": true,
+              "_allowed_values": ["Yes", "No"],
+              "_description": "Whether there is a substitute gift if the original no longer exists"
+            },
+            "subDesc": {
+              "_type": "string",
+              "_condition": "hasSub === 'Yes'",
+              "_description": "Description of the substitute gift"
+            }
+          }
+        },
+        "resBeneCount": {
+          "_type": "string or number",
+          "_required": true,
+          "_description": "Number of residuary estate beneficiaries"
+        },
+        "resBenes": {
+          "_type": "array",
+          "_description": "Residuary estate beneficiaries — who receives the remainder after specific gifts",
+          "_validation": "Percentages must sum to 100%",
+          "_items": {
+            "first": { "_type": "string", "_required": true },
+            "last": { "_type": "string", "_required": true },
+            "addr": { "_type": "string", "_required": true },
+            "rel": {
+              "_type": "string",
+              "_required": true,
+              "_description": "Relationship to client",
+              "_allowed_values": "See RELATIONSHIP_OPTIONS constant"
+            },
+            "pct": {
+              "_type": "string or number",
+              "_required": true,
+              "_description": "Percentage share of residuary estate (0–100). All resBenes must sum to exactly 100."
+            },
+            "tt": {
+              "_type": "string",
+              "_allowed_values": ["Yes", "No", "To discuss"],
+              "_description": "Whether a testamentary trust is desired for this beneficiary's share"
+            }
+          }
+        }
+      },
+      "distribution_contingency": {
+        "_description": "Contingency distribution scenario — the backup if primary beneficiaries do not survive. Same structure as distribution_primary.",
+        "_schema_ref": "Same structure as distribution_primary above"
+      }
+    },
+
+    "epa": {
+      "_description": "Enduring Power of Attorney details from Part D",
+      "health_personal": {
+        "_type": "string",
+        "_required": true,
+        "_allowed_values": [
+          "Yes — I wish to make a new EPA",
+          "Yes — I wish to update an existing EPA",
+          "No — I do not wish to make one at this time",
+          "To discuss"
+        ],
+        "_description": "Client's EPA decision for health and personal matters"
+      },
+      "health_attorneys": {
+        "_type": "array",
+        "_condition": "health_personal starts with 'Yes'",
+        "_description": "Appointed health & personal attorneys. Same Person schema as executors.",
+        "_items": { "_schema_ref": "PERSON_SCHEMA — see executors above" }
+      },
+      "financial": {
+        "_type": "string",
+        "_required": true,
+        "_allowed_values": [
+          "Yes — I wish to make a new EPA",
+          "Yes — I wish to update an existing EPA",
+          "No — I do not wish to make one at this time",
+          "To discuss"
+        ],
+        "_description": "Client's EPA decision for financial matters"
+      },
+      "financial_attorneys": {
+        "_type": "array",
+        "_condition": "financial starts with 'Yes'",
+        "_description": "Appointed financial attorneys. Same Person schema as executors.",
+        "_items": { "_schema_ref": "PERSON_SCHEMA — see executors above" }
+      },
+      "financial_epa_trigger": {
+        "_type": "string",
+        "_condition": "financial starts with 'Yes'",
+        "_allowed_values": [
+          "Immediately upon signing",
+          "Only if I lose capacity (as certified by a doctor)",
+          "To discuss"
+        ],
+        "_description": "When the financial EPA takes effect"
+      },
+      "ahd": {
+        "_type": "string",
+        "_required": true,
+        "_allowed_values": ["Yes — I wish to make one", "No", "To discuss"],
+        "_description": "Advance Health Directive decision"
+      },
+      "life_sustaining": {
+        "_type": "string",
+        "_required": true,
+        "_allowed_values": [
+          "I wish all reasonable treatment to be provided",
+          "I wish treatment to be withdrawn if there is no reasonable chance of recovery",
+          "I wish to discuss this with my attorney and medical team",
+          "To discuss with my solicitor"
+        ],
+        "_description": "Life-sustaining treatment preference in terminal illness or permanent unconsciousness"
+      },
+      "organ_donation": {
+        "_type": "string",
+        "_required": true,
+        "_allowed_values": [
+          "I consent to donation of any/all organs and tissue",
+          "I consent to donation of specific organs only (please specify in additional info)",
+          "I do not consent to organ donation",
+          "To discuss / no decision at this time"
+        ]
+      }
+    },
+
+    "funeral": {
+      "_description": "Funeral and legacy wishes from Part D. Not legally binding but guidance for loved ones.",
+      "burial_preference": {
+        "_type": "string",
+        "_required": true,
+        "_allowed_values": [
+          "Burial",
+          "Cremation",
+          "No preference",
+          "To discuss"
+        ]
+      },
+      "religious_observances": {
+        "_type": "string",
+        "_required": true,
+        "_description": "Free text — religious or cultural observances for funeral; 'None' accepted"
+      },
+      "legacy_wishes": {
+        "_type": "string",
+        "_required": true,
+        "_description": "Free text — personal messages or legacy wishes; 'None' accepted"
+      }
+    }
+  },
+
+  "client_2": {
+    "_type": "object or null",
+    "_condition": "engagement.type === 'Couple (Joint Matter)' OR engagement.type === 'Couple (Separate Matters)'",
+    "_description": "Identical structure to client_1 above. null for Single Client engagements.",
+    "_note": "client_2.litigation and client_2.additional_info are sourced from dData.c2Litigation and dData.c2AdditionalInfo — however the Part D Additional Information page in the form currently only captures client 1's litigation and additional info fields. client_2 values will be empty strings unless this page is extended.",
+    "_schema_ref": "Same structure as client_1 — all the same fields apply"
+  },
+
+  "family": {
+    "_description": "Shared family information — children, parents, dependants",
+    "has_children": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": ["Yes", "No"]
+    },
+    "children": {
+      "_type": "array",
+      "_condition": "has_children === 'Yes'",
+      "_description": "For couples who share children (sameChildren=Yes or single), uses childJoint list. For couples with different children (sameChildren=No), merges c1Children and c2Children lists.",
+      "_items": {
+        "title": {
+          "_type": "string",
+          "_allowed_values": [
+            "Mr",
+            "Mrs",
+            "Ms",
+            "Miss",
+            "Dr",
+            "Prof",
+            "Rev",
+            "Mx",
+            "Other"
+          ]
+        },
+        "first": { "_type": "string", "_required": true },
+        "middle": { "_type": "string" },
+        "last": { "_type": "string", "_required": true },
+        "dob": { "_type": "string", "_format": "YYYY-MM-DD" },
+        "relationship": {
+          "_type": "string",
+          "_allowed_values": ["Biological", "Adopted", "Step-child", "Other"],
+          "_source_field": "rel in form state"
+        },
+        "special_needs": {
+          "_type": "string",
+          "_allowed_values": [
+            "None",
+            "Physical",
+            "Intellectual",
+            "Mental Health",
+            "Other"
+          ],
+          "_source_field": "special in form state"
+        }
+      }
+    },
+    "client1_father": {
+      "name": {
+        "_type": "string",
+        "_required": true,
+        "_description": "Full name; 'Unknown' accepted"
+      },
+      "living": {
+        "_type": "string",
+        "_required": true,
+        "_allowed_values": ["Yes", "No", "Unknown"]
+      }
+    },
+    "client1_mother": {
+      "name": {
+        "_type": "string",
+        "_required": true,
+        "_description": "Full name including maiden name; 'Unknown' accepted"
+      },
+      "living": {
+        "_type": "string",
+        "_required": true,
+        "_allowed_values": ["Yes", "No", "Unknown"]
+      }
+    },
+    "client2_father": {
+      "_type": "object or null",
+      "_condition": "engagement.type starts with 'Couple'",
+      "name": { "_type": "string", "_required": true },
+      "living": {
+        "_type": "string",
+        "_required": true,
+        "_allowed_values": ["Yes", "No", "Unknown"]
+      }
+    },
+    "client2_mother": {
+      "_type": "object or null",
+      "_condition": "engagement.type starts with 'Couple'",
+      "name": { "_type": "string", "_required": true },
+      "living": {
+        "_type": "string",
+        "_required": true,
+        "_allowed_values": ["Yes", "No", "Unknown"]
+      }
+    },
+    "other_dependants": {
+      "_type": "string or null",
+      "_condition": "otherDependants === 'Yes'",
+      "_description": "Free text description of other financially dependent persons. null if No."
+    },
+    "has_grandchildren": {
+      "_type": "string",
+      "_allowed_values": ["Yes", "No", ""]
+    },
+    "grandchildren_detail": {
+      "_type": "string or null",
+      "_condition": "has_grandchildren === 'Yes'",
+      "_description": "Free text grandchildren details. null if No."
+    },
+    "family_provision_risk": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": ["Yes", "No", "Unsure"],
+      "_description": "Risk of a family provision claim against the estate"
+    },
+    "family_provision_detail": {
+      "_type": "string",
+      "_required": "conditional",
+      "_condition": "family_provision_risk === 'Yes'",
+      "_description": "Free text details of the family provision risk"
+    }
+  },
+
+  "guardians": {
+    "_type": "array",
+    "_condition": "Any child's date of birth makes them under 18 at time of form completion",
+    "_description": "Appointed guardians for minor children. Only appears when there are minor children present in the children list. Empty array otherwise.",
+    "_items": {
+      "_schema_ref": "PERSON_SCHEMA — same as executor objects above"
+    }
+  },
+
+  "professional_advisors": {
+    "_description": "Accountant details from Part B",
+    "accountant": {
+      "_type": "string",
+      "_required": true,
+      "_description": "Accountant name or firm name; 'None' accepted"
+    },
+    "accountant_phone": {
+      "_type": "string",
+      "_required": true,
+      "_description": "Accountant phone; 'N/A' accepted"
+    },
+    "accountant_email": {
+      "_type": "string",
+      "_required": true,
+      "_format": "email",
+      "_description": "Accountant email; 'N/A' accepted"
+    },
+    "accountant_authority": {
+      "_type": "string",
+      "_required": true,
+      "_allowed_values": ["Yes", "No", "Ask me first"],
+      "_description": "Whether client authorises Nautilus to contact their accountant"
+    }
+  },
+
+  "beneficiary_profiles": {
+    "_type": "object",
+    "_description": "Keyed by full name (first last) of each named beneficiary across all distribution scenarios. Auto-populated from the names entered in distribution_primary and distribution_contingency for all clients.",
+    "_key_format": "'{first} {last}' — e.g. 'Jane Smith'",
+    "_value_schema": {
+      "literacy": {
+        "_type": "string",
+        "_allowed_values": [
+          "High — capable of managing a large inheritance",
+          "Moderate — may benefit from staged distributions",
+          "Low — likely to need protection",
+          "At risk occupation",
+          "Minor — under 18",
+          "Unknown / To discuss"
+        ],
+        "_description": "Financial maturity / literacy assessment for this beneficiary"
+      },
+      "needsTT": {
+        "_type": "string",
+        "_allowed_values": ["Yes", "No", "To discuss"],
+        "_description": "Whether a testamentary trust is desired to protect this beneficiary's inheritance"
+      }
+    },
+    "_example": {
+      "Jane Smith": {
+        "literacy": "High — capable of managing a large inheritance",
+        "needsTT": "No"
+      },
+      "Tom Smith": { "literacy": "Minor — under 18", "needsTT": "Yes" }
+    }
+  },
+
+  "uploaded_documents": {
+    "_type": "array",
+    "_description": "Files uploaded by the client in the Document Upload page of Part B. Each element is a URL string pointing to a presigned Cloudflare R2 download URL valid for 7 days.",
+    "_items": {
+      "_type": "string",
+      "_format": "URL — presigned Cloudflare R2 download link",
+      "_description": "Direct download URL for the uploaded document. Expires 7 days after upload.",
+      "_note": "If R2 credentials are not configured on the server, this array will be empty or contain error entries."
+    },
+    "_common_document_types": [
+      "Trust deeds",
+      "Company constitutions / shareholder agreements",
+      "SMSF deed",
+      "Existing Will",
+      "Existing EPA",
+      "Binding Death Benefit Nomination",
+      "Insurance policy schedule",
+      "Property title/contract"
+    ]
+  },
+
+  "_PERSON_SCHEMA_REFERENCE": {
+    "_description": "Reusable person object used for: executors, health attorneys, financial attorneys, guardians. All fields are optional in the schema but first/last are required in the form.",
+    "title": {
+      "_type": "string",
+      "_allowed_values": [
+        "Mr",
+        "Mrs",
+        "Ms",
+        "Miss",
+        "Dr",
+        "Prof",
+        "Rev",
+        "Mx",
+        "Other"
+      ]
+    },
+    "first": { "_type": "string" },
+    "middle": { "_type": "string" },
+    "last": { "_type": "string" },
+    "preferred_name": { "_type": "string" },
+    "dob": { "_type": "string", "_format": "YYYY-MM-DD" },
+    "relationship": {
+      "_type": "string",
+      "_description": "Relationship to the client"
+    },
+    "email": { "_type": "string", "_format": "email" },
+    "mobile": { "_type": "string" },
+    "address": { "_type": "string" },
+    "agreed_to_act": {
+      "_type": "string",
+      "_allowed_values": ["Yes", "No", "Not yet asked"]
+    }
+  },
+
+  "_FIELDS_NOT_IN_PAYLOAD": {
+    "_description": "These fields are collected in the form but are NOT currently included in the webhook payload. Flagged here for completeness.",
+    "companies": "Full company details (name, directors, shareholders, activity, net value, debt) from Part B Companies pages are collected but not mapped to the payload.",
+    "smsf_detail": "SMSF detail beyond Yes/No (fund name, trustee, members, LRBA) is collected in Part B but not sent. Only has_smsf flag is included.",
+    "c2_litigation_and_additional_info": "The Part D Additional Information page only captures c1Litigation and c1AdditionalInfo. Client 2 equivalents will be empty strings in the payload.",
+    "will_mirror_structure": "cData.mirrorWill (Will structure preference for couples) is not included in the payload.",
+    "same_children_flag": "aData.sameChildren (whether couple shares children) is not sent — its effect is already resolved in the merged children array."
+  },
+
+  "_RELATIONSHIP_OPTIONS_REFERENCE": {
+    "_description": "Options available in the Relationship dropdown used for beneficiaries, gifts, executors, attorneys, guardians. Sourced from src/constants/relationshipOptions.js",
+    "_note": "Read the file src/constants/relationshipOptions.js for the exact current list. Common values include: Spouse/Partner, Child, Stepchild, Grandchild, Parent, Sibling, Niece/Nephew, Friend, Solicitor, Accountant, Other"
+  }
+}

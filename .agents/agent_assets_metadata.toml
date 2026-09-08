@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "VrR3jGLQg2_kCcVdmu-ED"
+uri = "file://artifacts/questionnaire/public/webhook-payload-reference.json"
+type = "unspecified"
+title = "Webhook Payload Reference — Annotated Field Reference"

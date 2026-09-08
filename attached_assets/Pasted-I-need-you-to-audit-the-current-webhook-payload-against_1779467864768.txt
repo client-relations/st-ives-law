@@ -1,0 +1,151 @@
+I need you to audit the current webhook payload against a specific field mapping the Make.com automation expects. Read the current postPartWebhook() function and all relevant form state to answer these questions precisely:
+
+## QUESTION 1 — Single POST confirmation
+Confirm the webhook fires exactly once on final Part D submission and nowhere else. Check App.tsx and ThankYou.jsx for any remaining webhook calls.
+
+## QUESTION 2 — Field mapping audit
+The Make automation expects this exact top-level structure:
+{
+  "engagement": { ... },
+  "client_1": { ... },
+  "client_2": null or { ... },
+  "family": { ... },
+  "guardians": [ ... ],
+  "professional_advisors": { ... },
+  "beneficiary_profiles": { ... },
+  "form_version": "v3",
+  "submitted_at": "ISO 8601 timestamp"
+}
+
+Our current payload uses:
+{
+  "event": "form_submitted",
+  "submitted_at": "...",
+  "session_id": "...",
+  "client_name": "...",
+  "data": {
+    "part_a": { ... },
+    "part_b": { ... },
+    "part_c": { ... },
+    "part_d": { ... }
+  }
+}
+
+These do NOT match. Restructure the webhook payload to match exactly what Make expects, mapping form state fields to the correct keys as follows:
+
+engagement:
+- engagement.type → engType
+- engagement.state → state
+- engagement.urgent → urgent
+- engagement.urgent_detail → urgentDetail
+- engagement.referral → referral
+- engagement.referrer_name → refFirst + ' ' + refLast
+- engagement.referrer_firm → refFirm
+- engagement.referrer_email → refEmail
+- engagement.referrer_phone → refPhone
+- engagement.contact_preference → contactPref
+
+client_1:
+- client_1.salutation → c1.salut
+- client_1.first → c1.first
+- client_1.middle → c1.middle
+- client_1.last → c1.last
+- client_1.preferred_name → c1.nick
+- client_1.dob → c1.dob (ISO 8601)
+- client_1.gender → c1.gender
+- client_1.email → c1.email
+- client_1.mobile → c1.mobile
+- client_1.home_phone → c1.homePhone
+- client_1.address → c1.addr
+- client_1.postal_address → c1.postal (or c1.addr if postalSame = 'Yes')
+- client_1.occupation → c1.occ
+- client_1.employer → c1.employer
+- client_1.relationship_status → c1.relStatus
+- client_1.relationship_date → c1.relDate (ISO 8601)
+- client_1.place_of_birth → c1.pob
+- client_1.citizenship → c1.citizen
+- client_1.permanent_resident → c1.pr
+- client_1.prior_relationships → c1.priorRel
+- client_1.religion → c1.religion
+- client_1.interpreter_required → c1.interpreter
+- client_1.capacity → c1.capacity
+- client_1.litigation → c1Litigation
+- client_1.additional_info → c1AdditionalInfo
+- client_1.declaration_date → c1SignDate (ISO 8601)
+
+client_1.financial:
+- disclosure_level → disclosureLevel
+- other_assets → c1OtherAssetNotes
+
+client_1.will:
+- has_existing_will → c1HasExistingWill
+- existing_will_date → c1WillDate (ISO 8601)
+- existing_will_location → c1WillKept
+- will_storage_preference → c1WillLoc
+- executors → c1Execs array
+- distribution_primary → c1Scen1 object
+- distribution_contingency → c1Scen2 object
+
+client_1.funeral:
+- burial_preference → c1BurialPref
+- religious_observances → c1FuneralReligion
+- legacy_wishes → c1Legacy
+
+client_1.epa:
+- health_personal → c1EpaHealth
+- financial → c1EpaFin
+- financial_epa_trigger → c1EpaFinTrigger (must pass through exact string value)
+- ahd → c1Ahd
+- life_sustaining → c1LifeSustaining
+- organ_donation → c1OrganDonation
+- health_attorneys → c1HealthAtts array
+- financial_attorneys → c1FinAtts array
+
+client_2: identical mapping with c2 prefix. If engType = 'Single Client', set client_2 to null explicitly.
+
+family:
+- has_children → hasChildren
+- children → childJoint array (or c1Children + c2Children if sameChildren = 'No')
+- client1_father → { name: c1FatherName, living: c1FatherAlive }
+- client1_mother → { name: c1MotherName, living: c1MotherAlive }
+- other_dependants → otherDependantsDetail
+- has_grandchildren → grandchildren
+- family_provision_risk → familyProvisionRisk
+- family_provision_detail → familyProvisionDetail
+
+guardians: guardians array
+
+professional_advisors:
+- accountant → accountant
+- accountant_phone → accountantPhone
+- accountant_email → accountantEmail
+- accountant_authority → accountantAuthority
+
+beneficiary_profiles: beneProfiles object
+
+Also add:
+- form_version: "v3"
+- submitted_at: current ISO 8601 timestamp
+
+## QUESTION 3 — client_2 null check
+Confirm client_2 is explicitly set to null (not omitted) when engType = 'Single Client'.
+
+## QUESTION 4 — Generate sample payloads
+After restructuring the payload, trigger a test submission with:
+a) A single client scenario — fill minimum fields and submit, log the full payload to the console
+b) A couple scenario — fill minimum fields for both clients and submit, log the full payload
+
+Paste both sample payloads in your response so I can verify the structure.
+
+## QUESTION 5 — Exact string values audit
+Confirm these exact strings are preserved as-is from form state to payload (do not transform or reformat):
+- engagement.type: "Single Client" / "Couple (Joint Matter)" / "Couple (Separate Matters)"
+- client_1.epa.financial_epa_trigger: "Only if I lose capacity (as certified by a doctor)" / "Immediately upon signing"
+- client_1.funeral.burial_preference: whatever the exact radio option strings are in the form
+
+After all changes, update the Playwright test 23 to verify:
+- event field is gone (replaced by form_version: "v3")
+- top-level keys are engagement, client_1, client_2, family, guardians, professional_advisors, beneficiary_profiles, form_version, submitted_at
+- client_2 is null for single client submissions
+
+Run the full test suite and confirm all 23 pass.
