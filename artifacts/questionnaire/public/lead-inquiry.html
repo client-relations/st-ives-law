@@ -292,6 +292,104 @@ steps.forEach((s) => {
   dotsWrap.appendChild(dot);
 });
 
+// Load existing form data if available
+async function loadExistingData() {
+  const params = new URLSearchParams(window.location.search);
+  const lead_id = params.get('lead_id');
+
+  if (!lead_id) return;
+
+  try {
+    const response = await fetch(`/api/get-form?lead_id=${lead_id}`);
+    if (!response.ok) return;
+
+    const result = await response.json();
+    if (!result.data || Object.keys(result.data).length === 0) return;
+
+    const data = result.data;
+
+    // Populate form fields
+    if (data.inquiry_reason) {
+      const option = formEl.querySelector(`input[name="inquiry_reason"][value="${data.inquiry_reason}"]`);
+      if (option) option.checked = true;
+    }
+    if (data.client_name) formEl.querySelector('input[name="client_name"]').value = data.client_name;
+    if (data.client_email) formEl.querySelector('input[name="client_email"]').value = data.client_email;
+    if (data.client_phone) formEl.querySelector('input[name="client_phone"]').value = data.client_phone;
+    if (data.client_state) formEl.querySelector('select[name="client_state"]').value = data.client_state;
+
+    // Set checkboxes
+    if (data.complexity_flags) {
+      const flags = Array.isArray(data.complexity_flags) ? data.complexity_flags : [data.complexity_flags];
+      flags.forEach(flag => {
+        const cb = formEl.querySelector(`input[name="complexity_flags"][value="${flag}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
+
+    if (data.asset_flags) {
+      const flags = Array.isArray(data.asset_flags) ? data.asset_flags : [data.asset_flags];
+      flags.forEach(flag => {
+        const cb = formEl.querySelector(`input[name="asset_flags"][value="${flag}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
+
+    if (data.goal) {
+      const goals = Array.isArray(data.goal) ? data.goal : [data.goal];
+      goals.forEach(goal => {
+        const cb = formEl.querySelector(`input[name="goal"][value="${goal}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
+
+    if (data.funeral_wishes) {
+      const wishes = Array.isArray(data.funeral_wishes) ? data.funeral_wishes : [data.funeral_wishes];
+      wishes.forEach(wish => {
+        const cb = formEl.querySelector(`input[name="funeral_wishes"][value="${wish}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
+
+    // Set radio buttons
+    if (data.executor_confidence) {
+      const option = formEl.querySelector(`input[name="executor_confidence"][value="${data.executor_confidence}"]`);
+      if (option) option.checked = true;
+    }
+    if (data.gifts_volume) {
+      const option = formEl.querySelector(`input[name="gifts_volume"][value="${data.gifts_volume}"]`);
+      if (option) option.checked = true;
+    }
+
+    if (data.additional_notes) {
+      formEl.querySelector('textarea[name="additional_notes"]').value = data.additional_notes;
+    }
+
+    // Skip to summary
+    current = total - 1;
+    showSummary(data);
+
+  } catch (error) {
+    console.error('Error loading form data:', error);
+  }
+}
+
+function showSummary(lead) {
+  formEl.classList.add('hidden');
+  document.getElementById('result-wrap').style.display = 'block';
+  const summaryHtml = buildSummaryHtml(lead);
+  document.getElementById('result-wrap').innerHTML = `
+    <div style="margin-top: 1.5rem;">
+      <h2 style="font-size: 1.3rem; margin-bottom: 1.5rem; color: #2f4858;">Inquiry Summary</h2>
+      ${summaryHtml}
+      <div style="margin-top: 2rem; padding: 1.5rem; background: #eef9fb; border-radius: 4px; border-left: 4px solid #4a8fa0;">
+        <p style="margin: 0; color: #2f4858; font-size: 0.95rem;">✓ Form submitted</p>
+      </div>
+    </div>
+  `;
+  document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth' });
+}
+
 function render(){
   formEl.classList.remove('hidden');
   endingWrap.style.display = 'none';
@@ -392,6 +490,7 @@ dotsWrap.addEventListener('click', (e) => {
 });
 
 render();
+loadExistingData();
 
 // ---- data collection ----
 function collectData(){
