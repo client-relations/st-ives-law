@@ -751,6 +751,38 @@ function generateWillText(d){
   return lines.join('\n');
 }
 
+function buildSummaryHtml(lead) {
+  const toArray = (v) => v === undefined ? [] : Array.isArray(v) ? v : [v];
+
+  const renderField = (label, value) => {
+    if (!value || (Array.isArray(value) && value.length === 0)) return '';
+    const displayValue = Array.isArray(value) ? value.join(', ') : value;
+    return `
+      <div style="margin-bottom: 1rem;">
+        <strong style="color: #2f4858; font-size: 0.9rem;">${label}</strong>
+        <div style="color: #666; font-size: 0.9rem; margin-top: 0.3rem;">${displayValue}</div>
+      </div>
+    `;
+  };
+
+  return `
+    <div style="background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; padding: 1.5rem;">
+      ${renderField('Reason for inquiry', lead.inquiry_reason)}
+      ${renderField('Full name', lead.client_name)}
+      ${renderField('Email', lead.client_email)}
+      ${renderField('Phone', lead.client_phone)}
+      ${renderField('State/Territory', lead.client_state)}
+      ${renderField('Applicable factors', toArray(lead.complexity_flags))}
+      ${renderField('Assets owned', toArray(lead.asset_flags))}
+      ${renderField('Goals', toArray(lead.goal))}
+      ${renderField('Executor', lead.executor_confidence)}
+      ${renderField('Specific gifts', lead.gifts_volume)}
+      ${renderField('Funeral wishes', toArray(lead.funeral_wishes))}
+      ${renderField('Additional notes', lead.additional_notes)}
+    </div>
+  `;
+}
+
 function buildFlagsSummary(lead, mapped){
   const flags = toArray(lead.complexity_flags);
   const assets = toArray(lead.asset_flags);
@@ -803,13 +835,21 @@ async function submitForm(){
         throw new Error('Failed to submit form');
       }
 
-      // Show success
+      // Show summary as confirmation
       formEl.classList.add('hidden');
-      document.getElementById('result-wrap').style.display = 'none';
-      endingWrap.style.display = 'block';
-      document.getElementById('ending-title').textContent = 'Form submitted successfully!';
-      document.getElementById('ending-body').textContent = 'Thank you for completing the inquiry form. We\'ll review your answers and contact you shortly.';
-      endingWrap.scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('result-wrap').style.display = 'block';
+
+      const summaryHtml = buildSummaryHtml(lead);
+      document.getElementById('result-wrap').innerHTML = `
+        <div style="margin-top: 1.5rem;">
+          <h2 style="font-size: 1.3rem; margin-bottom: 1.5rem; color: #2f4858;">Inquiry Summary</h2>
+          ${summaryHtml}
+          <div style="margin-top: 2rem; padding: 1.5rem; background: #eef9fb; border-radius: 4px; border-left: 4px solid #4a8fa0;">
+            <p style="margin: 0; color: #2f4858; font-size: 0.95rem;">✓ Form submitted successfully</p>
+          </div>
+        </div>
+      `;
+      document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth' });
     } catch (error) {
       alert('Error submitting form: ' + error.message);
     }
