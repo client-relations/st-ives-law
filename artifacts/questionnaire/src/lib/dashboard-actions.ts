@@ -394,3 +394,20 @@ export async function sendIntakeForm(formId: string) {
     return false;
   }
 }
+
+export async function deleteForm(formId: string) {
+  try {
+    if (!supabase) throw new Error('Database connection error');
+
+    const { error } = await supabase
+      .from('forms')
+      .delete()
+      .eq('id', formId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Error deleting form:', err);
+    return false;
+  }
+}

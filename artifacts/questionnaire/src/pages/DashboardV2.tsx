@@ -11,6 +11,7 @@ import {
   markFormComplete,
   submitFormToSmokeball,
   sendIntakeForm,
+  deleteForm,
 } from '../lib/dashboard-actions';
 import '../styles/dashboard.css';
 
@@ -1758,8 +1759,16 @@ export default function DashboardV2() {
                             <button
                               type='button'
                               className='nv-btn-delete'
-                              onClick={() => console.log('Delete - disabled')}
-                              disabled
+                              onClick={async () => {
+                                if (confirm(`Delete form for ${form.name}?`)) {
+                                  const success = await deleteForm(form.id);
+                                  if (success) {
+                                    setRealForms(prev => prev.filter(f => f.id !== form.id));
+                                  } else {
+                                    alert('Failed to delete form');
+                                  }
+                                }
+                              }}
                             >
                               Delete
                             </button>
@@ -1804,8 +1813,16 @@ export default function DashboardV2() {
                             <button
                               type='button'
                               className='nv-btn-delete'
-                              onClick={() => console.log('Delete - disabled')}
-                              disabled
+                              onClick={async () => {
+                                if (confirm(`Delete form for ${form.name}?`)) {
+                                  const success = await deleteForm(form.id);
+                                  if (success) {
+                                    setRealForms(prev => prev.filter(f => f.id !== form.id));
+                                  } else {
+                                    alert('Failed to delete form');
+                                  }
+                                }
+                              }}
                             >
                               Delete
                             </button>
