@@ -776,18 +776,14 @@ export default function DashboardV2() {
     activeNav === 'overview'
       ? 'Overview'
       : activeNav === 'pending-leads'
-        ? 'Pending Leads'
-        : activeNav === 'completed-forms'
-          ? 'Completed Forms'
-          : 'Qualified Leads';
+        ? 'Leads'
+        : 'Intake';
   const pageDesc =
     activeNav === 'pending-leads'
       ? 'Review inbound enquiries before qualifying or declining.'
       : activeNav === 'qualified-leads'
         ? 'Track intake progress for qualified clients.'
-        : activeNav === 'completed-forms'
-          ? 'Review finished intake forms ready for Clio.'
-          : 'Your practice at a glance, what needs attention today.';
+        : 'Your practice at a glance, what needs attention today.';
 
   const overviewIntakeForms = realForms.filter(f => !['completed', 'submitted'].includes(f.status));
   const overviewCompletedForms = trulyCompletedForms;
@@ -825,8 +821,8 @@ export default function DashboardV2() {
         <nav className='nv-nav'>
           {[
             { id: 'overview', label: 'Overview' },
-            { id: 'pending-leads', label: 'Pending Leads' },
-            { id: 'qualified-leads', label: 'Qualified Leads' },
+            { id: 'pending-leads', label: 'Leads' },
+            { id: 'qualified-leads', label: 'Intake' },
           ].map(item => (
             <button
               key={item.id}
@@ -926,21 +922,20 @@ export default function DashboardV2() {
                         <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                           <button
                             type='button'
-                            className='nv-btn-reject'
-                            onClick={() => handleRejectLead(lead.id)}
-                            disabled={leadActionLoading}
+                            className='nv-btn-view'
+                            onClick={() => setViewingLead(lead)}
                             style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
                           >
-                            Disqualify
+                            View
                           </button>
                           <button
                             type='button'
-                            className='nv-btn-qualify'
-                            onClick={() => handleQualifyLead(lead.id)}
-                            disabled={leadActionLoading}
+                            className='nv-btn-delete'
+                            onClick={() => console.log('Delete - disabled')}
+                            disabled
                             style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
                           >
-                            {leadActionLoading ? 'Sending...' : 'Send'}
+                            Delete
                           </button>
                         </div>
                       </div>
@@ -1129,19 +1124,18 @@ export default function DashboardV2() {
                       <div className='nv-pipe-actions'>
                         <button
                           type='button'
-                          className='nv-btn-reject'
-                          onClick={() => handleRejectLead(lead.id)}
-                          disabled={leadActionLoading}
+                          className='nv-btn-view'
+                          onClick={() => setViewingLead(lead)}
                         >
-                          Disqualify
+                          View
                         </button>
                         <button
                           type='button'
-                          className='nv-btn-qualify'
-                          onClick={() => handleQualifyLead(lead.id)}
-                          disabled={leadActionLoading}
+                          className='nv-btn-delete'
+                          onClick={() => console.log('Delete - disabled')}
+                          disabled
                         >
-                          {leadActionLoading ? 'Sending...' : 'Send Appointment'}
+                          Delete
                         </button>
                       </div>
                     </div>
