@@ -1002,9 +1002,8 @@ export default function DashboardV2() {
               <button
                 className='nv-btn-qualify'
                 disabled
-                title='Coming soon: Intake form will be available after we add the full estate planning questionnaire'
               >
-                Send Intake Form (Coming Soon)
+                Send Intake Form
               </button>
             </div>
           )}
