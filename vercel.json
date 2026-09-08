@@ -4,6 +4,14 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/lead-inquiry",
+      "destination": "/lead-inquiry.html"
+    },
+    {
+      "source": "/intake-form",
+      "destination": "/intake-form.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
