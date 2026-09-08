@@ -505,7 +505,7 @@ export default function DashboardV2() {
     .filter(matchesQualifiedLeadsDate);
 
   // Keep legacy names for now
-  const inProgressForms = appointmentSentForms
+  const inProgressForms = inProgressFormsAll
     .filter(f => !qualifiedLeadsSearch || (f.client_name || '').toLowerCase().includes(qualifiedLeadsSearch.toLowerCase()))
     .filter(f => !qualifiedLeadsPersonFilter || f.person_responsible === qualifiedLeadsPersonFilter)
     .filter(matchesQualifiedLeadsDate);
