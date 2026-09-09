@@ -306,37 +306,73 @@ Clio supports custom fields via API. Likely needed:
 
 ---
 
-**Current Intake Form Structure:**
-The form at https://amazing-syrniki-7b0dea.netlify.app/ collects:
-- Scenario & Client Details (Single/Couple, name, address, state, marital status)
-- Assets & Liabilities (real estate, bank, superannuation, other)
-- Document Selection (Will, EPA, Advance Care Directive, SDT)
-- Executor Provisions (primary, backup, tertiary, joint/sole, power of sale)
-- Estate Distribution (exclusions, specific gifts up to 5, company shares, life tenancy, trusts)
-- Additional Provisions (SDT, guardianship, funeral, Letter of Wishes, custody)
+**Intake Form (14 Steps):**
+Located at: `C:\Users\yxzu\Desktop\st ives\intake-form-site (2)\index.html`
+
+1. Scenario & Client Details (Single/Couple, name, address, state, marital status, spouse info, jurisdiction)
+2. Assets & Liabilities (real estate, bank, superannuation, other assets - repeatable items)
+3. Document Type (Will, EPA, Advance Care Directive, SDT - at least one required)
+4. Executor(s) (primary, backup, tertiary, joint/sole, power of sale)
+5. Exclusions (who to exclude, reason, no-contest clause)
+6. Specific Gifts (up to 5 in standard fee, repeatable)
+7. Company Directorship (company name, ACN, treatment, share disposition)
+8. Life Tenancy (life tenant, property, outgoings, balance, sale power)
+9. Residuary Estate (trust funds 0-2, beneficiaries 1-3, calamity beneficiaries, FPE trust)
+10. Special Disability Trust (yes/no, mechanism, principal beneficiary)
+11. Guardianship (minor children, guardians)
+12. Funeral Wishes (organ donation, burial/cremation, other wishes)
+13. Enduring Power of Attorney (attorneys, jointly/severally, effectiveness, additional powers)
+14. Letter of Wishes & Custody (signing date, custody, wills register)
+
+**Data Collection:**
+- Uses `collectData()` function in JavaScript
+- Returns flat object with all field values
+- Repeatable items are arrays (realestate, bank, super, gift, attorney, exclusion)
+- Checkboxes become arrays if multiple selected
+- Supports conditional visibility (fields show/hide based on Yes/No selections)
 
 **Transformation Strategy:**
+
 1. **Create Client (Person Contact)**
-   - Map: client_name, client_email, client_phone, client_state → Clio person contact
-   - Address components required: street, city, province_state, postal_code, country
-   - Return: Clio client_id (needed for matter creation)
+   ```
+   client_name → first_name + last_name
+   client_address → street (parse address)
+   client_state → province_state (convert NSW → New South Wales, etc.)
+   scenario → person or couple (creates 2 contacts if couple)
+   spouse_name → second contact if Couple
+   ```
+   Returns: client_id for matter creation
 
 2. **Create Matter**
-   - Use returned client_id
-   - Map: lead_type → practice_area
-   - Map: person_responsible → responsible_attorney_id (need lawyer → attorney ID mapping)
-   - Set: status = "Open", billable = true/false based on billing_type
-   - Description: build from intake form summary
+   ```
+   client_id → use returned ID
+   practice_area → "Estate Planning" or "Wills & Trusts"
+   description → "Multi-step estate plan with [docs selected]"
+   status → "Open"
+   responsible_attorney_id → lookup from lawyers table
+   ```
 
-3. **Create Custom Fields (via Matter)**
-   - Executors (primary, backup, tertiary)
-   - Beneficiaries (with percentages)
-   - Specific gifts (up to 5)
-   - Assets (real estate, bank, superannuation)
-   - Documents needed (Will, EPA, ADC, SDT)
-   - Guardians (if minors)
-   - Funeral preferences
-   - Special Disability Trust flag
+3. **Map to Custom Fields**
+   ```
+   doc_will, doc_epa, doc_acd, doc_sdt → documents_required (array)
+   exec_initial_name, exec_backup, exec_further_backup → executor_names (array)
+   exec_joint → executor_acting (string)
+   beneficiary1/2/3, beneficiary_pct → beneficiaries (array with %share)
+   calamity1/2/3 → calamity_beneficiaries (array)
+   fund_count → trust_structure ("Direct", "Single TT", "Multi TT")
+   fpe_trust → foreign_persons_excluded (boolean)
+   realestate[] → assets_real_estate (array)
+   bank[] → assets_bank (array)
+   super[] → assets_super (array)
+   gift[] → specific_gifts (array)
+   attorney[] → epa_attorneys (array)
+   has_minors, guardian_initial, guardian_backup → guardianship (if minors)
+   has_sdt, sdt_mechanism → special_disability_trust (flag)
+   organ_donation, burial_or_cremation → funeral_preferences (object)
+   has_low, low_wishes → letter_of_wishes (object)
+   will_custody → document_storage (string)
+   add_to_wills_register → register_flag (boolean)
+   ```
 
 **Data Mapping Example:**
 ```
