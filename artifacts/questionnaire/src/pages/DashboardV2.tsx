@@ -1005,6 +1005,7 @@ export default function DashboardV2() {
                 onClick={async () => {
                   const success = await sendIntakeForm(viewingIntakeForm.id);
                   if (success) {
+                    const intakeLink = `${window.location.origin}/intake-form?lead_id=${viewingIntakeForm.id}`;
                     // Update local state and refresh
                     setRealForms(prev => prev.map(f =>
                       f.id === viewingIntakeForm.id
@@ -1012,7 +1013,8 @@ export default function DashboardV2() {
                         : f
                     ));
                     setViewingIntakeForm(prev => ({ ...prev, status: 'pending_intake' }));
-                    alert('Intake form sent! Status updated to Pending Intake.');
+                    setGeneratedLink(intakeLink);
+                    setShowLinkModal(true);
                   }
                 }}
               >
