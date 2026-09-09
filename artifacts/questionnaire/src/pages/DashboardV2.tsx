@@ -498,6 +498,7 @@ export default function DashboardV2() {
   const scheduledForms = realForms.filter(f => f.status === 'scheduled');
   const pendingIntakeForms = realForms.filter(f => f.status === 'pending_intake');
   const completedIntakeForms = realForms.filter(f => f.status === 'completed_intake');
+  const pendingIntakeForms = realForms.filter(f => f.status === 'pending_intake');
 
   // Apply filters to pending intake forms (for Overview)
   const filteredPendingIntakeForms = pendingIntakeForms
@@ -511,12 +512,13 @@ export default function DashboardV2() {
     .filter(f => !qualifiedLeadsPersonFilter || f.person_responsible === qualifiedLeadsPersonFilter)
     .filter(matchesQualifiedLeadsDate);
 
-  const trulyCompletedFormsAll = completedIntakeForms;
+  const trulyCompletedFormsAll = pendingIntakeForms;
   const trulyCompletedForms = trulyCompletedFormsAll
     .filter(f => !completedSearch || (f.client_name || '').toLowerCase().includes(completedSearch.toLowerCase()))
     .filter(f => !completedPersonFilter || f.person_responsible === completedPersonFilter);
 
-  const submittedForms = completedIntakeForms
+  const submittedForms = realForms
+    .filter(f => f.status === 'completed_intake')
     .filter(f => !qualifiedLeadsSearch || (f.client_name || '').toLowerCase().includes(qualifiedLeadsSearch.toLowerCase()))
     .filter(f => !qualifiedLeadsPersonFilter || f.person_responsible === qualifiedLeadsPersonFilter)
     .filter(matchesQualifiedLeadsDate);
