@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Estate Planning Lead Inquiry</title>
+<title>Estate Planning Intake Form</title>
 <style>
   :root {
     --border: #d8d8d8;
@@ -13,8 +13,6 @@
     --bg: #fafafa;
     --radius: 8px;
     --error: #b3261e;
-    --warn-bg: #fdf3e7;
-    --warn-border: #e3b873;
   }
   * { box-sizing: border-box; }
   body {
@@ -25,7 +23,6 @@
   header { padding: 2rem 0 1rem; }
   h1 { font-size: 1.4rem; margin: 0 0 0.2rem; }
   .subtitle { color: var(--muted); font-size: 0.92rem; margin: 0; }
-  .meta-line { color: var(--muted); font-size: 0.8rem; margin: 0.4rem 0 0; }
 
   .progress-wrap { margin: 1.4rem 0 1.6rem; }
   .progress-track { background: #e4e4e4; border-radius: 999px; height: 6px; overflow: hidden; }
@@ -37,36 +34,39 @@
     padding: 1.4rem 1.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.03);
   }
   .step-title { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.2rem; }
-  .step-purpose { color: var(--muted); font-size: 0.85rem; margin: 0 0 1rem; }
+  .step-note { color: var(--muted); font-size: 0.85rem; margin: 0 0 1rem; }
 
   label { display: block; font-size: 0.86rem; color: #333; margin-top: 0.85rem; margin-bottom: 0.25rem; }
   label .req { color: var(--error); }
   label.inline { display: inline-block; margin: 0 1.2rem 0 0; font-weight: normal; color: #1a1a1a; }
-  input[type=text], input[type=email], input[type=tel], select, textarea {
+  input[type=text], input[type=number], input[type=date], input[type=email], select, textarea {
     width: 100%; padding: 0.5rem 0.6rem; border: 1px solid var(--border); border-radius: 6px;
     font-family: inherit; font-size: 0.92rem; background: #fff;
   }
   input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
-  textarea { min-height: 5rem; resize: vertical; }
+  textarea { min-height: 4rem; resize: vertical; }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
-  @media (max-width:560px){ .row2 { grid-template-columns: 1fr; } }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 1rem; }
+  @media (max-width:560px){ .row2, .row3 { grid-template-columns: 1fr; } }
 
   .radio-group, .checkbox-group { margin-top: 0.5rem; }
-  .radio-group label.option, .checkbox-group label.option {
-    display: flex; align-items: flex-start; gap: 0.5rem; margin: 0.45rem 0; font-weight: normal; cursor: pointer;
+  .radio-group label.inline, .checkbox-group label.inline {
+    display: inline-flex; align-items: center; gap: 0.35rem; margin: 0.3rem 1.2rem 0.3rem 0; font-weight: normal;
   }
-  .radio-group label.option input, .checkbox-group label.option input { margin-top: 0.2rem; flex-shrink: 0; }
-  .helper { font-size: 0.78rem; color: var(--muted); margin: 0.15rem 0 0 1.5rem; }
+  .hint { font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; }
   .error-msg { font-size: 0.8rem; color: var(--error); margin-top: 0.5rem; display: none; }
   hr { border: none; border-top: 1px solid var(--border); margin: 1.2rem 0; }
 
   .hidden { display: none !important; }
+  .repeat-item { border: 1px dashed var(--border); border-radius: 6px; padding: 0.7rem 0.8rem; margin-top: 0.6rem; }
+  .repeat-item .remove-btn { float: right; }
   button { font-family: inherit; }
-  .nav-btn {
+  .add-btn, .remove-btn, .nav-btn {
     font-size: 0.85rem; padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 6px;
     background: #fff; cursor: pointer; color: #1a1a1a;
   }
-  .nav-btn:hover { border-color: var(--accent); }
+  .add-btn { margin-top: 0.7rem; }
+  .add-btn:hover, .remove-btn:hover, .nav-btn:hover { border-color: var(--accent); }
 
   .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; }
   .nav-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; padding: 0.55rem 1.3rem; font-size: 0.92rem; }
@@ -77,14 +77,7 @@
   .steps-dots span.done { background: var(--accent); }
   .steps-dots span.current { background: var(--accent); outline: 2px solid var(--accent-soft); }
 
-  #ending-wrap { display: none; }
-  #ending-wrap .card p { margin: 0.6rem 0; }
-
   #result-wrap { display: none; margin-top: 1.5rem; }
-  .banner {
-    background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: var(--radius);
-    padding: 0.8rem 1rem; font-size: 0.85rem; margin-bottom: 1rem;
-  }
   .will-doc {
     background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
     padding: 2rem 2.2rem; font-family: Georgia, 'Times New Roman', serif; font-size: 0.95rem; line-height: 1.65;
@@ -103,13 +96,13 @@
 <div class="wrap">
 
   <header>
-    <h1>Estate Planning Lead Inquiry</h1>
-    <p class="subtitle">A short form to understand what you need. It takes about four minutes, and helps us prepare for your first appointment.</p>
+    <h1>Estate Planning Intake Form</h1>
+    <p class="subtitle">Complete this once. Your answers feed will generation and matter creation automatically.</p>
     <div class="progress-wrap">
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
       <div class="progress-label">
-        <span id="progress-text">Question 1 of 8</span>
-        <span id="progress-title">What brings you to us?</span>
+        <span id="progress-text">Step 1 of 14</span>
+        <span id="progress-title">Scenario &amp; Client Details</span>
       </div>
     </div>
   </header>
@@ -117,118 +110,429 @@
   <form id="intake-form" novalidate>
     <div class="card">
 
-      <!-- Q1 -->
-      <div class="step" data-title="What brings you to us?" data-require-radio="inquiry_reason">
-        <p class="step-title">01. What brings you to us?</p>
+      <!-- STEP 1 -->
+      <div class="step" data-title="Scenario &amp; Client Details">
+        <p class="step-title">Scenario &amp; Client Details</p>
+        <label>Is this instruction for: <span class="req">*</span></label>
         <div class="radio-group">
-          <label class="option"><input type="radio" name="inquiry_reason" value="Put a will or estate plan in place">Put a will or estate plan in place</label>
-          <label class="option"><input type="radio" name="inquiry_reason" value="Update an existing one">Update an existing one</label>
-          <label class="option"><input type="radio" name="inquiry_reason" value="Someone has died">Someone has died</label>
-          <label class="option"><input type="radio" name="inquiry_reason" value="A concern about a will or estate">A concern about a will or estate</label>
-          <label class="option"><input type="radio" name="inquiry_reason" value="Not sure, I'd like to talk it through">Not sure, I'd like to talk it through</label>
+          <label class="inline"><input type="radio" name="scenario" value="Single" checked> Single</label>
+          <label class="inline"><input type="radio" name="scenario" value="Couple"> Couple</label>
         </div>
-        <div class="error-msg" data-error-for="inquiry_reason">Please choose one option.</div>
-      </div>
-
-      <!-- Q2 -->
-      <div class="step" data-title="Your details">
-        <p class="step-title">02. Your details</p>
-        <label>Full name <span class="req">*</span></label>
-        <input type="text" name="client_name" required>
-        <div class="row2">
-          <div><label>Email <span class="req">*</span></label><input type="email" name="client_email" required></div>
-          <div><label>Phone <span class="req">*</span></label><input type="tel" name="client_phone" required></div>
-        </div>
-        <label>State or territory <span class="req">*</span></label>
-        <select name="client_state" required>
-          <option value="">Select…</option>
-          <option>NSW</option><option>VIC</option><option>QLD</option><option>WA</option>
-          <option>SA</option><option>TAS</option><option>ACT</option><option>NT</option>
-        </select>
-      </div>
-
-      <!-- Q3 -->
-      <div class="step" data-title="Which of these apply to you?">
-        <p class="step-title">03. Which of these apply to you?</p>
-        <p class="step-purpose">Select all that apply.</p>
-        <div class="checkbox-group">
-          <label class="option"><input type="checkbox" name="complexity_flags" value="Planning with a partner">Planning with a partner</label>
-          <label class="option"><input type="checkbox" name="complexity_flags" value="Already have a will">Already have a will</label>
-          <label class="option"><input type="checkbox" name="complexity_flags" value="Children under 18">Children under 18</label>
-          <label class="option"><input type="checkbox" name="complexity_flags" value="Children from a previous relationship">Children from a previous relationship</label>
-          <label class="option"><input type="checkbox" name="complexity_flags" value="A dependant with a disability or care needs">A dependant with a disability or care needs</label>
-          <label class="option"><input type="checkbox" name="complexity_flags" value="Someone estranged, or who would struggle to manage money">Someone estranged, or who would struggle to manage money</label>
-        </div>
-      </div>
-
-      <!-- Q4 -->
-      <div class="step" data-title="Which of these do you own?">
-        <p class="step-title">04. Which of these do you own?</p>
-        <p class="step-purpose">Select all that apply — this just helps us size the matter, no figures needed.</p>
-        <div class="checkbox-group">
-          <label class="option"><input type="checkbox" name="asset_flags" value="Property in my name">Property in my name</label>
-          <label class="option"><input type="checkbox" name="asset_flags" value="Jointly owned property">Jointly owned property</label>
-          <div class="helper">A will doesn't usually control jointly owned property — it passes to the surviving owner.</div>
-          <label class="option"><input type="checkbox" name="asset_flags" value="Superannuation">Superannuation</label>
-          <div class="helper">Superannuation is generally paid according to your fund's rules and any binding nomination, not your will.</div>
-          <label class="option"><input type="checkbox" name="asset_flags" value="A business, family trust or SMSF">A business, family trust or SMSF</label>
-          <label class="option"><input type="checkbox" name="asset_flags" value="Overseas assets">Overseas assets</label>
-          <label class="option"><input type="checkbox" name="asset_flags" value="Mostly savings and personal belongings">Mostly savings and personal belongings</label>
-        </div>
-      </div>
-
-      <!-- Q5 -->
-      <div class="step" data-title="What are you hoping to sort out?" data-require-radio="goal">
-        <p class="step-title">05. What are you hoping to sort out?</p>
-        <div class="radio-group">
-          <label class="option"><input type="radio" name="goal" value="A will — who receives what">A will — who receives what</label>
-          <label class="option"><input type="radio" name="goal" value="Who manages my money and medical decisions if I lose capacity">Who manages my money and medical decisions if I lose capacity</label>
-          <label class="option"><input type="radio" name="goal" value="Protecting an inheritance rather than paying it out directly">Protecting an inheritance rather than paying it out directly</label>
-          <label class="option"><input type="radio" name="goal" value="Not sure yet, I'd like it explained">Not sure yet, I'd like it explained</label>
-        </div>
-        <div class="error-msg" data-error-for="goal">Please choose one option.</div>
-      </div>
-
-      <!-- Q6 -->
-      <div class="step" data-title="Executor, and specific gifts" data-require-radio="executor_confidence gifts_volume">
-        <p class="step-title">06. Executor, and specific gifts</p>
-        <label>Executor <span class="req">*</span></label>
-        <div class="radio-group">
-          <label class="option"><input type="radio" name="executor_confidence" value="I know exactly who">I know exactly who</label>
-          <label class="option"><input type="radio" name="executor_confidence" value="Someone in mind, not certain">Someone in mind, not certain</label>
-          <label class="option"><input type="radio" name="executor_confidence" value="I'd like guidance">I'd like guidance</label>
-          <label class="option"><input type="radio" name="executor_confidence" value="Not sure the obvious choice is right">Not sure the obvious choice is right</label>
-        </div>
-        <div class="error-msg" data-error-for="executor_confidence">Please choose one option.</div>
         <hr>
-        <label>Specific gifts <span class="req">*</span></label>
-        <div class="radio-group">
-          <label class="option"><input type="radio" name="gifts_volume" value="None, divide by share">None, divide by share</label>
-          <label class="option"><input type="radio" name="gifts_volume" value="A few">A few</label>
-          <label class="option"><input type="radio" name="gifts_volume" value="Quite a number">Quite a number</label>
-          <label class="option"><input type="radio" name="gifts_volume" value="Not sure yet">Not sure yet</label>
+        <div class="row2">
+          <div><label>Full legal name <span class="req">*</span></label><input type="text" name="client_name" required></div>
+          <div><label>Former/other names (if any)</label><input type="text" name="client_former_names"></div>
         </div>
-        <div class="error-msg" data-error-for="gifts_volume">Please choose one option.</div>
+        <label>Residential address <span class="req">*</span></label><input type="text" name="client_address" required>
+        <div class="row2">
+          <div><label>Occupation</label><input type="text" name="client_occupation"></div>
+          <div><label>State/Territory of residence <span class="req">*</span></label>
+            <select name="client_state" required>
+              <option value="">Select…</option>
+              <option>NSW</option><option>VIC</option><option>QLD</option><option>WA</option>
+              <option>SA</option><option>TAS</option><option>ACT</option><option>NT</option>
+            </select>
+          </div>
+        </div>
+        <label>Marital/relationship status <span class="req">*</span></label>
+        <select name="client_marital_status" required>
+          <option value="">Select…</option>
+          <option>Single</option><option>Married</option><option>De facto</option>
+          <option>Divorced</option><option>Widowed</option>
+        </select>
+        <label>Former spouse/de facto partner to be expressly excluded from the estate?</label>
+        <input type="text" name="former_partner_exclude" placeholder="Name, or leave blank">
+
+        <div id="spouse-block" class="hidden">
+          <hr>
+          <label>Spouse/partner full legal name</label><input type="text" name="spouse_name">
+          <div class="row2">
+            <div><label>Spouse occupation</label><input type="text" name="spouse_occupation"></div>
+            <div><label>Mirror wills or independent wills?</label>
+              <select name="mirror_or_independent">
+                <option value="">Select…</option>
+                <option>Mirror wills</option>
+                <option>Independent wills</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <hr>
+        <div class="row2">
+          <div><label>Financial adviser name and firm (if any)</label><input type="text" name="financial_adviser"></div>
+          <div><label>Governing Jurisdiction for the Will/trusts</label>
+            <select name="governing_jurisdiction">
+              <option value="">Same as State/Territory above</option>
+              <option>NSW</option><option>VIC</option><option>QLD</option><option>WA</option>
+              <option>SA</option><option>TAS</option><option>ACT</option><option>NT</option>
+            </select>
+          </div>
+        </div>
       </div>
 
-      <!-- Q7 -->
-      <div class="step" data-title="Funeral and body wishes">
-        <p class="step-title">07. Funeral and body wishes</p>
-        <p class="step-purpose">Optional.</p>
-        <div class="radio-group">
-          <label class="option"><input type="radio" name="funeral_wishes" value="Clear wishes on burial or cremation">Clear wishes on burial or cremation</label>
-          <label class="option"><input type="radio" name="funeral_wishes" value="Organ or tissue donor">Organ or tissue donor</label>
-          <label class="option"><input type="radio" name="funeral_wishes" value="Discussed with family, nothing written down">Discussed with family, nothing written down</label>
-          <label class="option"><input type="radio" name="funeral_wishes" value="I'd rather my family decided">I'd rather my family decided</label>
-          <label class="option"><input type="radio" name="funeral_wishes" value="Haven't thought about it yet">Haven't thought about it yet</label>
+      <!-- STEP 2 -->
+      <div class="step" data-title="Assets &amp; Liabilities">
+        <p class="step-title">Assets &amp; Liabilities</p>
+        <p class="step-note">Add as many entries as needed in each category.</p>
+        <label>Real estate</label>
+        <div id="realestate-list"></div>
+        <button type="button" class="add-btn" data-add="realestate">+ Add real estate</button>
+
+        <label style="margin-top:1.2rem;">Bank accounts</label>
+        <div id="bank-list"></div>
+        <button type="button" class="add-btn" data-add="bank">+ Add bank account</button>
+
+        <label style="margin-top:1.2rem;">Superannuation</label>
+        <div id="super-list"></div>
+        <button type="button" class="add-btn" data-add="super">+ Add super fund</button>
+
+        <label style="margin-top:1.2rem;">Other assets or liabilities</label>
+        <textarea name="other_assets" placeholder="Investments, insurance, loans owed to the client, expected inheritance, company or trust interests, etc."></textarea>
+      </div>
+
+      <!-- STEP 3 -->
+      <div class="step" data-title="Document Type">
+        <p class="step-title">Document Type</p>
+        <label>Which document(s) are required? <span class="req">*</span></label>
+        <div class="checkbox-group" id="doc-type-group">
+          <label class="inline"><input type="checkbox" name="doc_will"> Will</label>
+          <label class="inline"><input type="checkbox" name="doc_epa"> Enduring Power of Attorney</label>
+          <label class="inline"><input type="checkbox" name="doc_acd"> Advance Care Directive</label>
+          <label class="inline"><input type="checkbox" name="doc_sdt"> Special Disability Trust provision</label>
+        </div>
+        <p class="error-msg" id="doc-type-error">Select at least one document.</p>
+      </div>
+
+      <!-- STEP 4 -->
+      <div class="step" data-title="Executor(s)">
+        <p class="step-title">Executor(s)</p>
+        <p class="step-note">Initial executor</p>
+        <div class="row3">
+          <div><label>Full name <span class="req">*</span></label><input type="text" name="exec_initial_name" required></div>
+          <div><label>Address</label><input type="text" name="exec_initial_address"></div>
+          <div><label>Relationship to client</label><input type="text" name="exec_initial_relationship"></div>
+        </div>
+        <div class="row2">
+          <div><label>Backup executor (name)</label><input type="text" name="exec_backup"></div>
+          <div><label>Further backup executor (name)</label><input type="text" name="exec_further_backup"></div>
+        </div>
+        <label>Should executors act jointly, or can a sole executor act at any time? <span class="req">*</span></label>
+        <select name="exec_joint" required>
+          <option value="">Select…</option>
+          <option>Act jointly</option>
+          <option>Sole executor may act at any time</option>
+        </select>
+        <div class="checkbox-group">
+          <label class="inline"><input type="checkbox" name="exec_power_of_sale"> Give executors an express Power of Sale</label>
         </div>
       </div>
 
-      <!-- Q8 -->
-      <div class="step" data-title="Anything else?">
-        <p class="step-title">08. Anything else, including anything time-sensitive?</p>
-        <p class="step-purpose">Optional.</p>
-        <textarea name="additional_notes" placeholder="Health, travel, family circumstances, urgency — anything you'd like us to know before your appointment."></textarea>
+      <!-- STEP 5 -->
+      <div class="step" data-title="Exclusions">
+        <p class="step-title">Exclusions</p>
+        <label>Anyone the client wishes to expressly exclude from the Will?</label>
+        <div id="exclusion-list"></div>
+        <button type="button" class="add-btn" data-add="exclusion">+ Add exclusion</button>
+        <div class="checkbox-group">
+          <label class="inline"><input type="checkbox" name="no_contest_clause"> Consider a no-contest / deterrent clause</label>
+        </div>
+      </div>
+
+      <!-- STEP 6 -->
+      <div class="step" data-title="Specific Gifts">
+        <p class="step-title">Specific Gifts</p>
+        <p class="step-note">5 gifts included in the standard fee; extra gifts cost more.</p>
+        <div id="gift-list"></div>
+        <button type="button" class="add-btn" data-add="gift">+ Add specific gift</button>
+      </div>
+
+      <!-- STEP 7 -->
+      <div class="step" data-title="Company Directorship / Share Provisions">
+        <p class="step-title">Company Directorship / Share Provisions</p>
+        <label>Does the client hold shares in, or act as director of, any private company? <span class="req">*</span></label>
+        <div class="radio-group">
+          <label class="inline"><input type="radio" name="has_company" value="No" checked> No</label>
+          <label class="inline"><input type="radio" name="has_company" value="Yes"> Yes</label>
+        </div>
+        <div id="company-block" class="hidden">
+          <div class="row2">
+            <div><label>Company name</label><input type="text" name="company_name"></div>
+            <div><label>ACN</label><input type="text" name="company_acn"></div>
+          </div>
+          <label>On death, should the executor:</label>
+          <select name="company_on_death">
+            <option value="">Select…</option>
+            <option>Wind up</option>
+            <option>Transfer/sell</option>
+            <option>Other</option>
+          </select>
+          <label>Should residual share value form a specific gift, or fall into residue?</label>
+          <select name="company_share_treatment">
+            <option value="">Select…</option>
+            <option>Specific gift</option>
+            <option>Falls into residue</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- STEP 8 -->
+      <div class="step" data-title="Life Tenancy">
+        <p class="step-title">Life Tenancy</p>
+        <label>Is a life tenancy required? <span class="req">*</span></label>
+        <div class="radio-group">
+          <label class="inline"><input type="radio" name="has_life_tenancy" value="No" checked> No</label>
+          <label class="inline"><input type="radio" name="has_life_tenancy" value="Yes"> Yes</label>
+        </div>
+        <div id="life-tenancy-block" class="hidden">
+          <div class="row2">
+            <div><label>Life tenant</label><input type="text" name="life_tenant"></div>
+            <div><label>Property/fund subject to the life tenancy</label><input type="text" name="life_tenancy_property"></div>
+          </div>
+          <div class="row2">
+            <div><label>Who bears outgoings during the life tenancy?</label>
+              <select name="life_tenancy_outgoings">
+                <option value="">Select…</option>
+                <option>Life tenant</option>
+                <option>Estate/trust</option>
+              </select>
+            </div>
+            <div><label>On the life tenant's death, who receives the balance?</label><input type="text" name="life_tenancy_balance"></div>
+          </div>
+          <div class="checkbox-group">
+            <label class="inline"><input type="checkbox" name="life_tenancy_sale_power"> Trustee may sell the residence and acquire a substitute property</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 9 -->
+      <div class="step" data-title="Residuary Estate">
+        <p class="step-title">Residuary Estate</p>
+        <label>How many separate trust funds should the residuary estate be divided into? <span class="req">*</span></label>
+        <select id="fund-count" name="fund_count" required>
+          <option value="0">None (residue passes directly to named beneficiaries)</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+        </select>
+
+        <div id="fund1-block" class="hidden" style="margin-top:0.9rem;">
+          <p class="step-note">Trust Fund 1</p>
+          <div class="row2">
+            <div><label>Nominated beneficiary</label><input type="text" name="fund1_beneficiary"></div>
+            <div><label>Beneficiary class</label><input type="text" name="fund1_class" placeholder="e.g. beneficiary and their children"></div>
+          </div>
+          <div class="row2">
+            <div><label>Initial trustee</label><input type="text" name="fund1_trustee_initial"></div>
+            <div><label>Backup trustee</label><input type="text" name="fund1_trustee_backup"></div>
+          </div>
+          <div class="row2">
+            <div><label>Further backup trustee</label><input type="text" name="fund1_trustee_further"></div>
+            <div><label>Initial appointor</label><input type="text" name="fund1_appointor_initial"></div>
+          </div>
+          <div class="row2">
+            <div><label>Backup appointor</label><input type="text" name="fund1_appointor_backup"></div>
+            <div><label>Further backup appointor</label><input type="text" name="fund1_appointor_further"></div>
+          </div>
+        </div>
+
+        <div id="fund2-block" class="hidden" style="margin-top:0.9rem;">
+          <p class="step-note">Trust Fund 2</p>
+          <div class="row2">
+            <div><label>Nominated beneficiary</label><input type="text" name="fund2_beneficiary"></div>
+            <div><label>Beneficiary class</label><input type="text" name="fund2_class"></div>
+          </div>
+          <div class="row2">
+            <div><label>Initial trustee</label><input type="text" name="fund2_trustee_initial"></div>
+            <div><label>Backup trustee</label><input type="text" name="fund2_trustee_backup"></div>
+          </div>
+          <div class="row2">
+            <div><label>Further backup trustee</label><input type="text" name="fund2_trustee_further"></div>
+            <div><label>Initial appointor</label><input type="text" name="fund2_appointor_initial"></div>
+          </div>
+          <div class="row2">
+            <div><label>Backup appointor</label><input type="text" name="fund2_appointor_backup"></div>
+            <div><label>Further backup appointor</label><input type="text" name="fund2_appointor_further"></div>
+          </div>
+        </div>
+
+        <div id="fpe-block" class="hidden" style="margin-top:0.9rem;">
+          <div class="checkbox-group">
+            <label class="inline"><input type="checkbox" name="fpe_trust"> Exclude Foreign Persons from the trust fund(s) — adds a Foreign Persons Excluded Trust clause</label>
+          </div>
+          <p class="hint">Uses the firm's Multi/Single TT Will (with Foreign Persons Excluded Trust) template instead of the standard TT Will.</p>
+        </div>
+
+        <div id="direct-beneficiary-block">
+          <hr>
+          <label>How many primary residuary beneficiaries?</label>
+          <select id="beneficiary-count" name="beneficiary_count">
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+          </select>
+          <div id="beneficiary-rows">
+            <div class="repeat-item beneficiary-row" data-index="0">
+              <div class="row2">
+                <div><label>Beneficiary 1 name</label><input type="text" name="beneficiary1"></div>
+                <div><label>% share</label><input type="number" name="beneficiary1_pct" min="0" max="100"></div>
+              </div>
+            </div>
+            <div class="repeat-item beneficiary-row hidden" data-index="1">
+              <div class="row2">
+                <div><label>Beneficiary 2 name</label><input type="text" name="beneficiary2"></div>
+                <div><label>% share</label><input type="number" name="beneficiary2_pct" min="0" max="100"></div>
+              </div>
+            </div>
+            <div class="repeat-item beneficiary-row hidden" data-index="2">
+              <div class="row2">
+                <div><label>Beneficiary 3 name</label><input type="text" name="beneficiary3"></div>
+                <div><label>% share</label><input type="number" name="beneficiary3_pct" min="0" max="100"></div>
+              </div>
+            </div>
+          </div>
+          <label>Should personal belongings pass to the same named beneficiary(ies), or to the client's children?</label>
+          <select name="personal_belongings_to">
+            <option value="">Select…</option>
+            <option>Same as named beneficiaries above</option>
+            <option>Client's children</option>
+          </select>
+        </div>
+
+        <hr>
+        <label>How many calamity/default beneficiaries? (used only if ALL primary beneficiaries above fail to survive)</label>
+        <select id="calamity-count" name="calamity_count">
+          <option value="0" selected>0 — not required</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+        <div id="calamity-rows">
+          <div class="repeat-item calamity-row hidden" data-index="0">
+            <div class="row2">
+              <div><label>Calamity beneficiary 1 name</label><input type="text" name="calamity1"></div>
+              <div><label>% share</label><input type="number" name="calamity1_pct" min="0" max="100"></div>
+            </div>
+          </div>
+          <div class="repeat-item calamity-row hidden" data-index="1">
+            <div class="row2">
+              <div><label>Calamity beneficiary 2 name</label><input type="text" name="calamity2"></div>
+              <div><label>% share</label><input type="number" name="calamity2_pct" min="0" max="100"></div>
+            </div>
+          </div>
+          <div class="repeat-item calamity-row hidden" data-index="2">
+            <div class="row2">
+              <div><label>Calamity beneficiary 3 name</label><input type="text" name="calamity3"></div>
+              <div><label>% share</label><input type="number" name="calamity3_pct" min="0" max="100"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 10 -->
+      <div class="step" data-title="Special Disability Trust">
+        <p class="step-title">Special Disability Trust</p>
+        <label>Is an SDT provision required? <span class="req">*</span></label>
+        <div class="radio-group">
+          <label class="inline"><input type="radio" name="has_sdt" value="No" checked> No</label>
+          <label class="inline"><input type="radio" name="has_sdt" value="Yes"> Yes</label>
+        </div>
+        <div id="sdt-block" class="hidden">
+          <label>Mechanism required</label>
+          <select name="sdt_mechanism">
+            <option value="">Select…</option>
+            <option>Standard executor power (distribute a trust gift directly to the beneficiary to fund an SDT they establish separately)</option>
+            <option>Full standalone SDT deed (flag to supervising solicitor — outside standard template set)</option>
+          </select>
+          <label>Principal Beneficiary name</label><input type="text" name="sdt_principal_beneficiary">
+        </div>
+      </div>
+
+      <!-- STEP 11 -->
+      <div class="step" data-title="Guardianship">
+        <p class="step-title">Guardianship</p>
+        <label>Does the client have children under 18? <span class="req">*</span></label>
+        <div class="radio-group">
+          <label class="inline"><input type="radio" name="has_minors" value="No" checked> No</label>
+          <label class="inline"><input type="radio" name="has_minors" value="Yes"> Yes</label>
+        </div>
+        <div id="guardian-block" class="hidden">
+          <div class="row2">
+            <div><label>Initial guardian (name)</label><input type="text" name="guardian_initial"></div>
+            <div><label>Backup guardian (name)</label><input type="text" name="guardian_backup"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 12 -->
+      <div class="step" data-title="Funeral Wishes">
+        <p class="step-title">Funeral Wishes</p>
+        <div class="row2">
+          <div><label>Organ donation <span class="req">*</span></label>
+            <select name="organ_donation" required><option value="">Select…</option><option>Available</option><option>Not available</option></select>
+          </div>
+          <div><label>Burial or cremation? <span class="req">*</span></label>
+            <select name="burial_or_cremation" required><option value="">Select…</option><option>Burial</option><option>Cremation</option></select>
+          </div>
+        </div>
+        <label>Any other funeral wishes (non-binding)</label>
+        <textarea name="funeral_other"></textarea>
+      </div>
+
+      <!-- STEP 13 -->
+      <div class="step" data-title="Enduring Power of Attorney">
+        <p class="step-title">Enduring Power of Attorney</p>
+        <label>Attorney(s) / Donee(s)</label>
+        <div id="attorney-list"></div>
+        <button type="button" class="add-btn" data-add="attorney">+ Add attorney</button>
+
+        <label style="margin-top:1rem;">Held jointly or jointly and severally?</label>
+        <select name="epa_jointly">
+          <option value="">Select…</option>
+          <option>Jointly</option>
+          <option>Jointly and severally</option>
+        </select>
+        <label>Effective upon execution, or only on subsequent legal incapacity? <span class="req">*</span></label>
+        <select name="epa_effective" required>
+          <option value="">Select…</option>
+          <option>Upon execution</option>
+          <option>Only upon legal incapacity</option>
+        </select>
+        <label>Which optional additional powers should be included?</label>
+        <div class="checkbox-group">
+          <label class="inline"><input type="checkbox" name="epa_power_conflict"> Conflict transactions permitted</label>
+          <label class="inline"><input type="checkbox" name="epa_power_charge"> Attorney may engage/charge themselves for professional work</label>
+          <label class="inline"><input type="checkbox" name="epa_power_gifts"> Attorney may make gifts and reimburse own expenses</label>
+          <label class="inline"><input type="checkbox" name="epa_power_will"> Attorney may access the Will</label>
+          <label class="inline"><input type="checkbox" name="epa_power_spouse"> Attorney may confer benefits on spouse (couple matters)</label>
+          <label class="inline"><input type="checkbox" name="epa_power_digital"> Attorney may access/manage Digital Assets and Accounts</label>
+        </div>
+      </div>
+
+      <!-- STEP 14 -->
+      <div class="step" data-title="Letter of Wishes, Signing &amp; Custody">
+        <p class="step-title">Letter of Wishes, Signing &amp; Custody</p>
+        <label>Does the client want a non-binding Letter of Wishes prepared? <span class="req">*</span></label>
+        <div class="radio-group">
+          <label class="inline"><input type="radio" name="has_low" value="No" checked> No</label>
+          <label class="inline"><input type="radio" name="has_low" value="Yes"> Yes</label>
+        </div>
+        <div id="low-block" class="hidden">
+          <label>Record the client's wishes for guidance to the executor/trustees</label>
+          <textarea name="low_wishes"></textarea>
+        </div>
+        <hr>
+        <div class="row2">
+          <div><label>Preferred signing date</label><input type="date" name="signing_date"></div>
+          <div><label>Where should the executed Will be lodged/held? <span class="req">*</span></label>
+            <select name="will_custody" required>
+              <option value="">Select…</option>
+              <option>Firm</option><option>Home</option><option>Safe</option><option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="checkbox-group">
+          <label class="inline"><input type="checkbox" name="add_to_wills_register"> Add to the Law Society Wills Register</label>
+        </div>
       </div>
 
       <div class="nav-bar">
@@ -240,28 +544,14 @@
     </div>
   </form>
 
-  <div id="ending-wrap">
-    <div class="card">
-      <p class="step-title" id="ending-title">Thanks — we'll be in touch</p>
-      <p id="ending-body"></p>
-      <p style="color:var(--muted); font-size:0.85rem;">You don't need to do anything else right now. A member of the team will call you to talk through the best next step.</p>
-      <div class="nav-bar" style="justify-content:flex-start;">
-        <button type="button" id="ending-back-btn" class="nav-btn">← Back</button>
-      </div>
-    </div>
-  </div>
-
   <div id="result-wrap">
-    <h2 style="margin-top:2rem;">Draft Will — Generated from your answers</h2>
-    <div class="banner">
-      <strong>Draft outline — not a finished Will.</strong> This form only captures qualification-level answers, so names, addresses and other specifics below are placeholders marked in brackets. Everything will be confirmed and finalised with you at your appointment before any document is signed.
-    </div>
+    <h2 style="margin-top:2rem;">Draft Will — Generated</h2>
     <div id="result-actions">
       <button type="button" id="download-btn" class="nav-btn">Download as .txt</button>
     </div>
     <div class="will-doc" id="will-doc"></div>
     <details>
-      <summary>Lead data captured (this is what would be sent to Clio)</summary>
+      <summary>Matter data captured (this is what would be sent to Clio)</summary>
       <div id="json-payload"></div>
     </details>
   </div>
@@ -269,12 +559,176 @@
 </div>
 
 <script>
+// ---- repeatable block templates ----
+const templates = {
+  realestate: () => fieldRow([
+    {label:'Address', type:'text'},
+    {label:'Estimated value', type:'text'},
+    {label:'Tenancy type', type:'select', options:['Sole ownership','Joint tenants','Tenants in common']},
+    {label:'Mortgage details', type:'text'},
+  ]),
+  bank: () => fieldRow([
+    {label:'Bank', type:'text'},
+    {label:'Account type', type:'select', options:['Savings','Transaction/cheque','Term deposit','Offset']},
+    {label:'Held jointly or individually', type:'select', options:['Individual','Joint','Other']},
+    {label:'Value', type:'text'},
+  ]),
+  super: () => fieldRow([
+    {label:'Fund name', type:'text'},
+    {label:'Member number', type:'text'},
+    {label:'Value', type:'text'},
+    {label:'Nominated beneficiary', type:'text'},
+  ]),
+  gift: () => fieldRow([
+    {label:'Item description', type:'text'},
+    {label:'Recipient', type:'text'},
+    {label:'Fallback if recipient predeceases', type:'text'},
+  ]),
+  attorney: () => fieldRow([
+    {label:'Full name', type:'text'},
+    {label:'Address', type:'text'},
+  ]),
+  exclusion: () => fieldRow([
+    {label:'Name', type:'text'},
+    {label:'Reason', type:'text'},
+  ]),
+};
+
+function fieldRow(fields){
+  const div = document.createElement('div');
+  div.className = 'repeat-item';
+  div.innerHTML = '<button type="button" class="remove-btn">Remove</button>' +
+    fields.map(f => {
+      if (f.type === 'select') {
+        return `<label>${f.label}</label><select data-field="${f.label}"><option value="">Select…</option>${f.options.map(o=>`<option>${o}</option>`).join('')}</select>`;
+      }
+      return `<label>${f.label}</label><input type="text" data-field="${f.label}">`;
+    }).join('');
+  div.querySelector('.remove-btn').addEventListener('click', () => div.remove());
+  return div;
+}
+document.querySelectorAll('[data-add]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const key = btn.getAttribute('data-add');
+    document.getElementById(key + '-list').appendChild(templates[key]());
+  });
+});
+
+// ---- scenario branching ----
+document.querySelectorAll('input[name=scenario]').forEach(r => {
+  r.addEventListener('change', () => {
+    const isCouple = document.querySelector('input[name=scenario]:checked').value === 'Couple';
+    document.getElementById('spouse-block').classList.toggle('hidden', !isCouple);
+  });
+});
+
+// ---- conditional toggles ----
+function bindToggle(radioName, targetId, showValue){
+  document.querySelectorAll(`input[name=${radioName}]`).forEach(r => {
+    r.addEventListener('change', () => {
+      const val = document.querySelector(`input[name=${radioName}]:checked`).value;
+      document.getElementById(targetId).classList.toggle('hidden', val !== showValue);
+    });
+  });
+}
+bindToggle('has_company', 'company-block', 'Yes');
+bindToggle('has_life_tenancy', 'life-tenancy-block', 'Yes');
+bindToggle('has_sdt', 'sdt-block', 'Yes');
+bindToggle('has_minors', 'guardian-block', 'Yes');
+bindToggle('has_low', 'low-block', 'Yes');
+
+document.getElementById('fund-count').addEventListener('change', (e) => {
+  const n = parseInt(e.target.value, 10);
+  document.getElementById('fund1-block').classList.toggle('hidden', n < 1);
+  document.getElementById('fund2-block').classList.toggle('hidden', n < 2);
+  document.getElementById('fpe-block').classList.toggle('hidden', n < 1);
+  document.getElementById('direct-beneficiary-block').classList.toggle('hidden', n > 0);
+});
+
+// ---- dynamic beneficiary / calamity row counts ----
+function bindCountSelect(selectId, rowSelector){
+  document.getElementById(selectId).addEventListener('change', (e) => {
+    const n = parseInt(e.target.value, 10);
+    document.querySelectorAll(rowSelector).forEach(row => {
+      const idx = parseInt(row.getAttribute('data-index'), 10);
+      row.classList.toggle('hidden', idx >= n);
+    });
+  });
+}
+bindCountSelect('beneficiary-count', '.beneficiary-row');
+bindCountSelect('calamity-count', '.calamity-row');
+
+// ---- doc type: at least one required ----
+document.getElementById('doc-type-group').addEventListener('change', () => {
+  document.getElementById('doc-type-error').style.display = 'none';
+});
+
+// ---- load saved form data on page load ----
+async function loadSavedForm() {
+  const params = new URLSearchParams(window.location.search);
+  const leadId = params.get('lead_id');
+
+  if (!leadId) {
+    return; // Will render after initialization
+  }
+
+  try {
+    const response = await fetch(`/api/get-form?lead_id=${leadId}`);
+    if (!response.ok) {
+      return;
+    }
+
+    const result = await response.json();
+    const intakeData = result.data?.intake || {};
+
+    if (!intakeData || Object.keys(intakeData).length === 0) {
+      // No saved data, start fresh
+      return;
+    }
+
+    // Populate form fields from saved data
+    Object.keys(intakeData).forEach(fieldName => {
+      const value = intakeData[fieldName];
+
+      // Handle radio buttons
+      const radios = document.querySelectorAll(`input[name="${fieldName}"][type="radio"]`);
+      if (radios.length > 0) {
+        radios.forEach(r => {
+          if (r.value === value) r.checked = true;
+        });
+      }
+
+      // Handle checkboxes
+      const checkboxes = document.querySelectorAll(`input[name="${fieldName}"][type="checkbox"]`);
+      if (checkboxes.length > 0) {
+        const values = Array.isArray(value) ? value : [value];
+        checkboxes.forEach(c => {
+          if (values.includes(c.value)) c.checked = true;
+        });
+      }
+
+      // Handle text/number inputs and selects
+      const inputs = document.querySelectorAll(`input[name="${fieldName}"], select[name="${fieldName}"], textarea[name="${fieldName}"]`);
+      inputs.forEach(input => {
+        input.value = value || '';
+      });
+    });
+
+    // Trigger change events to show conditional fields
+    document.querySelectorAll('input[type="radio"], input[type="checkbox"], select').forEach(el => {
+      el.dispatchEvent(new Event('change'));
+    });
+
+    console.log('Form data loaded and populated');
+  } catch (error) {
+    console.error('Error loading form:', error);
+  }
+}
+
 // ---- wizard navigation ----
 const steps = Array.from(document.querySelectorAll('.step'));
 const total = steps.length;
 let current = 0;
-
-const QUALIFYING_REASONS = ['Put a will or estate plan in place', 'Update an existing one'];
 
 const progressFill = document.getElementById('progress-fill');
 const progressText = document.getElementById('progress-text');
@@ -282,8 +736,6 @@ const progressTitle = document.getElementById('progress-title');
 const backBtn = document.getElementById('back-btn');
 const nextBtn = document.getElementById('next-btn');
 const dotsWrap = document.getElementById('steps-dots');
-const formEl = document.getElementById('intake-form');
-const endingWrap = document.getElementById('ending-wrap');
 
 steps.forEach((s) => {
   const dot = document.createElement('span');
@@ -292,14 +744,12 @@ steps.forEach((s) => {
 });
 
 function render(){
-  formEl.classList.remove('hidden');
-  endingWrap.style.display = 'none';
   steps.forEach((s, i) => s.classList.toggle('hidden', i !== current));
   progressFill.style.width = ((current + 1) / total * 100) + '%';
-  progressText.textContent = `Question ${current + 1} of ${total}`;
-  progressTitle.textContent = steps[current].getAttribute('data-title');
+  progressText.textContent = `Step ${current + 1} of ${total}`;
+  progressTitle.textContent = steps[current].getAttribute('data-title').replace('&amp;','&');
   backBtn.disabled = current === 0;
-  nextBtn.textContent = current === total - 1 ? 'Submit' : 'Next →';
+  nextBtn.textContent = current === total - 1 ? 'Submit intake' : 'Next →';
   Array.from(dotsWrap.children).forEach((dot, i) => {
     dot.classList.toggle('done', i < current);
     dot.classList.toggle('current', i === current);
@@ -307,44 +757,33 @@ function render(){
   window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
-function validateStep(stepEl){
-  let ok = true;
-  let firstInvalid = null;
+// only require fields that are visible (not inside a .hidden ancestor)
+function isVisible(el){
+  let node = el;
+  while (node && node !== document.body) {
+    if (node.classList && node.classList.contains('hidden')) return false;
+    node = node.parentElement;
+  }
+  return true;
+}
 
-  // plain required inputs (text/email/tel/select)
-  stepEl.querySelectorAll('[required]').forEach(field => {
-    if (!field.value) { ok = false; if (!firstInvalid) firstInvalid = field; field.style.borderColor = 'var(--error)'; }
+function validateStep(stepEl){
+  let firstInvalid = null;
+  const required = stepEl.querySelectorAll('[required]');
+  required.forEach(field => {
+    if (!isVisible(field)) return;
+    if (!field.value) { if (!firstInvalid) firstInvalid = field; field.style.borderColor = 'var(--error)'; }
     else { field.style.borderColor = ''; }
   });
 
-  // required radio groups
-  const radioGroups = (stepEl.getAttribute('data-require-radio') || '').split(' ').filter(Boolean);
-  radioGroups.forEach(name => {
-    const checked = stepEl.querySelector(`input[name="${name}"]:checked`);
-    const errEl = stepEl.querySelector(`.error-msg[data-error-for="${name}"]`);
-    if (!checked) {
-      ok = false;
-      if (errEl) errEl.style.display = 'block';
-      if (!firstInvalid) firstInvalid = stepEl.querySelector(`input[name="${name}"]`);
-    } else if (errEl) {
-      errEl.style.display = 'none';
-    }
-  });
+  if (stepEl.querySelector('#doc-type-group')) {
+    const anyChecked = Array.from(stepEl.querySelectorAll('#doc-type-group input[type=checkbox]')).some(c => c.checked);
+    document.getElementById('doc-type-error').style.display = anyChecked ? 'none' : 'block';
+    if (!anyChecked && !firstInvalid) firstInvalid = stepEl.querySelector('#doc-type-group');
+  }
 
-  if (firstInvalid) firstInvalid.scrollIntoView({ block: 'center' });
-  return ok;
-}
-
-function showEnding(reason){
-  const name = (document.querySelector('input[name=client_name]') || {}).value || '';
-  document.getElementById('ending-body').textContent =
-    reason === 'Someone has died'
-      ? `Thanks${name ? ', ' + name : ''}. We're sorry for your loss. Deceased estate matters need a proper conversation rather than a form, so we won't ask you anything further here.`
-      : reason === 'A concern about a will or estate'
-      ? `Thanks${name ? ', ' + name : ''}. Concerns about a will or estate are handled case by case, so we won't ask you anything further here.`
-      : `Thanks${name ? ', ' + name : ''}. It sounds like a quick conversation will help more than a form right now.`;
-  formEl.classList.add('hidden');
-  endingWrap.style.display = 'block';
+  if (firstInvalid) { firstInvalid.scrollIntoView({ block: 'center' }); return false; }
+  return true;
 }
 
 backBtn.addEventListener('click', () => { if (current > 0) { current--; render(); } });
@@ -352,23 +791,14 @@ backBtn.addEventListener('click', () => { if (current > 0) { current--; render()
 nextBtn.addEventListener('click', () => {
   if (!validateStep(steps[current])) return;
 
-  // routing check happens right after Q2 (index 1)
-  if (current === 1) {
-    const reasonEl = document.querySelector('input[name=inquiry_reason]:checked');
-    const reason = reasonEl ? reasonEl.value : '';
-    if (!QUALIFYING_REASONS.includes(reason)) {
-      showEnding(reason);
-      return;
-    }
+  // Auto-save before moving to next step
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('lead_id')) {
+    autoSaveForm(current + 1);
   }
 
   if (current < total - 1) { current++; render(); return; }
   submitForm();
-});
-
-document.getElementById('ending-back-btn').addEventListener('click', () => {
-  current = 1;
-  render();
 });
 
 dotsWrap.addEventListener('click', (e) => {
@@ -376,12 +806,14 @@ dotsWrap.addEventListener('click', (e) => {
   if (idx >= 0 && idx <= current) { current = idx; render(); }
 });
 
+loadSavedForm();
 render();
 
 // ---- data collection ----
 function collectData(){
+  const form = document.getElementById('intake-form');
   const data = {};
-  new FormData(formEl).forEach((value, key) => {
+  new FormData(form).forEach((value, key) => {
     if (data[key] !== undefined) {
       if (!Array.isArray(data[key])) data[key] = [data[key]];
       data[key].push(value);
@@ -389,122 +821,17 @@ function collectData(){
       data[key] = value;
     }
   });
+  ['realestate','bank','super','gift','attorney','exclusion'].forEach(key => {
+    const items = [];
+    document.querySelectorAll(`#${key}-list .repeat-item`).forEach(item => {
+      const fields = item.querySelectorAll('[data-field]');
+      const obj = {};
+      fields.forEach(f => obj[f.getAttribute('data-field')] = f.value);
+      if (Object.values(obj).some(v => v)) items.push(obj);
+    });
+    data[key] = items;
+  });
   return data;
-}
-function toArray(v){ return v === undefined ? [] : Array.isArray(v) ? v : [v]; }
-
-// ---- heuristic mapper: lead-qualification answers -> will-generator data shape ----
-function mapLeadToWillData(lead){
-  const flags = toArray(lead.complexity_flags);
-  const assets = toArray(lead.asset_flags);
-
-  const isCouple = flags.includes('Planning with a partner');
-  const hasMinors = flags.includes('Children under 18');
-  const blended = flags.includes('Children from a previous relationship');
-  const hasDependantCare = flags.includes('A dependant with a disability or care needs');
-  const hasVulnerablePerson = flags.includes('Someone estranged, or who would struggle to manage money');
-  const hasBusiness = assets.includes('A business, family trust or SMSF');
-  const hasOverseas = assets.includes('Overseas assets');
-  const wantsProtection = lead.goal === 'Protecting an inheritance rather than paying it out directly';
-
-  const trustTriggerCount = [hasMinors, blended, hasDependantCare, wantsProtection].filter(Boolean).length;
-  const fundCount = trustTriggerCount === 0 ? 0 : (trustTriggerCount === 1 ? 1 : 2);
-  const fpe = fundCount >= 1 && hasOverseas;
-
-  const execNoteMap = {
-    'I know exactly who': '[executor name to be confirmed at appointment — client indicated they already know who]',
-    'Someone in mind, not certain': '[executor name to be confirmed at appointment — client has someone in mind but is not fully certain]',
-    "I'd like guidance": '[executor to be selected with guidance at the appointment]',
-    'Not sure the obvious choice is right': '[executor to be discussed carefully at appointment — client flagged that the obvious choice may not be right]',
-  };
-  const execNote = execNoteMap[lead.executor_confidence] || '[executor name to be confirmed at appointment]';
-
-  const primaryBeneficiary = isCouple
-    ? '[partner name to be confirmed at appointment]'
-    : '[primary beneficiary to be confirmed at appointment]';
-  const calamityBeneficiary = (hasMinors || blended)
-    ? '[children / next-generation beneficiaries to be confirmed at appointment]'
-    : '';
-
-  let gifts = [];
-  if (lead.gifts_volume === 'A few') {
-    gifts = [
-      { 'Item description': '[specific gift 1 — to be confirmed at appointment]', 'Recipient': '[recipient to be confirmed]' },
-      { 'Item description': '[specific gift 2 — to be confirmed at appointment]', 'Recipient': '[recipient to be confirmed]' },
-    ];
-  } else if (lead.gifts_volume === 'Quite a number') {
-    gifts = [1,2,3,4].map(n => ({ 'Item description': `[specific gift ${n} — to be confirmed at appointment]`, 'Recipient': '[recipient to be confirmed]' }));
-  } else if (lead.gifts_volume === 'Not sure yet') {
-    gifts = [{ 'Item description': '[specific gifts — client unsure, to be drawn out at appointment]', 'Recipient': '[recipient to be confirmed]' }];
-  }
-
-  const funeralMap = {
-    'Clear wishes on burial or cremation': 'Client has indicated they have clear wishes on burial or cremation — to be recorded precisely at the appointment.',
-    'Organ or tissue donor': 'Client has indicated they wish to be an organ or tissue donor.',
-    'Discussed with family, nothing written down': 'Client has discussed funeral wishes with family but nothing is written down yet — consider a Letter of Wishes.',
-    "I'd rather my family decided": 'Client would prefer their family made funeral decisions at the time.',
-    "Haven't thought about it yet": 'Client has not yet turned their mind to funeral wishes.',
-  };
-
-  return {
-    scenario: isCouple ? 'Couple' : 'Individual',
-    client_name: lead.client_name || '[name not provided]',
-    client_address: '[address to be confirmed at appointment]',
-    spouse_name: isCouple ? '[partner name to be confirmed at appointment]' : '',
-    mirror_or_independent: '',
-    fund_count: String(fundCount),
-    fpe_trust: fpe,
-    exec_initial_name: execNote,
-    exec_initial_relationship: '',
-    exec_initial_address: '',
-    exec_backup: '[backup executor to be confirmed at appointment]',
-    exec_further_backup: '',
-    exec_joint: isCouple ? 'Act jointly' : '',
-    exec_power_of_sale: true,
-    has_minors: hasMinors ? 'Yes' : 'No',
-    guardian_initial: hasMinors ? '[guardian to be confirmed at appointment]' : '',
-    guardian_backup: '',
-    exclusion: [],
-    no_contest_clause: false,
-    personal_belongings_to: hasMinors ? "Client's children" : '',
-    beneficiary1: primaryBeneficiary, beneficiary1_pct: '',
-    beneficiary2: '', beneficiary2_pct: '',
-    beneficiary3: '', beneficiary3_pct: '',
-    gift: gifts,
-    has_company: hasBusiness ? 'Yes' : 'No',
-    company_name: hasBusiness ? '[business / family trust / SMSF name to be confirmed at appointment]' : '',
-    company_acn: '', company_on_death: '', company_share_treatment: '',
-    has_life_tenancy: 'No',
-    fund1_beneficiary: fundCount >= 1 ? primaryBeneficiary : '',
-    fund1_class: fundCount >= 1 ? 'their children and remoter issue' : '',
-    fund1_trustee_initial: fundCount >= 1 ? execNote : '',
-    fund1_trustee_backup: '', fund1_trustee_further: '',
-    fund1_appointor_initial: fundCount >= 1 ? execNote : '',
-    fund1_appointor_backup: '', fund1_appointor_further: '',
-    fund2_beneficiary: fundCount >= 2 ? '[second beneficiary group to be confirmed at appointment]' : '',
-    fund2_class: fundCount >= 2 ? 'their children and remoter issue' : '',
-    fund2_trustee_initial: fundCount >= 2 ? execNote : '',
-    fund2_trustee_backup: '', fund2_trustee_further: '',
-    fund2_appointor_initial: fundCount >= 2 ? execNote : '',
-    fund2_appointor_backup: '', fund2_appointor_further: '',
-    calamity1: calamityBeneficiary, calamity1_pct: '',
-    calamity2: '', calamity2_pct: '',
-    calamity3: '', calamity3_pct: '',
-    has_sdt: hasDependantCare ? 'Yes' : 'No',
-    sdt_principal_beneficiary: hasDependantCare ? '[dependant name to be confirmed at appointment]' : '',
-    sdt_mechanism: '',
-    organ_donation: lead.funeral_wishes === 'Organ or tissue donor' ? 'client has indicated they wish to be an organ or tissue donor (to be confirmed)' : '',
-    burial_or_cremation: '',
-    funeral_other: [funeralMap[lead.funeral_wishes] || '', lead.additional_notes ? `Client's own note: ${lead.additional_notes}` : ''].filter(Boolean).join(' '),
-    governing_jurisdiction: lead.client_state || '',
-    client_state: lead.client_state || '',
-    _flags_for_solicitor: [
-      hasVulnerablePerson ? 'Client flagged someone estranged, or who would struggle to manage money — clarify at appointment whether this calls for a protective trust, an exclusion clause, or neither. Do not assume exclusion.' : '',
-      lead.gifts_volume === 'Quite a number' ? 'Client indicated "quite a number" of specific gifts — this is likely to exceed a standard package; scope and fee to be confirmed.' : '',
-      lead.executor_confidence === 'Not sure the obvious choice is right' ? 'Client flagged that the obvious executor choice may not be right — possible family tension, explore gently at appointment.' : '',
-      lead.goal === "Not sure yet, I'd like it explained" ? 'Client wants the options explained rather than arriving with a fixed scope — budget appointment time for advice, not just drafting instructions.' : '',
-    ].filter(Boolean),
-  };
 }
 
 // ---- will text generation ----
@@ -729,71 +1056,68 @@ function generateWillText(d){
   return lines.join('\n');
 }
 
-function buildFlagsSummary(lead, mapped){
-  const flags = toArray(lead.complexity_flags);
-  const assets = toArray(lead.asset_flags);
-  const lines = [];
-  lines.push('LEAD QUALIFICATION SUMMARY (pre-intake form — confirm everything at appointment)');
-  lines.push('-'.repeat(70));
-  lines.push(`Reason for inquiry: ${lead.inquiry_reason || '—'}`);
-  lines.push(`Name: ${lead.client_name || '—'}    Email: ${lead.client_email || '—'}    Phone: ${lead.client_phone || '—'}    State: ${lead.client_state || '—'}`);
-  lines.push(`Which apply: ${flags.length ? flags.join('; ') : 'None selected'}`);
-  lines.push(`What they own: ${assets.length ? assets.join('; ') : 'None selected'}`);
-  lines.push(`Hoping to sort out: ${lead.goal || '—'}`);
-  lines.push(`Executor confidence: ${lead.executor_confidence || '—'}`);
-  lines.push(`Specific gifts: ${lead.gifts_volume || '—'}`);
-  lines.push(`Funeral/body wishes: ${lead.funeral_wishes || 'Not answered'}`);
-  lines.push(`Anything else: ${lead.additional_notes || '—'}`);
-  if (mapped._flags_for_solicitor && mapped._flags_for_solicitor.length) {
-    lines.push('');
-    lines.push('Flags for the appointment:');
-    mapped._flags_for_solicitor.forEach(f => lines.push(`  • ${f}`));
+// ---- auto-save to dashboard ----
+async function autoSaveForm(stepNumber) {
+  const params = new URLSearchParams(window.location.search);
+  const leadId = params.get('lead_id');
+
+  if (!leadId) {
+    console.log('No lead_id in URL, skipping auto-save');
+    return;
   }
-  lines.push('-'.repeat(70));
-  return lines.join('\n');
+
+  try {
+    const data = collectData();
+    const response = await fetch('/api/submit-intake', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lead_id: leadId,
+        form_data: data,
+        step: stepNumber,
+        form_type: 'intake',
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Auto-save failed:', await response.json());
+      return false;
+    }
+
+    const result = await response.json();
+    console.log(`Auto-saved step ${stepNumber} (${result.progress_pct}% complete)`);
+    return true;
+  } catch (error) {
+    console.error('Auto-save error:', error);
+    return false;
+  }
 }
 
-async function submitForm(){
-  const lead = collectData();
-  const mapped = mapLeadToWillData(lead);
-  const willText = buildFlagsSummary(lead, mapped) + '\n\n' + generateWillText(mapped);
-
-  // Get lead_id from URL if available
+function submitForm(){
   const params = new URLSearchParams(window.location.search);
-  const lead_id = params.get('lead_id');
+  const leadId = params.get('lead_id');
+  const data = collectData();
 
-  if (lead_id) {
-    // Submit to API endpoint
-    try {
-      const response = await fetch('/api/submit-form', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lead_id,
-          form_data: lead,
-          form_type: 'intake',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to submit form');
+  if (leadId) {
+    // Dashboard mode: save to API
+    autoSaveForm(14).then(success => {
+      if (success) {
+        document.getElementById('result-wrap').innerHTML = `
+          <div style="text-align: center; padding: 2rem;">
+            <h2 style="color: #2f4858; margin-bottom: 1rem;">✓ Form Submitted Successfully</h2>
+            <p style="color: #666; margin-bottom: 2rem;">Your estate planning information has been saved. Our team will review it and contact you shortly.</p>
+            <button type="button" class="nav-btn primary" onclick="window.location.reload();">Return to Dashboard</button>
+          </div>
+        `;
+        document.getElementById('result-wrap').style.display = 'block';
+        document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth' });
       }
-
-      // Show success
-      formEl.classList.add('hidden');
-      document.getElementById('result-wrap').style.display = 'none';
-      endingWrap.style.display = 'block';
-      document.getElementById('ending-title').textContent = 'Form submitted successfully!';
-      document.getElementById('ending-body').textContent = 'Thank you for completing the intake form. We\'ll review your information and be in touch shortly.';
-      endingWrap.scrollIntoView({ behavior: 'smooth' });
-    } catch (error) {
-      alert('Error submitting form: ' + error.message);
-    }
+    });
   } else {
-    // Demo mode - show will draft
+    // Demo mode: show will draft locally
+    const willText = generateWillText(data);
     document.getElementById('will-doc').textContent = willText;
-    document.getElementById('json-payload').textContent = JSON.stringify(lead, null, 2);
-    formEl.classList.add('hidden');
+    document.getElementById('json-payload').textContent = JSON.stringify(data, null, 2);
     document.getElementById('result-wrap').style.display = 'block';
     document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth' });
 
@@ -801,7 +1125,7 @@ async function submitForm(){
       const blob = new Blob([willText], { type: 'text/plain' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = (lead.client_name || 'draft-will').replace(/\s+/g,'_') + '_draft_will.txt';
+      a.download = (data.client_name || 'draft-will').replace(/\s+/g,'_') + '_draft_will.txt';
       a.click();
     };
   }
