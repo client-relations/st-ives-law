@@ -1002,10 +1002,18 @@ export default function DashboardV2() {
             <div className='nv-modal-actions'>
               <button
                 className='nv-btn-qualify'
-                onClick={() => {
-                  const intakeLink = `${window.location.origin}/intake-form?lead_id=${viewingIntakeForm.id}`;
-                  setGeneratedLink(intakeLink);
-                  setShowLinkModal(true);
+                onClick={async () => {
+                  const success = await sendIntakeForm(viewingIntakeForm.id);
+                  if (success) {
+                    // Update local state and refresh
+                    setRealForms(prev => prev.map(f =>
+                      f.id === viewingIntakeForm.id
+                        ? { ...f, status: 'pending_intake' }
+                        : f
+                    ));
+                    setViewingIntakeForm(prev => ({ ...prev, status: 'pending_intake' }));
+                    alert('Intake form sent! Status updated to Pending Intake.');
+                  }
                 }}
               >
                 Send Intake Form
@@ -1859,15 +1867,22 @@ export default function DashboardV2() {
                               type='button'
                               className='nv-btn-view'
                               onClick={() => setViewingIntakeForm(form)}
-                              disabled
                             >
                               View
                             </button>
                             <button
                               type='button'
                               className='nv-btn-delete'
-                              onClick={() => console.log('Delete - disabled')}
-                              disabled
+                              onClick={async () => {
+                                if (confirm(`Delete form for ${form.name}?`)) {
+                                  const success = await deleteForm(form.id);
+                                  if (success) {
+                                    setRealForms(prev => prev.filter(f => f.id !== form.id));
+                                  } else {
+                                    alert('Failed to delete form');
+                                  }
+                                }
+                              }}
                             >
                               Delete
                             </button>

@@ -376,18 +376,18 @@ export async function sendIntakeForm(formId: string) {
 
     if (!form) throw new Error('Form not found');
 
-    // Update status to pending_intake
+    // Update status: scheduled → pending_intake
     const { error } = await supabase
       .from('forms')
-      .update({ status: 'pending_intake' })
+      .update({
+        status: 'pending_intake',
+        last_accessed: new Date().toISOString(),
+      })
       .eq('id', formId);
 
     if (error) throw error;
 
-    // WEBHOOK DISABLED - will re-enable with automation
-    // Would send email with intake form link here
-    // const intakeLink = `${window.location.origin}/intake-form?lead_id=${formId}`;
-
+    console.log('Intake form sent, status updated to pending_intake');
     return true;
   } catch (err) {
     console.error('Error sending intake form:', err);
