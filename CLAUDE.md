@@ -242,17 +242,69 @@ completed_intake → submitted (TBD - button not shown yet)
 - Payload: form_id, client info, missing_fields array, validation_errors
 - Action: Sends form back to client with missing info report via n8n
 
-### Clio Webhook Format (TO BE RESEARCHED)
+### Clio Webhook Format (RESEARCHED)
 
-**Need to Determine:**
-- [ ] Clio API endpoint structure
-- [ ] Required fields for matter creation
-- [ ] Field naming conventions (camelCase vs snake_case, etc.)
-- [ ] Date/time format requirements
-- [ ] Nested object structure for assets, beneficiaries, executors
-- [ ] Validation rules per field
-- [ ] Authentication method (API key, OAuth, etc.)
-- [ ] Error response handling
+**Clio Data Structure** (from Zapier integration research):
+
+#### Client/Contact Data
+```json
+{
+  "type": "person|company",
+  "first_name": "string",
+  "middle_name": "string (optional)",
+  "last_name": "string",
+  "prefix": "string (optional)",
+  "title": "string (optional)",
+  "date_of_birth": "YYYY-MM-DD (optional)",
+  "email": "string (optional)",
+  "phone": "string (optional)",
+  "website": "string (optional)",
+  "instant_messenger": "string (optional)",
+  "address": {
+    "street": "string",
+    "city": "string",
+    "province_state": "string",
+    "postal_code": "string",
+    "country": "string"
+  },
+  "company": "string (optional - for person contacts)"
+}
+```
+
+#### Matter Data
+```json
+{
+  "client_id": "integer (required - Clio client ID)",
+  "practice_area": "string",
+  "description": "string",
+  "originating_attorney_id": "integer (optional)",
+  "responsible_attorney_id": "integer (optional)",
+  "status": "string (e.g., 'Open', 'Closed')",
+  "billable": "boolean",
+  "budget": "decimal (optional)",
+  "pending_date": "YYYY-MM-DD (optional)",
+  "open_date": "YYYY-MM-DD (optional)",
+  "close_date": "YYYY-MM-DD (optional)",
+  "location": "string (optional)",
+  "due_date": "YYYY-MM-DD (optional)",
+  "notification": "boolean (optional)"
+}
+```
+
+#### Custom Fields (For Estate Planning)
+Clio supports custom fields via API. Likely needed:
+- Will details (executors, beneficiaries, specific gifts)
+- Trust information
+- Power of Attorney designations
+- Guardian assignments (for minors)
+- Asset inventory
+- Funeral preferences
+
+**Authentication:**
+- Clio uses OAuth 2.0 or API token authentication
+- n8n has built-in Clio integration node (via OAuth)
+
+---
 
 **Current Intake Form Structure:**
 The form at https://amazing-syrniki-7b0dea.netlify.app/ collects:
@@ -263,12 +315,59 @@ The form at https://amazing-syrniki-7b0dea.netlify.app/ collects:
 - Estate Distribution (exclusions, specific gifts up to 5, company shares, life tenancy, trusts)
 - Additional Provisions (SDT, guardianship, funeral, Letter of Wishes, custody)
 
-**Transformation Needed:**
-- Map intake form fields → Clio API fields
-- Handle array structures (multiple executors, beneficiaries, assets)
-- Format dates/timestamps per Clio requirements
-- Validate against Clio's field constraints
-- Build validation rules to catch missing/invalid data before sending
+**Transformation Strategy:**
+1. **Create Client (Person Contact)**
+   - Map: client_name, client_email, client_phone, client_state → Clio person contact
+   - Address components required: street, city, province_state, postal_code, country
+   - Return: Clio client_id (needed for matter creation)
+
+2. **Create Matter**
+   - Use returned client_id
+   - Map: lead_type → practice_area
+   - Map: person_responsible → responsible_attorney_id (need lawyer → attorney ID mapping)
+   - Set: status = "Open", billable = true/false based on billing_type
+   - Description: build from intake form summary
+
+3. **Create Custom Fields (via Matter)**
+   - Executors (primary, backup, tertiary)
+   - Beneficiaries (with percentages)
+   - Specific gifts (up to 5)
+   - Assets (real estate, bank, superannuation)
+   - Documents needed (Will, EPA, ADC, SDT)
+   - Guardians (if minors)
+   - Funeral preferences
+   - Special Disability Trust flag
+
+**Data Mapping Example:**
+```
+Form: inquiry_reason "Put a will or estate plan in place"
+ → Matter: practice_area = "Estate Planning" or "Wills & Trusts"
+
+Form: client_state "NSW"
+ → Client: province_state = "New South Wales"
+
+Form: person_responsible "Michael Brown"
+ → Matter: responsible_attorney_id = (lookup from lawyers table by full_name)
+
+Form: executor_confidence "I know exactly who"
+ → Custom field: executor_primary_name, executor_primary_confidence
+```
+
+**Validation Rules:**
+- Client name required (first_name + last_name)
+- Email required (for contact)
+- At least one address component required
+- Matter requires valid client_id
+- Attorney IDs must exist in Clio
+- Dates must be valid YYYY-MM-DD format
+
+**Missing from Research:**
+- [ ] Custom field schema (exact API format for custom fields)
+- [ ] Attorney ID mapping (how to link St Ives lawyers → Clio attorneys)
+- [ ] Specific practice area options in Clio
+- [ ] Matter status enum values
+- [ ] Rate of API calls/throttling
+- [ ] Error response codes & messages
 
 ## Authentication & Authorization
 
