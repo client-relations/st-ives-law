@@ -12,6 +12,7 @@ import {
   submitFormToSmokeball,
   sendIntakeForm,
   deleteForm,
+  sendBackForm,
 } from '../lib/dashboard-actions';
 import '../styles/dashboard.css';
 
@@ -1862,10 +1863,19 @@ export default function DashboardV2() {
                             <button
                               type='button'
                               className='nv-btn-delete'
-                              onClick={() => console.log('Delete - disabled')}
-                              disabled
+                              onClick={async () => {
+                                if (confirm(`Send back form for ${form.name}?`)) {
+                                  const success = await sendBackForm(form.id);
+                                  if (success) {
+                                    alert('Form sent back to client with missing fields list');
+                                  } else {
+                                    alert('Failed to send back form');
+                                  }
+                                }
+                              }}
+                              style={{ background: '#fff3cd', borderColor: '#ffc107', color: '#856404' }}
                             >
-                              Delete
+                              Send Back
                             </button>
                           </div>
                         </div>

@@ -411,3 +411,30 @@ export async function deleteForm(formId: string) {
     return false;
   }
 }
+
+export async function sendBackForm(formId: string) {
+  try {
+    if (!supabase) throw new Error('Database connection error');
+
+    const response = await fetch('/api/send-back-form', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lead_id: formId,
+        reason: 'incomplete',
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to send back form');
+    }
+
+    const result = await response.json();
+    console.log('Form send-back initiated:', result);
+    return true;
+  } catch (err) {
+    console.error('Error sending back form:', err);
+    return false;
+  }
+}
