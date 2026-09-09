@@ -498,7 +498,6 @@ export default function DashboardV2() {
   const scheduledForms = realForms.filter(f => f.status === 'scheduled');
   const pendingIntakeForms = realForms.filter(f => f.status === 'pending_intake');
   const completedIntakeForms = realForms.filter(f => f.status === 'completed_intake');
-  const pendingIntakeForms = realForms.filter(f => f.status === 'pending_intake');
 
   // Apply filters to pending intake forms (for Overview)
   const filteredPendingIntakeForms = pendingIntakeForms
