@@ -209,27 +209,66 @@ completed_intake → submitted (TBD - button not shown yet)
 
 **Response**: `{ success: true, data: { inquiry: {...} }, status: "scheduled" }`
 
-## Webhook Integration (Make Platform)
+## Webhook Integration
 
-**SEND_FORM_EMAIL_WEBHOOK** (TBD)
+### Current Implementation
+- Using Make platform for email/reminders (TBD)
+- Using n8n for Clio integration (NEW)
+
+### Webhooks to Implement
+
+**SEND_FORM_EMAIL_WEBHOOK** (Make Platform)
 - Triggers when form created (qualification)
 - Payload: form_id, client_name, client_email, form_link
-- Action: Sends email to client with form link
+- Action: Sends email to client with inquiry form link
 
-**EMAIL_CONFIRMATION_WEBHOOK** (TBD)
+**EMAIL_CONFIRMATION_WEBHOOK** (Make Platform)
 - Triggers when client completes inquiry
 - Payload: form_id, client_name, client_email, completed_at
 - Action: Sends confirmation email to client
 
-**REMINDER_WEBHOOK** (TBD)
+**REMINDER_WEBHOOK** (Make Platform)
 - Triggers at 3d, 1w, 2w
 - Payload: form_id, reminder_type, client details
 - Action: Sends reminder email to client
 
-**SMOKEBALL_WEBHOOK** (TBD)
-- Triggers when lawyer submits to Smokeball
-- Payload: Full form data (aData, bData, cData, dData)
-- Action: Creates matter/intake in Smokeball
+**CLIO_INTAKE_WEBHOOK** (n8n - NEW)
+- Triggers when intake form completed & validated
+- Payload: Full intake form data in Clio API format (see below)
+- Action: Creates/updates matter in Clio
+
+**CLIO_SEND_BACK_WEBHOOK** (n8n - NEW)
+- Triggers when intake validation fails
+- Payload: form_id, client info, missing_fields array, validation_errors
+- Action: Sends form back to client with missing info report via n8n
+
+### Clio Webhook Format (TO BE RESEARCHED)
+
+**Need to Determine:**
+- [ ] Clio API endpoint structure
+- [ ] Required fields for matter creation
+- [ ] Field naming conventions (camelCase vs snake_case, etc.)
+- [ ] Date/time format requirements
+- [ ] Nested object structure for assets, beneficiaries, executors
+- [ ] Validation rules per field
+- [ ] Authentication method (API key, OAuth, etc.)
+- [ ] Error response handling
+
+**Current Intake Form Structure:**
+The form at https://amazing-syrniki-7b0dea.netlify.app/ collects:
+- Scenario & Client Details (Single/Couple, name, address, state, marital status)
+- Assets & Liabilities (real estate, bank, superannuation, other)
+- Document Selection (Will, EPA, Advance Care Directive, SDT)
+- Executor Provisions (primary, backup, tertiary, joint/sole, power of sale)
+- Estate Distribution (exclusions, specific gifts up to 5, company shares, life tenancy, trusts)
+- Additional Provisions (SDT, guardianship, funeral, Letter of Wishes, custody)
+
+**Transformation Needed:**
+- Map intake form fields → Clio API fields
+- Handle array structures (multiple executors, beneficiaries, assets)
+- Format dates/timestamps per Clio requirements
+- Validate against Clio's field constraints
+- Build validation rules to catch missing/invalid data before sending
 
 ## Authentication & Authorization
 
