@@ -1003,7 +1003,11 @@ export default function DashboardV2() {
             <div className='nv-modal-actions'>
               <button
                 className='nv-btn-qualify'
-                disabled
+                onClick={() => {
+                  const intakeLink = `${window.location.origin}/intake-form?lead_id=${viewingIntakeForm.id}`;
+                  setGeneratedLink(intakeLink);
+                  setShowLinkModal(true);
+                }}
               >
                 Send Intake Form
               </button>
