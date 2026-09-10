@@ -1073,25 +1073,20 @@ export default function DashboardV2() {
           {isCompletedIntake && (
             <div className='nv-modal-actions'>
               <button
-                className='nv-btn-edit'
-                onClick={() => console.log('Edit - disabled')}
-                disabled
-              >
-                Edit
-              </button>
-              <button
                 className='nv-btn-view'
-                onClick={() => console.log('Send Back - disabled')}
-                disabled
+                onClick={() => {
+                  setShowSendBackModal(true);
+                  setSendBackFormId(viewingIntakeForm.id);
+                  setViewingIntakeForm(null);
+                }}
               >
-                Send Back
+                Send Back Reminder
               </button>
               <button
                 className='nv-btn-qualify'
-                onClick={() => console.log('Populate Matter - disabled')}
-                disabled
+                onClick={() => console.log('Populate Matter to Clio - to be implemented')}
               >
-                Populate Matter
+                Populate Matter → Clio
               </button>
             </div>
           )}
@@ -1999,13 +1994,6 @@ export default function DashboardV2() {
                               }}
                             >
                               View
-                            </button>
-                            <button
-                              type='button'
-                              className='nv-btn-edit'
-                              onClick={() => window.open(`/intake-form?lead_id=${form.id}&edit=true`, '_blank')}
-                            >
-                              Edit
                             </button>
                             <button
                               type='button'
