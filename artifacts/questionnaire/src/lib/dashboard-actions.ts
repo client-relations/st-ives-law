@@ -617,17 +617,16 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
 
     // Estate Planning Details (formatted for readable Clio display)
     documents_required: formatDocumentsRequired(docsRequired),
-    beneficiaries_json: formatBeneficiaries(beneficiaries),
-    specific_gifts_json: formatSpecificGifts(specificGifts),
-    assets_real_estate_json: formatAssets(realEstate, 'real_estate'),
-    assets_bank_json: formatAssets(bankAccounts, 'bank'),
-    assets_super_json: formatAssets(superAccounts, 'super'),
+    specific_gifts: formatSpecificGifts(specificGifts),
+    assets_real_estate: formatAssets(realEstate, 'real_estate'),
+    assets_bank: formatAssets(bankAccounts, 'bank'),
+    assets_super: formatAssets(superAccounts, 'super'),
 
     executor_primary_name: intakeData.exec_initial_name,
     executor_backup_name: intakeData.exec_backup,
     executor_acting_arrangement: intakeData.exec_joint === 'true' ? 'Joint' : 'Sole',
 
-    epa_attorneys_json: formatEpaAttorneys(epaAttorneys),
+    epa_attorneys: formatEpaAttorneys(epaAttorneys),
     epa_effective: intakeData.epa_effective,
 
     has_minors: intakeData.has_minors === 'Yes',
@@ -643,17 +642,8 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
     will_pdf_path: metadata.will_pdf_path,
     will_pdf_name: willPdfName,
 
-    // Meta (structured JSON stored in Supabase, not sent to Clio)
+    // Meta
     form_id: form.id,
     submission_date: form.created_at,
-    structuredData: {
-      beneficiaries: beneficiaries,
-      specific_gifts: specificGifts,
-      assets_real_estate: realEstate,
-      assets_bank: bankAccounts,
-      assets_super: superAccounts,
-      epa_attorneys: epaAttorneys,
-      documents_required: docsRequired,
-    },
   };
 }
