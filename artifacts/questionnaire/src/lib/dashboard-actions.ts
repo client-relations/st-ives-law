@@ -441,6 +441,50 @@ export async function sendBackForm(formId: string) {
   }
 }
 
+export async function duplicateForm(formId: string) {
+  try {
+    if (!supabase) throw new Error('Database connection error');
+
+    // Fetch original form
+    const { data: originalForm } = await supabase
+      .from('forms')
+      .select('*')
+      .eq('id', formId)
+      .single();
+
+    if (!originalForm) throw new Error('Form not found');
+
+    // Create new form with same data
+    const { data: newForm, error } = await supabase
+      .from('forms')
+      .insert({
+        lawyer_id: originalForm.lawyer_id,
+        client_name: originalForm.client_name,
+        client_email: originalForm.client_email,
+        lead_type: originalForm.lead_type,
+        region: originalForm.region,
+        referral_type: originalForm.referral_type,
+        billing_type: originalForm.billing_type,
+        person_responsible: originalForm.person_responsible,
+        status: originalForm.status,
+        progress_pct: originalForm.progress_pct,
+        unique_link: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+        form_data: originalForm.form_data,
+        created_at: new Date().toISOString(),
+      })
+      .select();
+
+    if (error) throw error;
+
+    const duplicatedForm = newForm?.[0];
+    console.log('Form duplicated:', duplicatedForm?.id);
+    return duplicatedForm?.id || null;
+  } catch (err) {
+    console.error('Error duplicating form:', err);
+    return null;
+  }
+}
+
 export async function populateMatterToClio(formId: string) {
   try {
     if (!supabase) throw new Error('Database connection error');

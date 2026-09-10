@@ -2017,7 +2017,17 @@ export default function DashboardV2() {
                             <button
                               type='button'
                               className='nv-btn-qualify'
-                              onClick={() => console.log('Populate Matter - to be implemented')}
+                              onClick={async () => {
+                                const confirmed = confirm('Send to Clio and populate matter?');
+                                if (confirmed) {
+                                  const success = await populateMatterToClio(form.id);
+                                  if (success) {
+                                    alert('✅ Matter created in Clio successfully!');
+                                  } else {
+                                    alert('❌ Error populating matter. Check console for details.');
+                                  }
+                                }
+                              }}
                             >
                               Populate
                             </button>
