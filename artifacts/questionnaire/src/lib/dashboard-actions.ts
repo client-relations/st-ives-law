@@ -376,11 +376,12 @@ export async function sendIntakeForm(formId: string) {
 
     if (!form) throw new Error('Form not found');
 
-    // Update status: scheduled → pending_intake
+    // Update status: scheduled → pending_intake, reset progress to 0
     const { error } = await supabase
       .from('forms')
       .update({
         status: 'pending_intake',
+        progress_pct: 0,
         last_accessed: new Date().toISOString(),
       })
       .eq('id', formId);
