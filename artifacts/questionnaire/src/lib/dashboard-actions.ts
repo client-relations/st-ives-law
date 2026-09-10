@@ -505,10 +505,14 @@ export async function populateMatterToClio(formId: string) {
     }
 
     const intakeData = formData.intake || {};
+    const inquiryData = formData.inquiry || {};
     const metadata = formData.metadata || {};
 
+    // Merge intake and inquiry data for complete form data
+    const completeFormData = { ...inquiryData, ...intakeData };
+
     // Build Clio payload
-    const payload = buildClioPayload(intakeData, form, metadata);
+    const payload = buildClioPayload(completeFormData, form, metadata);
 
     console.log('[CLIO] Sending payload to Make.com:', payload);
 
@@ -639,8 +643,11 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
     // Client Info (for Clio Contact)
     client_name: intakeData.client_name || form.client_name,
     client_email: intakeData.client_email || form.client_email,
+    client_phone: intakeData.client_phone || '',
     client_address: intakeData.client_address,
+    client_city: intakeData.client_city || '',
     client_state: intakeData.client_state,
+    client_postcode: intakeData.client_postcode || '',
     client_occupation: intakeData.client_occupation,
     client_marital_status: intakeData.client_marital_status,
 
