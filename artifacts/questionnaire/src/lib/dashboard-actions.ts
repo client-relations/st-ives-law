@@ -523,8 +523,8 @@ export async function populateMatterToClio(formId: string) {
       throw new Error(`Make webhook failed: ${error.message}`);
     }
 
-    const result = await response.json();
-    console.log('[CLIO] Matter created successfully:', result);
+    const text = await response.text();
+    console.log('[CLIO] Matter created successfully. Response:', text);
     return true;
   } catch (err) {
     console.error('[CLIO] Error populating matter:', err);
