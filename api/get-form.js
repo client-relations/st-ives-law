@@ -38,7 +38,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      data: formData.inquiry || {},
+      data: formData,
       status: form.status,
     });
   } catch (error) {
