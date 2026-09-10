@@ -820,8 +820,8 @@ nextBtn.addEventListener('click', async () => {
 
   if (isReadonly) {
     if (current < total - 1) { current++; render(); return; }
-    // In readonly, close the window instead of submit
-    window.close();
+    // In readonly mode at step 14, show the generated will
+    showGeneratedWillReadonly();
     return;
   }
 
@@ -1150,6 +1150,83 @@ async function autoSaveForm(stepNumber) {
     console.error('[AUTO-SAVE] Error:', error);
     return false;
   }
+}
+
+function showGeneratedWillReadonly(){
+  const data = collectData();
+  const willText = generateWillText(data);
+
+  document.getElementById('result-wrap').innerHTML = `
+    <div style="padding: 2rem;">
+      <div style="text-align: center; margin-bottom: 2.5rem;">
+        <h2 style="color: #2f4858; margin-bottom: 0.5rem;">Generated Will Template</h2>
+        <p style="color: #666;">Review the will generated from your form answers.</p>
+      </div>
+
+      <div style="background: #fafafa; border: 1px solid #d8d8d8; border-radius: 8px; padding: 2rem; margin-bottom: 2rem;">
+        <div class="will-container">
+          <pre id="will-doc"></pre>
+        </div>
+        <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap;">
+          <button type="button" class="nav-btn primary" id="download-txt-btn" style="margin: 0;">📥 Download as TXT</button>
+          <button type="button" class="nav-btn primary" id="download-pdf-btn" style="margin: 0;">📄 Download as PDF</button>
+          <button type="button" class="nav-btn primary" onclick="window.close();" style="margin: 0;">Close</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('will-doc').textContent = willText;
+  document.getElementById('result-wrap').style.display = 'block';
+  document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth' });
+
+  const filename = (data.client_name || 'draft-will').replace(/\s+/g,'_');
+
+  document.getElementById('download-txt-btn').onclick = () => {
+    const blob = new Blob([willText], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename + '_draft_will.txt';
+    a.click();
+  };
+
+  document.getElementById('download-pdf-btn').onclick = () => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    document.head.appendChild(script);
+    script.onload = () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 10;
+      const maxWidth = pageWidth - (margin * 2);
+      const fontSize = 10;
+      doc.setFontSize(fontSize);
+      doc.setFont(undefined, 'normal');
+
+      const lines = willText.split('\\n');
+      let yPos = margin;
+
+      lines.forEach(line => {
+        const wrappedLines = doc.splitTextToSize(line, maxWidth);
+        wrappedLines.forEach(wrappedLine => {
+          if (yPos > pageHeight - margin) {
+            doc.addPage();
+            yPos = margin;
+          }
+          doc.text(wrappedLine, margin, yPos);
+          yPos += 5;
+        });
+      });
+
+      doc.save(filename + '_draft_will.pdf');
+    };
+  };
 }
 
 function submitForm(){
