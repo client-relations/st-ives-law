@@ -68,10 +68,15 @@ export default function DashboardV2() {
   // Intake form modal
   const [viewingIntakeForm, setViewingIntakeForm] = useState<any | null>(null);
   const [intakeActionLoading, setIntakeActionLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'pending_intake' | 'completed_intake' | null>(null);
 
   // Form link modal (temporary - until webhook automation)
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
+
+  // Send back modal
+  const [showSendBackModal, setShowSendBackModal] = useState(false);
+  const [sendBackFormId, setSendBackFormId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -974,23 +979,64 @@ export default function DashboardV2() {
               </div>
 
               {showBothForms ? (
-                <div style={{ padding: '12px', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Intake Form</div>
-                  <button
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '12px',
-                      background: '#4a8fa0',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => window.open(`/intake-form?lead_id=${viewingIntakeForm.id}`, '_blank')}
-                  >
-                    View Form
-                  </button>
-                </div>
+                <>
+                  <div style={{ padding: '12px', border: '1px solid #e0e0e0', borderRadius: '4px', marginBottom: '12px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '12px' }}>
+                      Intake Form
+                      {viewingIntakeForm.progress_pct !== undefined && (
+                        <span style={{ float: 'right', color: '#666' }}>
+                          {viewingIntakeForm.progress_pct}% complete
+                        </span>
+                      )}
+                    </div>
+                    {/* Show intake data summary if available */}
+                    {viewingIntakeForm.form_data?.intake && (
+                      <div style={{ marginBottom: '12px', padding: '12px', background: '#f9f9f9', borderRadius: '4px', fontSize: '12px', lineHeight: '1.6' }}>
+                        {viewingIntakeForm.form_data.intake.client_name && (
+                          <div><strong>Client:</strong> {viewingIntakeForm.form_data.intake.client_name}</div>
+                        )}
+                        {viewingIntakeForm.form_data.intake.client_state && (
+                          <div><strong>State:</strong> {viewingIntakeForm.form_data.intake.client_state}</div>
+                        )}
+                        {viewingIntakeForm.form_data.intake.scenario && (
+                          <div><strong>Scenario:</strong> {viewingIntakeForm.form_data.intake.scenario}</div>
+                        )}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          background: '#4a8fa0',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => window.open(`/intake-form?lead_id=${viewingIntakeForm.id}&readonly=true`, '_blank')}
+                      >
+                        View Form & Will
+                      </button>
+                      {isCompletedIntake && (
+                        <button
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            background: '#2f4858',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => window.open(`/intake-form?lead_id=${viewingIntakeForm.id}&edit=true`, '_blank')}
+                        >
+                          ✏️ Edit Form
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
               ) : (
                 <div style={{ padding: '12px', border: '1px dashed #ddd', borderRadius: '4px', background: '#fafafa', color: '#999', fontSize: '12px' }}>
                   Intake form will be available after appointment is scheduled
@@ -1904,7 +1950,37 @@ export default function DashboardV2() {
                     {submittedForms.length === 0
                       ? <div className='nv-kanban-empty'>None completed yet</div>
                       : submittedForms.map(form => (
-                        <div key={form.id} className='nv-pipe-card'>
+                        <div key={form.id} className='nv-pipe-card' style={{ position: 'relative' }}>
+                          <button
+                            type='button'
+                            onClick={async () => {
+                              if (window.confirm('Delete this form? This cannot be undone.')) {
+                                const success = await deleteForm(form.id);
+                                if (success) {
+                                  setRealForms(prev => prev.filter(f => f.id !== form.id));
+                                }
+                              }
+                            }}
+                            style={{
+                              position: 'absolute',
+                              top: '8px',
+                              right: '8px',
+                              background: 'none',
+                              border: 'none',
+                              fontSize: '1.2rem',
+                              cursor: 'pointer',
+                              color: '#999',
+                              padding: '0',
+                              width: '24px',
+                              height: '24px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                            title='Delete form'
+                          >
+                            ×
+                          </button>
                           <h4 className='nv-pipe-name'>{form.name}</h4>
                           <p className='nv-pipe-email'>{form.client_email || '—'}</p>
                           <div className='nv-pipe-meta'>
@@ -1916,27 +1992,37 @@ export default function DashboardV2() {
                           <div className='nv-pipe-actions'>
                             <button
                               type='button'
+                              className='nv-btn-view'
+                              onClick={() => {
+                                setViewingIntakeForm(form);
+                                setViewMode('completed_intake');
+                              }}
+                            >
+                              View
+                            </button>
+                            <button
+                              type='button'
                               className='nv-btn-edit'
-                              onClick={() => console.log('Edit - disabled')}
-                              disabled
+                              onClick={() => window.open(`/intake-form?lead_id=${form.id}&edit=true`, '_blank')}
                             >
                               Edit
                             </button>
                             <button
                               type='button'
                               className='nv-btn-view'
-                              onClick={() => console.log('Send Back - disabled')}
-                              disabled
+                              onClick={() => {
+                                setShowSendBackModal(true);
+                                setSendBackFormId(form.id);
+                              }}
                             >
                               Send Back
                             </button>
                             <button
                               type='button'
                               className='nv-btn-qualify'
-                              onClick={() => console.log('Populate Matter - disabled')}
-                              disabled
+                              onClick={() => console.log('Populate Matter - to be implemented')}
                             >
-                              Populate Matter
+                              Populate
                             </button>
                           </div>
                         </div>
