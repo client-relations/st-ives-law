@@ -1016,7 +1016,7 @@ export default function DashboardV2() {
                         }}
                         onClick={() => window.open(`/intake-form?lead_id=${viewingIntakeForm.id}&readonly=true`, '_blank')}
                       >
-                        View Form & Will
+                        📄 View Generated Will
                       </button>
                       {isCompletedIntake && (
                         <button
