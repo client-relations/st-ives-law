@@ -1084,7 +1084,16 @@ export default function DashboardV2() {
               </button>
               <button
                 className='nv-btn-qualify'
-                onClick={() => console.log('Populate Matter to Clio - to be implemented')}
+                onClick={async () => {
+                  if (window.confirm('Send to Clio? This will create a matter with all form data and the generated will.')) {
+                    const success = await populateMatterToClio(viewingIntakeForm.id);
+                    if (success) {
+                      alert('✅ Matter created in Clio! Check your Clio account for the new matter and will document.');
+                    } else {
+                      alert('❌ Error sending to Clio. Please check the console for details.');
+                    }
+                  }
+                }}
               >
                 Populate Matter → Clio
               </button>

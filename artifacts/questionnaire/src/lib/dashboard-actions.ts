@@ -439,3 +439,157 @@ export async function sendBackForm(formId: string) {
     return false;
   }
 }
+
+export async function populateMatterToClio(formId: string) {
+  try {
+    if (!supabase) throw new Error('Database connection error');
+
+    // Fetch complete form data
+    const { data: form } = await supabase
+      .from('forms')
+      .select('*')
+      .eq('id', formId)
+      .single();
+
+    if (!form) throw new Error('Form not found');
+
+    // Parse form data
+    let formData = form.form_data;
+    if (typeof formData === 'string') {
+      formData = JSON.parse(formData);
+    }
+
+    const intakeData = formData.intake || {};
+    const metadata = formData.metadata || {};
+
+    // Build Clio payload
+    const payload = buildClioPayload(intakeData, form, metadata);
+
+    // Send to Make.com webhook
+    const makeWebhookUrl = import.meta.env.VITE_MAKE_WEBHOOK_URL ||
+      'https://hook.make.com/YOUR_WEBHOOK_ID';
+
+    console.log('[CLIO] Sending payload to Make.com:', payload);
+
+    const response = await fetch(makeWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Make webhook failed: ${error.message}`);
+    }
+
+    const result = await response.json();
+    console.log('[CLIO] Matter created successfully:', result);
+    return true;
+  } catch (err) {
+    console.error('[CLIO] Error populating matter:', err);
+    return false;
+  }
+}
+
+function buildClioPayload(intakeData: any, form: any, metadata: any) {
+  const isCouple = intakeData.scenario === 'Couple';
+
+  // Build array fields as JSON strings
+  const beneficiaries = [
+    intakeData.beneficiary1 && { name: intakeData.beneficiary1, percent: intakeData.beneficiary1_pct || 0 },
+    intakeData.beneficiary2 && { name: intakeData.beneficiary2, percent: intakeData.beneficiary2_pct || 0 },
+    intakeData.beneficiary3 && { name: intakeData.beneficiary3, percent: intakeData.beneficiary3_pct || 0 },
+  ].filter(Boolean);
+
+  const specificGifts = (intakeData.gift || []).map((g: any) => ({
+    item: g['Item description'],
+    recipient: g['Recipient'],
+    fallback: g['Fallback if recipient predeceases'],
+  }));
+
+  const realEstate = (intakeData.realestate || []).map((r: any) => ({
+    address: r.address,
+    type: r.type,
+    value: r.value,
+  }));
+
+  const bankAccounts = (intakeData.bank || []).map((b: any) => ({
+    institution: b.institution,
+    type: b.type,
+    balance: b.balance,
+  }));
+
+  const superAccounts = (intakeData.super || []).map((s: any) => ({
+    fund_name: s.fund_name,
+    balance: s.balance,
+  }));
+
+  const epaAttorneys = (intakeData.attorney || []).map((a: any) => ({
+    name: a.name,
+    relationship: a.relationship,
+  }));
+
+  // Build will PDF filename
+  const willPdfName = `Will_${form.client_name}_${new Date().toISOString().split('T')[0]}.pdf`;
+
+  // Return Make.com webhook payload for Clio
+  return {
+    // Client Info (for Clio Contact)
+    client_name: intakeData.client_name || form.client_name,
+    client_email: intakeData.client_email || form.client_email,
+    client_address: intakeData.client_address,
+    client_state: intakeData.client_state,
+    client_occupation: intakeData.client_occupation,
+    client_marital_status: intakeData.client_marital_status,
+
+    // Spouse Info (if couple)
+    scenario: intakeData.scenario,
+    spouse_name: intakeData.spouse_name,
+    spouse_occupation: intakeData.spouse_occupation,
+    mirror_or_independent: intakeData.mirror_or_independent,
+
+    // Matter Info
+    person_responsible: form.person_responsible,
+    inquiry_reason: intakeData.inquiry_reason,
+    lead_type: form.lead_type,
+    region: form.region,
+
+    // Estate Planning Details (as JSON strings)
+    documents_required: JSON.stringify({
+      will: !!intakeData.doc_will,
+      epa: !!intakeData.doc_epa,
+      acd: !!intakeData.doc_acd,
+      sdt: !!intakeData.doc_sdt,
+    }),
+
+    beneficiaries: JSON.stringify(beneficiaries),
+    specific_gifts: JSON.stringify(specificGifts),
+    assets_real_estate: JSON.stringify(realEstate),
+    assets_bank: JSON.stringify(bankAccounts),
+    assets_super: JSON.stringify(superAccounts),
+
+    executor_primary_name: intakeData.exec_initial_name,
+    executor_backup_name: intakeData.exec_backup,
+    executor_acting_arrangement: intakeData.exec_joint,
+
+    epa_attorneys: JSON.stringify(epaAttorneys),
+    epa_effective: intakeData.epa_effective,
+
+    has_minors: intakeData.has_minors === 'Yes',
+    guardian_primary: intakeData.guardian_initial,
+
+    funeral_organ_donation: intakeData.organ_donation,
+    funeral_burial_cremation: intakeData.burial_or_cremation,
+
+    will_custody: intakeData.will_custody,
+    letter_of_wishes: intakeData.has_low === 'Yes',
+
+    // Will Document Info
+    will_pdf_path: metadata.will_pdf_path,
+    will_pdf_name: willPdfName,
+
+    // Meta
+    form_id: form.id,
+    submission_date: form.created_at,
+  };
+}

@@ -49,6 +49,11 @@ export default async function handler(req, res) {
     // Calculate progress percentage (step/14 * 100)
     const progressPct = Math.round((step / 14) * 100);
 
+    // On step 14, store will PDF path
+    if (step === 14) {
+      updatedFormData.metadata.will_pdf_path = `/wills/will_${lead_id}_${Date.now()}.pdf`;
+    }
+
     // Determine new status based on step completion
     let newStatus = form.status;
     if (step === 14 && form.status === 'pending_intake') {
