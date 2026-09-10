@@ -39,17 +39,31 @@
               }
             ],
             "data": {
-              "type": "person",
-              "first_name": "{{1.client_name}}",
-              "last_name": "{{1.client_name}}",
-              "email": "{{1.client_email}}",
-              "phone": "{{1.client_phone}}",
-              "address": {
-                "street": "{{1.client_address}}",
-                "city": "{{1.client_city}}",
-                "province_state": "{{1.client_state}}",
-                "postal_code": "{{1.client_postcode}}",
-                "country": "AU"
+              "type": "Person",
+              "attributes": {
+                "first_name": "{{1.client_first_name}}",
+                "last_name": "{{1.client_last_name}}",
+                "email_addresses": [
+                  {
+                    "name": "Work",
+                    "address": "{{1.client_email}}",
+                    "primary": true
+                  }
+                ],
+                "phone_numbers": [
+                  {
+                    "name": "Work",
+                    "number": "{{1.client_phone}}",
+                    "primary": true
+                  }
+                ],
+                "address": {
+                  "street": "{{1.client_address}}",
+                  "city": "{{1.client_city}}",
+                  "province_state": "{{1.client_state}}",
+                  "postal_code": "{{1.client_postcode}}",
+                  "country": "AU"
+                }
               }
             }
           },

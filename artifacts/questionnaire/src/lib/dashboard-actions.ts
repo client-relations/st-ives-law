@@ -593,6 +593,16 @@ function formatDocumentsRequired(docs: any): string {
 function buildClioPayload(intakeData: any, form: any, metadata: any) {
   const isCouple = intakeData.scenario === 'Couple';
 
+  // Parse full name into first and last name
+  const fullName = intakeData.client_name || form.client_name || 'Unknown Client';
+  const nameParts = fullName.trim().split(/\s+/);
+  const firstName = nameParts[0] || 'Unknown';
+  const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : nameParts[0];
+
+  // Parse contact email and phone
+  const clientEmail = intakeData.client_email || form.client_email || '';
+  const clientPhone = intakeData.client_phone || '';
+
   // Build array fields
   const beneficiaries = [
     intakeData.beneficiary1 && { name: intakeData.beneficiary1, percent: intakeData.beneficiary1_pct || 0 },
@@ -640,10 +650,11 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
 
   // Return Make.com webhook payload for Clio
   return {
-    // Client Info (for Clio Contact)
-    client_name: intakeData.client_name || form.client_name,
-    client_email: intakeData.client_email || form.client_email,
-    client_phone: intakeData.client_phone || '',
+    // Client Info (for Clio Contact) - with parsed name
+    client_first_name: firstName,
+    client_last_name: lastName,
+    client_email: clientEmail,
+    client_phone: clientPhone,
     client_address: intakeData.client_address,
     client_city: intakeData.client_city || '',
     client_state: intakeData.client_state,
