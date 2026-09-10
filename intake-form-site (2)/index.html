@@ -725,6 +725,27 @@ async function loadSavedForm() {
       });
     });
 
+    // Restore repeatable array items (realestate, bank, super, gift, attorney, exclusion)
+    ['realestate','bank','super','gift','attorney','exclusion'].forEach(key => {
+      const items = intakeData[key];
+      if (Array.isArray(items) && items.length > 0) {
+        const container = document.getElementById(key + '-list');
+        items.forEach(item => {
+          // Create new repeat item
+          const newItem = templates[key]();
+          container.appendChild(newItem);
+
+          // Populate fields in the new item
+          Object.keys(item).forEach(fieldName => {
+            const field = newItem.querySelector(`[data-field="${fieldName}"]`);
+            if (field) {
+              field.value = item[fieldName] || '';
+            }
+          });
+        });
+      }
+    });
+
     // Trigger change events to show conditional fields
     document.querySelectorAll('input[type="radio"], input[type="checkbox"], select').forEach(el => {
       el.dispatchEvent(new Event('change'));
