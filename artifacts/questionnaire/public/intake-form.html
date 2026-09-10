@@ -1116,7 +1116,9 @@ function submitForm(){
   const params = new URLSearchParams(window.location.search);
   const leadId = params.get('lead_id');
   const data = collectData();
+  console.log('[SUBMIT] Collected form data:', data);
   const willText = generateWillText(data);
+  console.log('[SUBMIT] Generated will text length:', willText.length);
 
   if (leadId) {
     // Dashboard mode: save to API and show template
