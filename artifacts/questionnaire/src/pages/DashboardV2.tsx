@@ -12,6 +12,7 @@ import {
   submitFormToSmokeball,
   sendIntakeForm,
   deleteForm,
+  populateMatterToClio,
 } from '../lib/dashboard-actions';
 import '../styles/dashboard.css';
 
