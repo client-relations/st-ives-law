@@ -90,6 +90,16 @@
     max-height: 320px; overflow: auto; margin-top: 1rem;
   }
   details summary { cursor: pointer; font-size: 0.85rem; color: var(--muted); margin-top: 1rem; }
+
+  .will-container {
+    max-width: 900px; width: 100%; margin: 0 auto;
+    background: #fff; border: 1px solid var(--border); border-radius: 6px;
+    padding: 2.5rem; overflow-x: auto;
+  }
+  .will-container pre {
+    font-family: 'Courier New', monospace; font-size: 0.95rem; line-height: 1.7;
+    margin: 0; white-space: pre-wrap; word-wrap: break-word;
+  }
 </style>
 </head>
 <body>
@@ -1133,9 +1143,12 @@ function submitForm(){
 
             <div style="background: #fafafa; border: 1px solid #d8d8d8; border-radius: 8px; padding: 2rem; margin-bottom: 2rem;">
               <h3 style="color: #2f4858; margin-top: 0; font-size: 1.1rem;">📄 Generated Will Template</h3>
-              <pre id="will-doc" style="background: #fff; border: 1px solid #d8d8d8; border-radius: 6px; padding: 1.5rem; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; margin: 1rem 0;"></pre>
-              <div style="display: flex; gap: 1rem; justify-content: center;">
-                <button type="button" class="nav-btn primary" id="download-btn" style="margin: 0;">📥 Download Will</button>
+              <div class="will-container">
+                <pre id="will-doc"></pre>
+              </div>
+              <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap;">
+                <button type="button" class="nav-btn primary" id="download-txt-btn" style="margin: 0;">📥 Download as TXT</button>
+                <button type="button" class="nav-btn primary" id="download-pdf-btn" style="margin: 0;">📄 Download as PDF</button>
                 <button type="button" class="nav-btn primary" onclick="window.close();" style="margin: 0;">Close</button>
               </div>
             </div>
@@ -1146,12 +1159,53 @@ function submitForm(){
         document.getElementById('result-wrap').style.display = 'block';
         document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth' });
 
-        document.getElementById('download-btn').onclick = () => {
+        const filename = (data.client_name || 'draft-will').replace(/\s+/g,'_');
+
+        document.getElementById('download-txt-btn').onclick = () => {
           const blob = new Blob([willText], { type: 'text/plain' });
           const a = document.createElement('a');
           a.href = URL.createObjectURL(blob);
-          a.download = (data.client_name || 'draft-will').replace(/\s+/g,'_') + '_draft_will.txt';
+          a.download = filename + '_draft_will.txt';
           a.click();
+        };
+
+        document.getElementById('download-pdf-btn').onclick = () => {
+          // Load jsPDF from CDN and generate PDF
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+          document.head.appendChild(script);
+          script.onload = () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+              orientation: 'portrait',
+              unit: 'mm',
+              format: 'a4',
+            });
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 10;
+            const maxWidth = pageWidth - (margin * 2);
+            const fontSize = 10;
+            doc.setFontSize(fontSize);
+            doc.setFont(undefined, 'normal');
+
+            const lines = willText.split('\\n');
+            let yPos = margin;
+
+            lines.forEach(line => {
+              const wrappedLines = doc.splitTextToSize(line, maxWidth);
+              wrappedLines.forEach(wrappedLine => {
+                if (yPos > pageHeight - margin) {
+                  doc.addPage();
+                  yPos = margin;
+                }
+                doc.text(wrappedLine, margin, yPos);
+                yPos += 5;
+              });
+            });
+
+            doc.save(filename + '_draft_will.pdf');
+          };
         };
       }
     });
