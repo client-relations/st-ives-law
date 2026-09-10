@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 
 // Webhook URLs from environment (Make integration)
+const MAKE_CLIO_WEBHOOK = import.meta.env.VITE_MAKE_CLIO_WEBHOOK || 'https://hook.eu2.make.com/7kdud7kq1fjfb4d83f5h4o9o0qou1lgr';
 const SMOKEBALL_WEBHOOK = import.meta.env.VITE_WEBHOOK_URL || 'https://hook.eu2.make.com/fou12e2mjy2wgv2h0e3jgqor7fu81rec';
 const SEND_FORM_EMAIL_WEBHOOK = import.meta.env.VITE_SEND_FORM_EMAIL_WEBHOOK || 'https://hook.eu2.make.com/f6lbcoppzzdjl7r5dh7i0uqpo3yx68y2';
 const REMINDER_WEBHOOK = import.meta.env.VITE_REMINDER_WEBHOOK || 'https://hook.eu2.make.com/mjiv8gg69a3dn5ktex4tqlj5j1oji5fk';
@@ -465,20 +466,16 @@ export async function populateMatterToClio(formId: string) {
     // Build Clio payload
     const payload = buildClioPayload(intakeData, form, metadata);
 
-    // Send to Make.com webhook
-    const makeWebhookUrl = import.meta.env.VITE_MAKE_WEBHOOK_URL ||
-      'https://hook.make.com/YOUR_WEBHOOK_ID';
-
     console.log('[CLIO] Sending payload to Make.com:', payload);
 
-    const response = await fetch(makeWebhookUrl, {
+    const response = await fetch(MAKE_CLIO_WEBHOOK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }));
       throw new Error(`Make webhook failed: ${error.message}`);
     }
 

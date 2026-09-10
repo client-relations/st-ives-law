@@ -1,0 +1,159 @@
+{
+  "subflows": [
+    {
+      "flow": [
+        {
+          "id": 1,
+          "module": "gateway:CustomWebHook",
+          "version": 1,
+          "parameters": {
+            "hook": 4366902,
+            "maxResults": 1
+          },
+          "mapper": {},
+          "metadata": {
+            "designer": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        },
+        {
+          "id": 3,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {
+            "authenticationType": "oAuth",
+            "oAuthAccount": 14585575
+          },
+          "mapper": {
+            "url": "https://au.app.clio.com/api/v4/contacts",
+            "method": "post",
+            "parseResponse": true,
+            "stopOnHttpError": true,
+            "contentType": "json",
+            "headers": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "data": {
+              "type": "person",
+              "first_name": "{{1.client_name}}",
+              "last_name": "{{1.client_name}}",
+              "email": "{{1.client_email}}",
+              "phone": "{{1.client_phone}}",
+              "address": {
+                "street": "{{1.client_address}}",
+                "city": "{{1.client_city}}",
+                "province_state": "{{1.client_state}}",
+                "postal_code": "{{1.client_postcode}}",
+                "country": "AU"
+              }
+            }
+          },
+          "metadata": {
+            "designer": {
+              "x": 600,
+              "y": 0
+            }
+          }
+        },
+        {
+          "id": 4,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {
+            "authenticationType": "oAuth",
+            "oAuthAccount": 14585575
+          },
+          "mapper": {
+            "url": "https://au.app.clio.com/api/v4/matters",
+            "method": "post",
+            "parseResponse": true,
+            "stopOnHttpError": true,
+            "contentType": "json",
+            "headers": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "data": {
+              "client_id": "{{3.data.data.id}}",
+              "practice_area": "Estate Planning",
+              "description": "Estate planning matter from intake form",
+              "status": "Open",
+              "billable": true,
+              "custom_fields": {
+                "documents_required": "{{1.documents_required}}",
+                "executor_primary_name": "{{1.executor_primary_name}}",
+                "executor_backup_name": "{{1.executor_backup_name}}",
+                "executor_acting_arrangement": "{{1.executor_acting_arrangement}}",
+                "beneficiaries_json": "{{1.beneficiaries_json}}",
+                "specific_gifts": "{{1.specific_gifts}}",
+                "assets_real_estate": "{{1.assets_real_estate}}",
+                "assets_bank": "{{1.assets_bank}}",
+                "assets_super": "{{1.assets_super}}",
+                "epa_attorneys": "{{1.epa_attorneys}}",
+                "guardian_primary": "{{1.guardian_primary}}",
+                "has_minors": "{{1.has_minors}}",
+                "letter_of_wishes": "{{1.letter_of_wishes}}",
+                "funeral_organ_donation": "{{1.funeral_organ_donation}}",
+                "funeral_burial_cremation": "{{1.funeral_burial_cremation}}",
+                "will_custody": "{{1.will_custody}}",
+                "mirror_or_independent": "{{1.mirror_or_independent}}"
+              }
+            }
+          },
+          "metadata": {
+            "designer": {
+              "x": 900,
+              "y": 0
+            }
+          }
+        },
+        {
+          "id": 5,
+          "module": "http:MakeRequest",
+          "version": 4,
+          "parameters": {
+            "authenticationType": "oAuth",
+            "oAuthAccount": 14585575
+          },
+          "mapper": {
+            "url": "https://au.app.clio.com/api/v4/documents",
+            "method": "post",
+            "parseResponse": true,
+            "stopOnHttpError": false,
+            "contentType": "multipart",
+            "data": [
+              {
+                "name": "matter_id",
+                "value": "{{4.data.data.id}}"
+              },
+              {
+                "name": "title",
+                "value": "Will - {{1.client_name}}"
+              },
+              {
+                "name": "document",
+                "value": "{{1.will_pdf_path}}"
+              }
+            ]
+          },
+          "metadata": {
+            "designer": {
+              "x": 1200,
+              "y": 0
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "version": 1
+  }
+}
