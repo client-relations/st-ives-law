@@ -1088,7 +1088,129 @@ function generateWillText(d){
   lines.push('');
 
   lines.push('='.repeat(60));
-  lines.push('PART E — GOVERNING JURISDICTION');
+  lines.push('PART E — ASSET & LIABILITY SUMMARY');
+  lines.push('='.repeat(60));
+  lines.push('');
+
+  const hasAssets = d.realestate?.length || d.bank?.length || d.super?.length || d.other_assets;
+  if (hasAssets) {
+    lines.push(`${num()}. Summary of Assets`);
+    lines.push('');
+
+    if (d.realestate?.length) {
+      lines.push('Real Estate Properties:');
+      d.realestate.forEach((prop, i) => {
+        lines.push(`  (${i+1}) ${prop.address || '[address not provided]'} — ${prop.type || '[type not specified]'}, estimated value: $${prop.value || '[value not specified]'}`);
+      });
+      lines.push('');
+    }
+
+    if (d.bank?.length) {
+      lines.push('Bank Accounts & Cash:');
+      d.bank.forEach((acc, i) => {
+        lines.push(`  (${i+1}) ${acc.institution || '[institution not provided]'} — ${acc.type || '[type not specified]'}, balance: $${acc.balance || '[not specified]'}`);
+      });
+      lines.push('');
+    }
+
+    if (d.super?.length) {
+      lines.push('Superannuation Accounts:');
+      d.super.forEach((sup, i) => {
+        lines.push(`  (${i+1}) ${sup.fund_name || '[fund not provided]'} (ABN: ${sup.abn || 'not provided'}), balance: $${sup.balance || '[not specified]'}, BDBN: ${sup.bdbn_status || 'unknown'}`);
+      });
+      lines.push('');
+    }
+
+    if (d.other_assets) {
+      lines.push(`Other Assets: ${d.other_assets}`);
+      lines.push('');
+    }
+  } else {
+    lines.push(`${num()}. Summary of Assets`);
+    lines.push('No significant assets declared.');
+    lines.push('');
+  }
+
+  lines.push('='.repeat(60));
+  lines.push('PART F — ENDURING POWER OF ATTORNEY');
+  lines.push('='.repeat(60));
+  lines.push('');
+
+  if (d.epa_jointly || d.attorney?.length) {
+    lines.push(`${num()}. Enduring Power of Attorney — Financial`);
+    if (d.attorney?.length) {
+      lines.push('I appoint the following person(s) as my attorney(s) for financial matters:');
+      d.attorney.forEach((att, i) => {
+        lines.push(`  (${String.fromCharCode(97+i)}) ${att.name || '[name not provided]'}${att.relationship ? ` (my ${att.relationship})` : ''}${att.address ? `, of ${att.address}` : ''}`);
+      });
+      lines.push('');
+    }
+    if (d.epa_jointly) {
+      lines.push(`Acting arrangement: ${d.epa_jointly}`);
+    }
+    if (d.epa_effective) {
+      lines.push(`Effective: ${d.epa_effective}`);
+    }
+    if (d.epa_power_gifts) lines.push('— Granted power to make gifts');
+    if (d.epa_power_spouse) lines.push('— Granted power to deal with spouse property');
+    if (d.epa_power_will) lines.push('— Granted power to deal with will matters');
+    if (d.epa_power_digital) lines.push('— Granted power over digital assets');
+    if (d.epa_power_charge) lines.push('— Granted power to charge for services');
+    if (d.epa_power_conflict) lines.push('— Granted power despite conflicts of interest');
+    lines.push('');
+  }
+
+  lines.push('='.repeat(60));
+  lines.push('PART G — LETTER OF WISHES (NON-BINDING)');
+  lines.push('='.repeat(60));
+  lines.push('');
+
+  if (d.has_low === 'Yes' || d.low_wishes) {
+    lines.push(`${num()}. Letter of Wishes`);
+    if (d.low_wishes) {
+      lines.push('My Letter of Wishes contains:');
+      lines.push(d.low_wishes);
+      lines.push('');
+      lines.push('This letter is non-binding guidance for my Executor and should not be regarded as a legal obligation.');
+    }
+    lines.push('');
+  }
+
+  lines.push('='.repeat(60));
+  lines.push('PART H — GUARDIANSHIP OF ASSETS (IF MINORS)');
+  lines.push('='.repeat(60));
+  lines.push('');
+
+  if (d.has_minors === 'Yes') {
+    lines.push(`${num()}. Guardianship of Assets for Minor Children`);
+    lines.push('Any gifts or legacies to my minor children are to be held in trust and managed by my Executor until each child reaches 18 years of age.');
+    lines.push('The Executor has discretion to apply income and capital for the child\'s maintenance, education, and benefit.');
+    lines.push('');
+  } else {
+    lines.push(`${num()}. Guardianship of Assets`);
+    lines.push('Not applicable — no minor children.');
+    lines.push('');
+  }
+
+  lines.push('='.repeat(60));
+  lines.push('PART I — DOCUMENT CUSTODY & WILLS REGISTER');
+  lines.push('='.repeat(60));
+  lines.push('');
+
+  lines.push(`${num()}. Will Storage`);
+  if (d.will_custody) {
+    lines.push(`This Will shall be stored with: ${d.will_custody}`);
+  } else {
+    lines.push('Will storage location: [To be determined]');
+  }
+
+  if (d.add_to_wills_register === 'Yes') {
+    lines.push('This Will has been registered on the Wills Register.');
+  }
+  lines.push('');
+
+  lines.push('='.repeat(60));
+  lines.push('PART J — GOVERNING JURISDICTION');
   lines.push('='.repeat(60));
   lines.push('');
   lines.push(`${num()}. Governing jurisdiction`);
@@ -1096,22 +1218,48 @@ function generateWillText(d){
   lines.push('');
 
   lines.push('='.repeat(60));
-  lines.push('PART F — EXECUTION');
+  lines.push('PART K — DECLARATIONS');
   lines.push('='.repeat(60));
   lines.push('');
-  lines.push(`Executed by ${testator} on _______________________________`);
+  lines.push(`${num()}. Declaration of Testator`);
+  lines.push('I declare that:');
+  lines.push('1. I am of sound mind and understand the nature and effect of this Will.');
+  lines.push('2. I have not been under duress, undue influence, or fraud in making this Will.');
+  if (d.client_marital_status) {
+    lines.push(`3. My marital/relationship status is: ${d.client_marital_status}`);
+  }
+  if (d.client_former_names) {
+    lines.push(`4. I have been known by the following former names: ${d.client_former_names}`);
+  }
+  lines.push('');
+
+  lines.push('='.repeat(60));
+  lines.push('PART L — EXECUTION');
+  lines.push('='.repeat(60));
+  lines.push('');
+  if (d.signing_date) {
+    lines.push(`Executed by ${testator} on ${d.signing_date}`);
+  } else {
+    lines.push(`Executed by ${testator} on _______________________________`);
+  }
   lines.push('');
   lines.push(`Signed by ${testator} as their last will, in the presence of us both at the same time, who at their request and in their presence, and in the presence of each other, have signed our names as witnesses.`);
   lines.push('');
-  lines.push('Signature of Testator: ____________________________');
+  lines.push(`Signature of Testator (${testator}): ____________________________`);
   lines.push('');
   lines.push('Full Name of First Witness: _______________________________');
   lines.push('Address of First Witness: _______________________________');
+  lines.push('Occupation of First Witness: _______________________________');
   lines.push('Signature of First Witness: ____________________________');
   lines.push('');
   lines.push('Full Name of Second Witness: _______________________________');
   lines.push('Address of Second Witness: _______________________________');
+  lines.push('Occupation of Second Witness: _______________________________');
   lines.push('Signature of Second Witness: ____________________________');
+  lines.push('');
+  lines.push('='.repeat(60));
+  lines.push('END OF WILL');
+  lines.push('='.repeat(60));
 
   return lines.join('\n');
 }
