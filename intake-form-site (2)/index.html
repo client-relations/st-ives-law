@@ -901,14 +901,32 @@ function generateWillText(d){
   let clause = 1;
   const num = () => clause++;
 
-  lines.push(`LAST WILL AND TESTAMENT OF ${testator.toUpperCase()}`);
+  if (isCouple && d.spouse_name) {
+    lines.push(`LAST WILL AND TESTAMENT OF ${testator.toUpperCase()} AND ${d.spouse_name.toUpperCase()}`);
+    lines.push('');
+    lines.push('(Joint Wills / Mirror Wills Document)');
+  } else {
+    lines.push(`LAST WILL AND TESTAMENT OF ${testator.toUpperCase()}`);
+  }
   lines.push('');
+
+  lines.push('TESTATORS:');
+  lines.push(`  1. ${testator}${d.client_occupation ? ` (${d.client_occupation})` : ''}`);
+  if (isCouple && d.spouse_name) {
+    lines.push(`  2. ${d.spouse_name}${d.spouse_occupation ? ` (${d.spouse_occupation})` : ''}`);
+  }
+  lines.push('');
+
   if (d.client_address) {
     lines.push(`Residing at: ${d.client_address}`);
   }
   if (d.client_state) {
     lines.push(`State: ${d.client_state}`);
   }
+  if (isCouple && d.spouse_name) {
+    lines.push(`Mirror/Independent Wills: ${d.mirror_or_independent || 'Not specified'}`);
+  }
+  lines.push('');
   lines.push('');
   const fpe = fundCount >= 1 && d.fpe_trust;
   const baseType = fundCount === 0 ? 'Simple Will' : fundCount === 1 ? 'Single TT Will' : 'Multi TT Will';
@@ -935,6 +953,9 @@ function generateWillText(d){
   lines.push('');
 
   lines.push(`${num()}. Executor and trustee`);
+  if (isCouple && d.spouse_name) {
+    lines.push(`For ${testator}:`);
+  }
   lines.push('I appoint as the executor and trustee of my Will:');
   lines.push(`(a) ${d.exec_initial_name || '[initial executor not provided]'}${d.exec_initial_relationship ? ` (my ${d.exec_initial_relationship})` : ''}${d.exec_initial_address ? `, of ${d.exec_initial_address}` : ''};`);
   if (d.exec_backup) lines.push(`(b) if ${d.exec_initial_name || 'my initial Executor'} is unable or unwilling to act for any reason, then I appoint ${d.exec_backup}; or`);
@@ -945,6 +966,12 @@ function generateWillText(d){
     ? 'Where two or more people are appointed to act as Executor, they must act jointly, save that if any one or more of them are unable or unwilling to act for any reason, those remaining who are willing and able may continue to act.'
     : 'A sole Executor may act at any time.');
   if (d.exec_power_of_sale) lines.push('My Executor has an express power of sale over any part of my estate.');
+
+  if (isCouple && d.spouse_name) {
+    lines.push('');
+    lines.push(`For ${d.spouse_name}:`);
+    lines.push('[NOTE: Spouse executor details would be specified in spouse\'s separate Will section]');
+  }
   lines.push('');
 
   if (d.has_minors === 'Yes' && d.guardian_initial) {
@@ -1222,6 +1249,9 @@ function generateWillText(d){
   lines.push('='.repeat(60));
   lines.push('');
   lines.push(`${num()}. Declaration of Testator`);
+  if (isCouple && d.spouse_name) {
+    lines.push(`TESTATOR 1: ${testator}`);
+  }
   lines.push('I declare that:');
   lines.push('1. I am of sound mind and understand the nature and effect of this Will.');
   lines.push('2. I have not been under duress, undue influence, or fraud in making this Will.');
@@ -1230,6 +1260,12 @@ function generateWillText(d){
   }
   if (d.client_former_names) {
     lines.push(`4. I have been known by the following former names: ${d.client_former_names}`);
+  }
+
+  if (isCouple && d.spouse_name) {
+    lines.push('');
+    lines.push(`TESTATOR 2: ${d.spouse_name}`);
+    lines.push('[Spouse declarations would be specified in spouse\'s separate Will section]');
   }
   lines.push('');
 
@@ -1257,6 +1293,33 @@ function generateWillText(d){
   lines.push('Occupation of Second Witness: _______________________________');
   lines.push('Signature of Second Witness: ____________________________');
   lines.push('');
+
+  if (isCouple && d.spouse_name) {
+    lines.push('='.repeat(60));
+    lines.push('IMPORTANT NOTE FOR COUPLE SCENARIOS');
+    lines.push('='.repeat(60));
+    lines.push('');
+    lines.push('This document is a JOINT WILL representing both spouses:');
+    lines.push(`  • Testator 1: ${testator}`);
+    lines.push(`  • Testator 2: ${d.spouse_name}`);
+    lines.push('');
+    lines.push(`Will Type: ${d.mirror_or_independent || 'Mirror/Independent Wills'}`);
+    lines.push('');
+    lines.push('IMPORTANT: This is a template generated from intake form data.');
+    lines.push('For couple scenarios, lawyers should:');
+    lines.push('  1. Review and customize sections for each testator');
+    lines.push('  2. Ensure executors, beneficiaries, and trustees are appropriate for each testator');
+    lines.push('  3. Verify EPA details for both testators are separate');
+    lines.push('  4. Consider whether asset distribution is equal or different');
+    lines.push('  5. Confirm guardianship arrangements if minor children');
+    lines.push('  6. Ensure proper execution procedures for both testators');
+    lines.push('');
+    lines.push('NOTE: The current form collects some spouse-specific data.');
+    lines.push('If additional spouse-specific details are needed (assets, EPA, trustees, etc.),');
+    lines.push('please complete the spouse sections and regenerate this will.');
+    lines.push('');
+  }
+
   lines.push('='.repeat(60));
   lines.push('END OF WILL');
   lines.push('='.repeat(60));
