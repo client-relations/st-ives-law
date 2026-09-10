@@ -844,8 +844,15 @@ dotsWrap.addEventListener('click', (e) => {
 (async () => {
   const params = new URLSearchParams(window.location.search);
   const isReadonly = params.get('readonly') === 'true';
+  const showWill = params.get('show_will') === 'true';
 
   await loadSavedForm();
+
+  // If readonly and show_will flag, display the will immediately
+  if (isReadonly && showWill) {
+    showGeneratedWillReadonly();
+    return;
+  }
 
   // Disable all form inputs in readonly mode
   if (isReadonly) {

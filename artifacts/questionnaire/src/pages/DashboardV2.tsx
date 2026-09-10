@@ -1014,7 +1014,7 @@ export default function DashboardV2() {
                           borderRadius: '4px',
                           cursor: 'pointer',
                         }}
-                        onClick={() => window.open(`/intake-form?lead_id=${viewingIntakeForm.id}&readonly=true`, '_blank')}
+                        onClick={() => window.open(`/intake-form?lead_id=${viewingIntakeForm.id}&readonly=true&show_will=true`, '_blank')}
                       >
                         📄 View Generated Will
                       </button>
