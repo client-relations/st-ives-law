@@ -788,13 +788,13 @@ function validateStep(stepEl){
 
 backBtn.addEventListener('click', () => { if (current > 0) { current--; render(); } });
 
-nextBtn.addEventListener('click', () => {
+nextBtn.addEventListener('click', async () => {
   if (!validateStep(steps[current])) return;
 
   // Auto-save before moving to next step
   const params = new URLSearchParams(window.location.search);
   if (params.get('lead_id')) {
-    autoSaveForm(current + 1);
+    await autoSaveForm(current + 1);
   }
 
   if (current < total - 1) { current++; render(); return; }
