@@ -761,12 +761,21 @@ steps.forEach((s) => {
 });
 
 function render(){
+  const params = new URLSearchParams(window.location.search);
+  const isReadonly = params.get('readonly') === 'true';
+
   steps.forEach((s, i) => s.classList.toggle('hidden', i !== current));
   progressFill.style.width = ((current + 1) / total * 100) + '%';
   progressText.textContent = `Step ${current + 1} of ${total}`;
   progressTitle.textContent = steps[current].getAttribute('data-title').replace('&amp;','&');
   backBtn.disabled = current === 0;
-  nextBtn.textContent = current === total - 1 ? 'Submit intake' : 'Next →';
+
+  if (isReadonly) {
+    nextBtn.textContent = current === total - 1 ? 'Close' : 'Next →';
+  } else {
+    nextBtn.textContent = current === total - 1 ? 'Submit intake' : 'Next →';
+  }
+
   Array.from(dotsWrap.children).forEach((dot, i) => {
     dot.classList.toggle('done', i < current);
     dot.classList.toggle('current', i === current);
@@ -806,10 +815,19 @@ function validateStep(stepEl){
 backBtn.addEventListener('click', () => { if (current > 0) { current--; render(); } });
 
 nextBtn.addEventListener('click', async () => {
+  const params = new URLSearchParams(window.location.search);
+  const isReadonly = params.get('readonly') === 'true';
+
+  if (isReadonly) {
+    if (current < total - 1) { current++; render(); return; }
+    // In readonly, close the window instead of submit
+    window.close();
+    return;
+  }
+
   if (!validateStep(steps[current])) return;
 
   // Auto-save before moving to next step
-  const params = new URLSearchParams(window.location.search);
   if (params.get('lead_id')) {
     await autoSaveForm(current + 1);
   }
@@ -824,7 +842,19 @@ dotsWrap.addEventListener('click', (e) => {
 });
 
 (async () => {
+  const params = new URLSearchParams(window.location.search);
+  const isReadonly = params.get('readonly') === 'true';
+
   await loadSavedForm();
+
+  // Disable all form inputs in readonly mode
+  if (isReadonly) {
+    document.querySelectorAll('input, select, textarea, button.add-btn, button.remove-btn').forEach(el => {
+      if (el.classList.contains('nav-btn') || el.id === 'next-btn' || el.id === 'back-btn') return;
+      el.disabled = true;
+    });
+  }
+
   render();
 })();
 
