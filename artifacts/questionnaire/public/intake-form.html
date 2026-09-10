@@ -1116,25 +1116,45 @@ function submitForm(){
   const params = new URLSearchParams(window.location.search);
   const leadId = params.get('lead_id');
   const data = collectData();
+  const willText = generateWillText(data);
 
   if (leadId) {
-    // Dashboard mode: save to API
+    // Dashboard mode: save to API and show template
     autoSaveForm(14).then(success => {
       if (success) {
         document.getElementById('result-wrap').innerHTML = `
-          <div style="text-align: center; padding: 2rem;">
-            <h2 style="color: #2f4858; margin-bottom: 1rem;">✓ Form Submitted Successfully</h2>
-            <p style="color: #666; margin-bottom: 2rem;">Your estate planning information has been saved. Our team will review it and contact you shortly.</p>
-            <button type="button" class="nav-btn primary" onclick="window.location.reload();">Return to Dashboard</button>
+          <div style="padding: 2rem;">
+            <div style="text-align: center; margin-bottom: 2.5rem;">
+              <h2 style="color: #2f4858; margin-bottom: 0.5rem;">✓ Form Submitted Successfully</h2>
+              <p style="color: #666;">Your estate planning information has been saved. Below is your generated will template.</p>
+            </div>
+
+            <div style="background: #fafafa; border: 1px solid #d8d8d8; border-radius: 8px; padding: 2rem; margin-bottom: 2rem;">
+              <h3 style="color: #2f4858; margin-top: 0; font-size: 1.1rem;">📄 Generated Will Template</h3>
+              <pre id="will-doc" style="background: #fff; border: 1px solid #d8d8d8; border-radius: 6px; padding: 1.5rem; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; margin: 1rem 0;"></pre>
+              <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button type="button" class="nav-btn primary" id="download-btn" style="margin: 0;">📥 Download Will</button>
+                <button type="button" class="nav-btn primary" onclick="window.close();" style="margin: 0;">Close</button>
+              </div>
+            </div>
           </div>
         `;
+
+        document.getElementById('will-doc').textContent = willText;
         document.getElementById('result-wrap').style.display = 'block';
         document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth' });
+
+        document.getElementById('download-btn').onclick = () => {
+          const blob = new Blob([willText], { type: 'text/plain' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = (data.client_name || 'draft-will').replace(/\s+/g,'_') + '_draft_will.txt';
+          a.click();
+        };
       }
     });
   } else {
     // Demo mode: show will draft locally
-    const willText = generateWillText(data);
     document.getElementById('will-doc').textContent = willText;
     document.getElementById('json-payload').textContent = JSON.stringify(data, null, 2);
     document.getElementById('result-wrap').style.display = 'block';
