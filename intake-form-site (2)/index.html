@@ -901,10 +901,14 @@ function generateWillText(d){
   let clause = 1;
   const num = () => clause++;
 
-  lines.push(`Last Will of`);
-  lines.push(testator);
+  lines.push(`LAST WILL AND TESTAMENT OF ${testator.toUpperCase()}`);
   lines.push('');
-  lines.push(`of ${d.client_address || '[address not provided]'}`);
+  if (d.client_address) {
+    lines.push(`Residing at: ${d.client_address}`);
+  }
+  if (d.client_state) {
+    lines.push(`State: ${d.client_state}`);
+  }
   lines.push('');
   const fpe = fundCount >= 1 && d.fpe_trust;
   const baseType = fundCount === 0 ? 'Simple Will' : fundCount === 1 ? 'Single TT Will' : 'Multi TT Will';
