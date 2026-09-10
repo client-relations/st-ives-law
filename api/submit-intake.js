@@ -36,10 +36,14 @@ export default async function handler(req, res) {
       ? JSON.parse(form.form_data || '{}')
       : (form.form_data || {});
 
-    // Merge intake data
+    // Merge intake data with metadata
     const updatedFormData = {
       ...parsedFormData,
       intake: form_data,
+      metadata: {
+        ...parsedFormData.metadata || {},
+        current_step: step,
+      },
     };
 
     // Calculate progress percentage (step/14 * 100)
