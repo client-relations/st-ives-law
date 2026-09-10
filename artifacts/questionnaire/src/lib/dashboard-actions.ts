@@ -508,8 +508,8 @@ export async function populateMatterToClio(formId: string) {
     const inquiryData = formData.inquiry || {};
     const metadata = formData.metadata || {};
 
-    // Merge intake and inquiry data for complete form data
-    const completeFormData = { ...inquiryData, ...intakeData };
+    // Merge intake and inquiry data - inquiry takes priority for missing fields
+    const completeFormData = { ...intakeData, ...inquiryData };
 
     // Build Clio payload
     const payload = buildClioPayload(completeFormData, form, metadata);
