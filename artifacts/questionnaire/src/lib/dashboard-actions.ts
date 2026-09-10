@@ -668,9 +668,9 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
   }));
 
   const realEstate = (intakeData.realestate || []).map((r: any) => ({
-    address: r.address,
-    type: r.type,
-    value: r.value,
+    address: r['Address'] || r.address,
+    type: r['Tenancy type'] || r.type,
+    value: r['Estimated value'] || r.value,
     mortgage: r['Mortgage details'],
   }));
 
@@ -689,8 +689,8 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
   }));
 
   const exclusions = (intakeData.exclusion || []).map((e: any) => ({
-    name: e.name,
-    reason: e.reason,
+    name: e['Name'] || e.name,
+    reason: e['Reason'] || e.reason,
   }));
 
   const epaAttorneys = (intakeData.attorney || []).map((a: any) => ({
