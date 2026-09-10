@@ -1171,6 +1171,10 @@ function generateWillText(d){
         lines.push(`  (${String.fromCharCode(97+i)}) ${att.name || '[name not provided]'}${att.relationship ? ` (my ${att.relationship})` : ''}${att.address ? `, of ${att.address}` : ''}`);
       });
       lines.push('');
+    } else if (d.epa_jointly) {
+      lines.push('No attorneys/donees have been appointed yet.');
+      lines.push('[NOTE: Attorneys should be added and specified in this section]');
+      lines.push('');
     }
     if (d.epa_jointly) {
       lines.push(`Acting arrangement: ${d.epa_jointly}`);
@@ -1185,6 +1189,10 @@ function generateWillText(d){
     if (d.epa_power_charge) lines.push('— Granted power to charge for services');
     if (d.epa_power_conflict) lines.push('— Granted power despite conflicts of interest');
     lines.push('');
+  } else {
+    lines.push(`${num()}. Enduring Power of Attorney — Financial`);
+    lines.push('No Enduring Power of Attorney for financial matters has been appointed.');
+    lines.push('');
   }
 
   lines.push('='.repeat(60));
@@ -1192,16 +1200,20 @@ function generateWillText(d){
   lines.push('='.repeat(60));
   lines.push('');
 
+  lines.push(`${num()}. Letter of Wishes`);
   if (d.has_low === 'Yes' || d.low_wishes) {
-    lines.push(`${num()}. Letter of Wishes`);
     if (d.low_wishes) {
       lines.push('My Letter of Wishes contains:');
       lines.push(d.low_wishes);
       lines.push('');
       lines.push('This letter is non-binding guidance for my Executor and should not be regarded as a legal obligation.');
+    } else {
+      lines.push('[Letter of Wishes to be prepared separately]');
     }
-    lines.push('');
+  } else {
+    lines.push('No Letter of Wishes has been requested.');
   }
+  lines.push('');
 
   lines.push('='.repeat(60));
   lines.push('PART H — GUARDIANSHIP OF ASSETS (IF MINORS)');
