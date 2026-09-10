@@ -813,8 +813,10 @@ dotsWrap.addEventListener('click', (e) => {
   if (idx >= 0 && idx <= current) { current = idx; render(); }
 });
 
-loadSavedForm();
-render();
+(async () => {
+  await loadSavedForm();
+  render();
+})();
 
 // ---- data collection ----
 function collectData(){
