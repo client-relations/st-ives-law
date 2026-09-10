@@ -590,9 +590,26 @@ function formatDocumentsRequired(docs: any): string {
   return items.length === 0 ? 'No documents selected' : 'Documents Required:\n' + items.join('\n');
 }
 
-function buildClioPayload(intakeData: any, form: any, metadata: any) {
-  const isCouple = intakeData.scenario === 'Couple';
+function formatExclusions(exclusions: any[]): string {
+  if (!exclusions || exclusions.length === 0) return 'No exclusions';
+  return 'Exclusions:\n' + exclusions
+    .map(e => `• ${e.name}${e.reason ? ` - Reason: ${e.reason}` : ''}`)
+    .join('\n');
+}
 
+function formatCalamityBeneficiaries(calamities: any[]): string {
+  if (!calamities || calamities.length === 0) return 'No calamity beneficiaries';
+  return 'Calamity Beneficiaries:\n' + calamities
+    .map(c => `• ${c.name} - ${c.percent || 'Equal'}%`)
+    .join('\n');
+}
+
+function formatTrustFund(fundNum: number, fundData: any): string {
+  if (!fundData?.beneficiary) return '';
+  return `Trust Fund ${fundNum}:\nBeneficiary: ${fundData.beneficiary}\nClass: ${fundData.class || 'N/A'}\nPrimary Trustee: ${fundData.trustee_initial || 'N/A'}\nBackup Trustee: ${fundData.trustee_backup || 'N/A'}\nFurther Trustee: ${fundData.trustee_further || 'N/A'}\nPrimary Appointor: ${fundData.appointor_initial || 'N/A'}\nBackup Appointor: ${fundData.appointor_backup || 'N/A'}\nFurther Appointor: ${fundData.appointor_further || 'N/A'}`;
+}
+
+function buildClioPayload(intakeData: any, form: any, metadata: any) {
   // Parse full name into first and last name
   const fullName = intakeData.client_name || form.client_name || 'Unknown Client';
   const nameParts = fullName.trim().split(/\s+/);
@@ -603,13 +620,47 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
   const clientEmail = intakeData.client_email || form.client_email || '';
   const clientPhone = intakeData.client_phone || '';
 
-  // Build array fields
-  const beneficiaries = [
+  // ===== SCENARIO: Fund Count =====
+  const fundCount = parseInt(intakeData.fund_count) || 0;
+
+  // Direct beneficiaries (when fund_count = 0)
+  const beneficiaries = fundCount === 0 ? [
     intakeData.beneficiary1 && { name: intakeData.beneficiary1, percent: intakeData.beneficiary1_pct || 0 },
     intakeData.beneficiary2 && { name: intakeData.beneficiary2, percent: intakeData.beneficiary2_pct || 0 },
     intakeData.beneficiary3 && { name: intakeData.beneficiary3, percent: intakeData.beneficiary3_pct || 0 },
+  ].filter(Boolean) : [];
+
+  // Trust funds (when fund_count = 1 or 2)
+  const trustFund1 = fundCount >= 1 ? {
+    beneficiary: intakeData.fund1_beneficiary,
+    class: intakeData.fund1_class,
+    trustee_initial: intakeData.fund1_trustee_initial,
+    trustee_backup: intakeData.fund1_trustee_backup,
+    trustee_further: intakeData.fund1_trustee_further,
+    appointor_initial: intakeData.fund1_appointor_initial,
+    appointor_backup: intakeData.fund1_appointor_backup,
+    appointor_further: intakeData.fund1_appointor_further,
+  } : null;
+
+  const trustFund2 = fundCount >= 2 ? {
+    beneficiary: intakeData.fund2_beneficiary,
+    class: intakeData.fund2_class,
+    trustee_initial: intakeData.fund2_trustee_initial,
+    trustee_backup: intakeData.fund2_trustee_backup,
+    trustee_further: intakeData.fund2_trustee_further,
+    appointor_initial: intakeData.fund2_appointor_initial,
+    appointor_backup: intakeData.fund2_appointor_backup,
+    appointor_further: intakeData.fund2_appointor_further,
+  } : null;
+
+  // Calamity beneficiaries
+  const calamityBeneficiaries = [
+    intakeData.calamity1 && { name: intakeData.calamity1, percent: intakeData.calamity1_pct || 0 },
+    intakeData.calamity2 && { name: intakeData.calamity2, percent: intakeData.calamity2_pct || 0 },
+    intakeData.calamity3 && { name: intakeData.calamity3, percent: intakeData.calamity3_pct || 0 },
   ].filter(Boolean);
 
+  // ===== ARRAYS: Repeatable Items =====
   const specificGifts = (intakeData.gift || []).map((g: any) => ({
     item: g['Item description'],
     recipient: g['Recipient'],
@@ -620,24 +671,34 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
     address: r.address,
     type: r.type,
     value: r.value,
+    mortgage: r['Mortgage details'],
   }));
 
   const bankAccounts = (intakeData.bank || []).map((b: any) => ({
-    institution: b.institution,
-    type: b.type,
-    balance: b.balance,
+    institution: b['Bank'],
+    type: b['Account type'],
+    holder: b['Held jointly or individually'],
+    balance: b['Value'],
   }));
 
   const superAccounts = (intakeData.super || []).map((s: any) => ({
-    fund_name: s.fund_name,
-    balance: s.balance,
+    fund_name: s['Fund name'],
+    member_number: s['Member number'],
+    balance: s['Value'],
+    nominated_beneficiary: s['Nominated beneficiary'],
+  }));
+
+  const exclusions = (intakeData.exclusion || []).map((e: any) => ({
+    name: e.name,
+    reason: e.reason,
   }));
 
   const epaAttorneys = (intakeData.attorney || []).map((a: any) => ({
-    name: a.name,
-    relationship: a.relationship,
+    name: a['Full name'],
+    address: a['Address'],
   }));
 
+  // ===== DOCUMENTS =====
   const docsRequired = {
     will: !!intakeData.doc_will,
     epa: !!intakeData.doc_epa,
@@ -645,12 +706,28 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
     sdt: !!intakeData.doc_sdt,
   };
 
+  // ===== CONDITIONAL BLOCKS =====
+  const hasCompany = intakeData.has_company === 'Yes';
+  const hasLifeTenancy = intakeData.has_life_tenancy === 'Yes';
+  const hasSdt = intakeData.has_sdt === 'Yes';
+  const hasMinors = intakeData.has_minors === 'Yes';
+  const hasLetterOfWishes = intakeData.has_low === 'Yes';
+
+  // Build company info
+  const companyInfo = hasCompany ? `Company: ${intakeData.company_name}\nACN: ${intakeData.company_acn}\nOn Death: ${intakeData.company_on_death}\nShare Treatment: ${intakeData.company_share_treatment}` : '';
+
+  // Build life tenancy info
+  const lifeTenancyInfo = hasLifeTenancy ? `Life Tenant: ${intakeData.life_tenant}\nProperty: ${intakeData.life_tenancy_property}\nOutgoings Bearer: ${intakeData.life_tenancy_outgoings}\nBalance Recipient: ${intakeData.life_tenancy_balance}\nSale Power: ${intakeData.life_tenancy_sale_power ? 'Yes' : 'No'}` : '';
+
+  // Build SDT info
+  const sdtInfo = hasSdt ? `Mechanism: ${intakeData.sdt_mechanism}\nPrincipal Beneficiary: ${intakeData.sdt_principal_beneficiary}` : '';
+
   // Build will PDF filename
   const willPdfName = `Will_${form.client_name}_${new Date().toISOString().split('T')[0]}.pdf`;
 
-  // Return Make.com webhook payload for Clio
-  return {
-    // Client Info (for Clio Contact) - with parsed name
+  // ===== BUILD PAYLOAD =====
+  const payload: any = {
+    // Client Info (for Clio Contact)
     client_first_name: firstName,
     client_last_name: lastName,
     client_email: clientEmail,
@@ -659,14 +736,15 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
     client_city: intakeData.client_city || '',
     client_state: intakeData.client_state,
     client_postcode: intakeData.client_postcode || '',
-    client_occupation: intakeData.client_occupation,
-    client_marital_status: intakeData.client_marital_status,
+    client_occupation: intakeData.client_occupation || '',
+    client_marital_status: intakeData.client_marital_status || '',
+    client_former_names: intakeData.client_former_names || '',
 
-    // Spouse Info (if couple)
+    // Scenario & Spouse Info
     scenario: intakeData.scenario,
-    spouse_name: intakeData.spouse_name,
-    spouse_occupation: intakeData.spouse_occupation,
-    mirror_or_independent: intakeData.mirror_or_independent,
+    spouse_name: intakeData.scenario === 'Couple' ? intakeData.spouse_name : '',
+    spouse_occupation: intakeData.scenario === 'Couple' ? intakeData.spouse_occupation : '',
+    mirror_or_independent: intakeData.scenario === 'Couple' ? intakeData.mirror_or_independent : '',
 
     // Matter Info
     person_responsible: form.person_responsible,
@@ -674,28 +752,85 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
     lead_type: form.lead_type,
     region: form.region,
 
-    // Estate Planning Details (formatted for readable Clio display)
+    // Documents
     documents_required: formatDocumentsRequired(docsRequired),
+
+    // BENEFICIARIES: Scenario 1 (Direct) or Scenario 2 (Trust Funds)
+    trust_fund_structure: fundCount === 0 ? 'Direct Beneficiaries' : `${fundCount} Trust Fund${fundCount > 1 ? 's' : ''}`,
+    beneficiaries: fundCount === 0 ? formatBeneficiaries(beneficiaries) : 'N/A (Using Trust Funds)',
+    trust_fund_1: fundCount >= 1 ? formatTrustFund(1, trustFund1) : '',
+    trust_fund_2: fundCount >= 2 ? formatTrustFund(2, trustFund2) : '',
+    foreign_persons_excluded: fundCount > 0 ? (intakeData.fpe_trust ? 'Yes' : 'No') : 'N/A',
+
+    // Calamity Beneficiaries
+    calamity_beneficiaries: formatCalamityBeneficiaries(calamityBeneficiaries),
+
+    // Assets
     specific_gifts: formatSpecificGifts(specificGifts),
     assets_real_estate: formatAssets(realEstate, 'real_estate'),
     assets_bank: formatAssets(bankAccounts, 'bank'),
     assets_super: formatAssets(superAccounts, 'super'),
+    other_assets: intakeData.other_assets || 'None listed',
 
+    // Exclusions
+    exclusions: formatExclusions(exclusions),
+    no_contest_clause: intakeData.no_contest_clause ? 'Yes' : 'No',
+
+    // Executors
     executor_primary_name: intakeData.exec_initial_name,
-    executor_backup_name: intakeData.exec_backup,
-    executor_acting_arrangement: intakeData.exec_joint === 'true' ? 'Joint' : 'Sole',
+    executor_primary_address: intakeData.exec_initial_address || '',
+    executor_primary_relationship: intakeData.exec_initial_relationship || '',
+    executor_backup_name: intakeData.exec_backup || '',
+    executor_tertiary_name: intakeData.exec_further_backup || '',
+    executor_acting_arrangement: intakeData.exec_joint?.includes('jointly') ? 'Jointly' : 'Sole',
+    executor_power_of_sale: intakeData.exec_power_of_sale ? 'Yes' : 'No',
 
+    // Conditional: Company
+    has_company: hasCompany ? 'Yes' : 'No',
+    company_info: companyInfo,
+
+    // Conditional: Life Tenancy
+    has_life_tenancy: hasLifeTenancy ? 'Yes' : 'No',
+    life_tenancy_info: lifeTenancyInfo,
+
+    // Conditional: SDT
+    has_special_disability_trust: hasSdt ? 'Yes' : 'No',
+    sdt_info: sdtInfo,
+
+    // Conditional: Guardianship
+    has_minors: hasMinors ? 'Yes' : 'No',
+    guardian_primary: hasMinors ? (intakeData.guardian_initial || '') : '',
+    guardian_backup: hasMinors ? (intakeData.guardian_backup || '') : '',
+
+    // EPA
     epa_attorneys: formatEpaAttorneys(epaAttorneys),
-    epa_effective: intakeData.epa_effective,
+    epa_acting_arrangement: intakeData.epa_jointly || '',
+    epa_effective: intakeData.epa_effective || '',
+    epa_power_conflict: intakeData.epa_power_conflict ? 'Yes' : 'No',
+    epa_power_charge: intakeData.epa_power_charge ? 'Yes' : 'No',
+    epa_power_gifts: intakeData.epa_power_gifts ? 'Yes' : 'No',
+    epa_power_will: intakeData.epa_power_will ? 'Yes' : 'No',
+    epa_power_spouse: intakeData.epa_power_spouse ? 'Yes' : 'No',
+    epa_power_digital: intakeData.epa_power_digital ? 'Yes' : 'No',
 
-    has_minors: intakeData.has_minors === 'Yes',
-    guardian_primary: intakeData.guardian_initial,
+    // Funeral Wishes
+    funeral_organ_donation: intakeData.organ_donation || '',
+    funeral_burial_cremation: intakeData.burial_or_cremation || '',
+    funeral_other: intakeData.funeral_other || '',
 
-    funeral_organ_donation: intakeData.organ_donation,
-    funeral_burial_cremation: intakeData.burial_or_cremation,
+    // Conditional: Letter of Wishes
+    has_letter_of_wishes: hasLetterOfWishes ? 'Yes' : 'No',
+    letter_of_wishes: hasLetterOfWishes ? (intakeData.low_wishes || '') : '',
 
-    will_custody: intakeData.will_custody,
-    letter_of_wishes: intakeData.has_low === 'Yes',
+    // Will Custody & Admin
+    signing_date: intakeData.signing_date || '',
+    will_custody: intakeData.will_custody || '',
+    add_to_wills_register: intakeData.add_to_wills_register ? 'Yes' : 'No',
+
+    // Administrative
+    financial_adviser: intakeData.financial_adviser || '',
+    governing_jurisdiction: intakeData.governing_jurisdiction || intakeData.client_state || '',
+    former_partner_exclude: intakeData.former_partner_exclude || '',
 
     // Will Document Info
     will_pdf_path: metadata.will_pdf_path,
@@ -705,4 +840,6 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
     form_id: form.id,
     submission_date: form.created_at,
   };
+
+  return payload;
 }
