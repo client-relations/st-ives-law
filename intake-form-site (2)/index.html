@@ -1070,34 +1070,44 @@ async function autoSaveForm(stepNumber) {
   const params = new URLSearchParams(window.location.search);
   const leadId = params.get('lead_id');
 
+  console.log('[AUTO-SAVE] Starting auto-save for step', stepNumber, 'lead_id:', leadId);
+
   if (!leadId) {
-    console.log('No lead_id in URL, skipping auto-save');
+    console.log('[AUTO-SAVE] No lead_id in URL, skipping auto-save');
     return;
   }
 
   try {
     const data = collectData();
+    console.log('[AUTO-SAVE] Collected data:', data);
+
+    const payload = {
+      lead_id: leadId,
+      form_data: data,
+      step: stepNumber,
+      form_type: 'intake',
+    };
+    console.log('[AUTO-SAVE] Sending payload:', payload);
+
     const response = await fetch('/api/submit-intake', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        lead_id: leadId,
-        form_data: data,
-        step: stepNumber,
-        form_type: 'intake',
-      }),
+      body: JSON.stringify(payload),
     });
 
+    console.log('[AUTO-SAVE] Response status:', response.status);
+
     if (!response.ok) {
-      console.error('Auto-save failed:', await response.json());
+      const error = await response.json();
+      console.error('[AUTO-SAVE] Failed:', error);
       return false;
     }
 
     const result = await response.json();
-    console.log(`Auto-saved step ${stepNumber} (${result.progress_pct}% complete)`);
+    console.log('[AUTO-SAVE] Success! Step', stepNumber, 'Progress:', result.progress_pct + '%');
     return true;
   } catch (error) {
-    console.error('Auto-save error:', error);
+    console.error('[AUTO-SAVE] Error:', error);
     return false;
   }
 }
