@@ -959,23 +959,27 @@ export default function DashboardV2() {
                 <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '12px' }}>Initial Outreach Form</div>
 
                 {/* Display inquiry form summary if submitted */}
-                {formData?.inquiry && (
+                {formData?.inquiry ? (
                   <div style={{ marginBottom: '12px', padding: '12px', background: '#f9f9f9', borderRadius: '4px', fontSize: '12px', lineHeight: '1.6' }}>
-                    {formData.inquiry.client_name && (
+                    {formData.inquiry?.client_name && (
                       <div><strong>Name:</strong> {formData.inquiry.client_name}</div>
                     )}
-                    {formData.inquiry.client_email && (
+                    {formData.inquiry?.client_email && (
                       <div><strong>Email:</strong> {formData.inquiry.client_email}</div>
                     )}
-                    {formData.inquiry.client_phone && (
+                    {formData.inquiry?.client_phone && (
                       <div><strong>Phone:</strong> {formData.inquiry.client_phone}</div>
                     )}
-                    {formData.inquiry.client_state && (
+                    {formData.inquiry?.client_state && (
                       <div><strong>State:</strong> {formData.inquiry.client_state}</div>
                     )}
-                    {formData.inquiry.inquiry_reason && (
+                    {formData.inquiry?.inquiry_reason && (
                       <div><strong>Reason:</strong> {formData.inquiry.inquiry_reason}</div>
                     )}
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: '12px', padding: '12px', background: '#fff3cd', borderRadius: '4px', fontSize: '12px', color: '#666' }}>
+                    No inquiry data yet
                   </div>
                 )}
 
