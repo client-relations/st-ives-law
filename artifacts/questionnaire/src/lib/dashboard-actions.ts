@@ -5,6 +5,7 @@ const MAKE_CLIO_WEBHOOK = 'https://hook.eu2.make.com/7kdud7kq1fjfb4d83f5h4o9o0qo
 const SMOKEBALL_WEBHOOK = import.meta.env.VITE_WEBHOOK_URL || 'https://hook.eu2.make.com/fou12e2mjy2wgv2h0e3jgqor7fu81rec';
 const SEND_FORM_EMAIL_WEBHOOK = import.meta.env.VITE_SEND_FORM_EMAIL_WEBHOOK || 'https://hook.eu2.make.com/f6lbcoppzzdjl7r5dh7i0uqpo3yx68y2';
 const SEND_INQUIRY_FORM_WEBHOOK = 'https://hook.eu2.make.com/x9outby9rqyxbwaf4g86jht5vic11dl2';
+const SEND_INTAKE_FORM_WEBHOOK = 'https://hook.eu2.make.com/uqjnkwsk8kx3ujsrancfkesdybyufw17';
 const REMINDER_WEBHOOK = import.meta.env.VITE_REMINDER_WEBHOOK || 'https://hook.eu2.make.com/mjiv8gg69a3dn5ktex4tqlj5j1oji5fk';
 const EMAIL_CONFIRMATION_WEBHOOK = import.meta.env.VITE_EMAIL_CONFIRMATION_WEBHOOK || 'https://hook.eu2.make.com/6xtuj8hqbt68f90v8y4iy3u3lylrs2hw';
 
@@ -396,6 +397,11 @@ export async function sendIntakeForm(formId: string) {
 
     if (error) throw error;
 
+    // Send intake form email
+    if (form.client_email) {
+      await sendIntakeFormEmail(form.id, form.client_name, form.client_email);
+    }
+
     console.log('Intake form sent, status updated to pending_intake');
     return true;
   } catch (err) {
@@ -473,6 +479,35 @@ export async function sendInquiryFormEmail(formId: string, clientName: string, c
     return true;
   } catch (err) {
     console.error('Error sending inquiry form email:', err);
+    return false;
+  }
+}
+
+export async function sendIntakeFormEmail(formId: string, clientName: string, clientEmail: string) {
+  try {
+    const formLink = `${window.location.origin}/intake-form?lead_id=${formId}`;
+
+    const response = await fetch(SEND_INTAKE_FORM_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        form_id: formId,
+        client_name: clientName,
+        client_email: clientEmail,
+        form_link: formLink,
+        sent_at: new Date().toISOString(),
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('Intake form email webhook failed:', response.status);
+      return false;
+    }
+
+    console.log('Intake form email sent successfully');
+    return true;
+  } catch (err) {
+    console.error('Error sending intake form email:', err);
     return false;
   }
 }
