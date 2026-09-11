@@ -4,6 +4,7 @@ import { supabase } from './supabase';
 const MAKE_CLIO_WEBHOOK = 'https://hook.eu2.make.com/7kdud7kq1fjfb4d83f5h4o9o0qou1lgr';
 const SMOKEBALL_WEBHOOK = import.meta.env.VITE_WEBHOOK_URL || 'https://hook.eu2.make.com/fou12e2mjy2wgv2h0e3jgqor7fu81rec';
 const SEND_FORM_EMAIL_WEBHOOK = import.meta.env.VITE_SEND_FORM_EMAIL_WEBHOOK || 'https://hook.eu2.make.com/f6lbcoppzzdjl7r5dh7i0uqpo3yx68y2';
+const SEND_INQUIRY_FORM_WEBHOOK = 'https://hook.eu2.make.com/x9outby9rqyxbwaf4g86jht5vic11dl2';
 const REMINDER_WEBHOOK = import.meta.env.VITE_REMINDER_WEBHOOK || 'https://hook.eu2.make.com/mjiv8gg69a3dn5ktex4tqlj5j1oji5fk';
 const EMAIL_CONFIRMATION_WEBHOOK = import.meta.env.VITE_EMAIL_CONFIRMATION_WEBHOOK || 'https://hook.eu2.make.com/6xtuj8hqbt68f90v8y4iy3u3lylrs2hw';
 
@@ -90,6 +91,12 @@ export async function qualifyLead(screeningId: string, personResponsible: string
       .eq('id', screeningId);
 
     if (updateError) throw updateError;
+
+    // Send inquiry form email
+    if (formRecord.client_email) {
+      await sendInquiryFormEmail(formRecord.id, formRecord.client_name, formRecord.client_email);
+    }
+
     return formRecord.id;
   } catch (err) {
     console.error('Error qualifying lead:', err);
@@ -441,6 +448,35 @@ export async function sendBackForm(formId: string) {
   }
 }
 
+export async function sendInquiryFormEmail(formId: string, clientName: string, clientEmail: string) {
+  try {
+    const formLink = `${window.location.origin}/lead-inquiry?lead_id=${formId}`;
+
+    const response = await fetch(SEND_INQUIRY_FORM_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        form_id: formId,
+        client_name: clientName,
+        client_email: clientEmail,
+        form_link: formLink,
+        sent_at: new Date().toISOString(),
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('Inquiry form email webhook failed:', response.status);
+      return false;
+    }
+
+    console.log('Inquiry form email sent successfully');
+    return true;
+  } catch (err) {
+    console.error('Error sending inquiry form email:', err);
+    return false;
+  }
+}
+
 export async function duplicateForm(formId: string) {
   try {
     if (!supabase) throw new Error('Database connection error');
@@ -534,6 +570,38 @@ export async function populateMatterToClio(formId: string) {
     console.error('[CLIO] Error populating matter:', err);
     return false;
   }
+}
+
+// Picklist field mapping: converts text values to Clio option IDs
+const PICKLIST_OPTIONS = {
+  will_custody: {
+    'Firm': 60694,
+    'Client': 60697,
+    'Executor': 60700,
+  },
+  funeral_burial_cremation: {
+    'Burial': 60703,
+    'Cremation': 60706,
+    'Not Specified': 60709,
+  },
+  executor_acting_arrangement: {
+    'Jointly': 60712,
+    'Joint': 60712,
+    'Sole': 60715,
+  },
+  mirror_or_independent: {
+    'Mirror Wills': 60718,
+    'Mirror wills': 60718,
+    'Independent Wills': 60721,
+    'Independent wills': 60721,
+  },
+};
+
+function mapPicklistValue(fieldName: string, textValue: string): number | string {
+  if (!textValue) return '';
+  const options = PICKLIST_OPTIONS[fieldName as keyof typeof PICKLIST_OPTIONS];
+  if (!options) return textValue; // Not a picklist field, return as-is
+  return options[textValue as keyof typeof options] || textValue; // Return ID if found, else text
 }
 
 // Formatter functions for clean, readable Clio custom field display
@@ -744,7 +812,7 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
     scenario: intakeData.scenario,
     spouse_name: intakeData.scenario === 'Couple' ? intakeData.spouse_name : '',
     spouse_occupation: intakeData.scenario === 'Couple' ? intakeData.spouse_occupation : '',
-    mirror_or_independent: intakeData.scenario === 'Couple' ? intakeData.mirror_or_independent : '',
+    mirror_or_independent: intakeData.scenario === 'Couple' ? mapPicklistValue('mirror_or_independent', intakeData.mirror_or_independent) : '',
 
     // Matter Info
     person_responsible: form.person_responsible,
@@ -782,7 +850,7 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
     executor_primary_relationship: intakeData.exec_initial_relationship || '',
     executor_backup_name: intakeData.exec_backup || '',
     executor_tertiary_name: intakeData.exec_further_backup || '',
-    executor_acting_arrangement: intakeData.exec_joint?.includes('jointly') ? 'Jointly' : 'Sole',
+    executor_acting_arrangement: mapPicklistValue('executor_acting_arrangement', intakeData.exec_joint?.includes('jointly') ? 'Jointly' : 'Sole'),
     executor_power_of_sale: intakeData.exec_power_of_sale ? 'Yes' : 'No',
 
     // Conditional: Company
@@ -815,7 +883,7 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
 
     // Funeral Wishes
     funeral_organ_donation: intakeData.organ_donation || '',
-    funeral_burial_cremation: intakeData.burial_or_cremation || '',
+    funeral_burial_cremation: mapPicklistValue('funeral_burial_cremation', intakeData.burial_or_cremation || ''),
     funeral_other: intakeData.funeral_other || '',
 
     // Conditional: Letter of Wishes
@@ -824,7 +892,7 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
 
     // Will Custody & Admin
     signing_date: intakeData.signing_date || '',
-    will_custody: intakeData.will_custody || '',
+    will_custody: mapPicklistValue('will_custody', intakeData.will_custody || ''),
     add_to_wills_register: intakeData.add_to_wills_register ? 'Yes' : 'No',
 
     // Administrative
