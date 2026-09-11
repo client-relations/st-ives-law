@@ -411,7 +411,9 @@ function showSummary(lead) {
   document.getElementById('loading-spinner').style.display = 'none';
   document.querySelector('.card').style.display = 'none';
   const resultWrap = document.getElementById('result-wrap');
-  const summaryHtml = buildSummaryHtml(lead);
+  // Extract inquiry data if nested
+  const displayData = lead.inquiry || lead;
+  const summaryHtml = buildSummaryHtml(displayData);
   resultWrap.innerHTML = `
     <div style="margin-top: 1.5rem;">
       <h2 style="font-size: 1.3rem; margin-bottom: 1.5rem; color: #2f4858;">Inquiry Summary</h2>
