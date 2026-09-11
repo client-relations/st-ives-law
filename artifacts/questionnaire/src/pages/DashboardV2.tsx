@@ -897,6 +897,10 @@ export default function DashboardV2() {
 
     // Parse form_data if it's a string
     let formData = viewingIntakeForm.form_data;
+    console.log('DEBUG: viewingIntakeForm:', viewingIntakeForm);
+    console.log('DEBUG: form_data:', formData);
+    console.log('DEBUG: form_data type:', typeof formData);
+
     if (typeof formData === 'string') {
       try {
         formData = JSON.parse(formData);
@@ -904,6 +908,8 @@ export default function DashboardV2() {
         formData = {};
       }
     }
+
+    console.log('DEBUG: parsed formData:', formData);
 
     const isCompletedIntake = viewingIntakeForm.status === 'completed_intake';
     const isPendingIntake = viewingIntakeForm.status === 'pending_intake';
