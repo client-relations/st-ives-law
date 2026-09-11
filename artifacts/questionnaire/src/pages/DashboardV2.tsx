@@ -895,6 +895,16 @@ export default function DashboardV2() {
   const renderIntakeFormModal = () => {
     if (!viewingIntakeForm) return null;
 
+    // Parse form_data if it's a string
+    let formData = viewingIntakeForm.form_data;
+    if (typeof formData === 'string') {
+      try {
+        formData = JSON.parse(formData);
+      } catch (e) {
+        formData = {};
+      }
+    }
+
     const isCompletedIntake = viewingIntakeForm.status === 'completed_intake';
     const isPendingIntake = viewingIntakeForm.status === 'pending_intake';
     const showBothForms = isPendingIntake || isCompletedIntake;
@@ -943,22 +953,22 @@ export default function DashboardV2() {
                 <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '12px' }}>Initial Outreach Form</div>
 
                 {/* Display inquiry form summary if submitted */}
-                {viewingIntakeForm.form_data?.inquiry && (
+                {formData?.inquiry && (
                   <div style={{ marginBottom: '12px', padding: '12px', background: '#f9f9f9', borderRadius: '4px', fontSize: '12px', lineHeight: '1.6' }}>
-                    {viewingIntakeForm.form_data.inquiry.client_name && (
-                      <div><strong>Name:</strong> {viewingIntakeForm.form_data.inquiry.client_name}</div>
+                    {formData.inquiry.client_name && (
+                      <div><strong>Name:</strong> {formData.inquiry.client_name}</div>
                     )}
-                    {viewingIntakeForm.form_data.inquiry.client_email && (
-                      <div><strong>Email:</strong> {viewingIntakeForm.form_data.inquiry.client_email}</div>
+                    {formData.inquiry.client_email && (
+                      <div><strong>Email:</strong> {formData.inquiry.client_email}</div>
                     )}
-                    {viewingIntakeForm.form_data.inquiry.client_phone && (
-                      <div><strong>Phone:</strong> {viewingIntakeForm.form_data.inquiry.client_phone}</div>
+                    {formData.inquiry.client_phone && (
+                      <div><strong>Phone:</strong> {formData.inquiry.client_phone}</div>
                     )}
-                    {viewingIntakeForm.form_data.inquiry.client_state && (
-                      <div><strong>State:</strong> {viewingIntakeForm.form_data.inquiry.client_state}</div>
+                    {formData.inquiry.client_state && (
+                      <div><strong>State:</strong> {formData.inquiry.client_state}</div>
                     )}
-                    {viewingIntakeForm.form_data.inquiry.inquiry_reason && (
-                      <div><strong>Reason:</strong> {viewingIntakeForm.form_data.inquiry.inquiry_reason}</div>
+                    {formData.inquiry.inquiry_reason && (
+                      <div><strong>Reason:</strong> {formData.inquiry.inquiry_reason}</div>
                     )}
                   </div>
                 )}
@@ -975,7 +985,7 @@ export default function DashboardV2() {
                   }}
                   onClick={() => window.open(`/lead-inquiry?lead_id=${viewingIntakeForm.id}`, '_blank')}
                 >
-                  {viewingIntakeForm.form_data?.inquiry ? 'View Details' : 'View Form'}
+                  {formData?.inquiry ? 'View Details' : 'View Form'}
                 </button>
               </div>
 
@@ -991,16 +1001,16 @@ export default function DashboardV2() {
                       )}
                     </div>
                     {/* Show intake data summary if available */}
-                    {viewingIntakeForm.form_data?.intake && (
+                    {formData?.intake && (
                       <div style={{ marginBottom: '12px', padding: '12px', background: '#f9f9f9', borderRadius: '4px', fontSize: '12px', lineHeight: '1.6' }}>
-                        {viewingIntakeForm.form_data.intake.client_name && (
-                          <div><strong>Client:</strong> {viewingIntakeForm.form_data.intake.client_name}</div>
+                        {formData.intake.client_name && (
+                          <div><strong>Client:</strong> {formData.intake.client_name}</div>
                         )}
-                        {viewingIntakeForm.form_data.intake.client_state && (
-                          <div><strong>State:</strong> {viewingIntakeForm.form_data.intake.client_state}</div>
+                        {formData.intake.client_state && (
+                          <div><strong>State:</strong> {formData.intake.client_state}</div>
                         )}
-                        {viewingIntakeForm.form_data.intake.scenario && (
-                          <div><strong>Scenario:</strong> {viewingIntakeForm.form_data.intake.scenario}</div>
+                        {formData.intake.scenario && (
+                          <div><strong>Scenario:</strong> {formData.intake.scenario}</div>
                         )}
                       </div>
                     )}
