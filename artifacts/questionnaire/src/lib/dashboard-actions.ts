@@ -8,7 +8,7 @@ const SEND_INQUIRY_FORM_WEBHOOK = 'https://hook.eu2.make.com/x9outby9rqyxbwaf4g8
 const SEND_INTAKE_FORM_WEBHOOK = 'https://hook.eu2.make.com/uqjnkwsk8kx3ujsrancfkesdybyufw17';
 const REMINDER_WEBHOOK = import.meta.env.VITE_REMINDER_WEBHOOK || 'https://hook.eu2.make.com/mjiv8gg69a3dn5ktex4tqlj5j1oji5fk';
 const EMAIL_CONFIRMATION_WEBHOOK = import.meta.env.VITE_EMAIL_CONFIRMATION_WEBHOOK || 'https://hook.eu2.make.com/6xtuj8hqbt68f90v8y4iy3u3lylrs2hw';
-const SEND_BACK_WEBHOOK = 'https://hook.eu2.make.com/uqjnkwsk8kx3ujsrancfkesdybyufw17';
+const SEND_BACK_WEBHOOK = 'https://hook.eu2.make.com/b5iv2ah5zkkoacib1cq1v2w7rs9qqsuj';
 
 export async function qualifyLead(screeningId: string, personResponsible: string) {
   try {
@@ -428,6 +428,110 @@ export async function deleteForm(formId: string) {
   }
 }
 
+// Field name mapping for user-friendly messages
+const FIELD_LABELS: Record<string, string> = {
+  'scenario': 'Planning Scenario (Single/Couple)',
+  'client_name': 'Client Name',
+  'client_address': 'Client Address',
+  'client_state': 'State/Territory',
+  'client_marital_status': 'Marital Status',
+  'client_occupation': 'Occupation',
+  'client_former_names': 'Former Names',
+  'spouse_name': 'Spouse Name',
+  'spouse_occupation': 'Spouse Occupation',
+  'mirror_or_independent': 'Mirror or Independent Wills',
+  'financial_adviser': 'Financial Adviser Name',
+  'governing_jurisdiction': 'Governing Jurisdiction',
+  'realestate': 'Real Estate Assets',
+  'bank': 'Bank/Financial Accounts',
+  'super': 'Superannuation Details',
+  'other_assets': 'Other Assets',
+  'doc_will': 'Document: Will',
+  'doc_epa': 'Document: Enduring Power of Attorney',
+  'doc_acd': 'Document: Advance Care Directive',
+  'doc_sdt': 'Document: Special Disability Trust',
+  'exec_initial_name': 'Initial Executor Name',
+  'exec_initial_address': 'Initial Executor Address',
+  'exec_initial_relationship': 'Initial Executor Relationship',
+  'exec_backup': 'Backup Executor Name',
+  'exec_further_backup': 'Further Backup Executor Name',
+  'exec_joint': 'Executor Acting Arrangement',
+  'exec_power_of_sale': 'Executor Power of Sale',
+  'exclusion': 'Exclusions from Estate',
+  'no_contest_clause': 'No-Contest Clause',
+  'gift': 'Specific Gifts',
+  'has_company': 'Company Directorship',
+  'company_name': 'Company Name',
+  'company_acn': 'Company ACN',
+  'company_on_death': 'Company Treatment on Death',
+  'company_share_treatment': 'Company Share Treatment',
+  'has_life_tenancy': 'Life Tenancy Details',
+  'life_tenant': 'Life Tenant Name',
+  'life_tenancy_property': 'Life Tenancy Property',
+  'life_tenancy_outgoings': 'Life Tenancy Outgoings',
+  'life_tenancy_balance': 'Life Tenancy Balance',
+  'life_tenancy_sale': 'Life Tenancy Sale Power',
+  'fund_count': 'Trust Fund Details',
+  'benef1_name': 'Beneficiary 1 Name',
+  'benef1_pct': 'Beneficiary 1 Percentage',
+  'benef2_name': 'Beneficiary 2 Name',
+  'benef2_pct': 'Beneficiary 2 Percentage',
+  'benef3_name': 'Beneficiary 3 Name',
+  'benef3_pct': 'Beneficiary 3 Percentage',
+  'calamity1': 'Calamity Beneficiary',
+  'calamity1_pct': 'Calamity Beneficiary Percentage',
+  'has_sdt': 'Special Disability Trust',
+  'sdt_mechanism': 'Special Disability Trust Mechanism',
+  'sdt_principal': 'Special Disability Trust Principal',
+  'has_minors': 'Minor Children',
+  'guardian_initial': 'Primary Guardian',
+  'guardian_backup': 'Backup Guardian',
+  'organ_donation': 'Organ Donation Preferences',
+  'burial_or_cremation': 'Burial or Cremation Preference',
+  'funeral_other': 'Other Funeral Wishes',
+  'epa_initial_name': 'Primary Attorney (EPA)',
+  'epa_backup': 'Backup Attorney (EPA)',
+  'epa_further_backup': 'Further Backup Attorney (EPA)',
+  'epa_jointly': 'EPA Acting Arrangement',
+  'epa_effective': 'EPA Effectiveness',
+  'epa_power_conflict': 'EPA Conflict Resolution Power',
+  'epa_power_charge': 'EPA Charging Power',
+  'epa_power_gifts': 'EPA Gift Power',
+  'epa_power_will': 'EPA Will Power',
+  'epa_power_spouse': 'EPA Spouse Power',
+  'epa_power_digital': 'EPA Digital Assets Power',
+  'has_letter_of_wishes': 'Letter of Wishes',
+  'low_wishes': 'Letter of Wishes Content',
+  'signing_date': 'Document Signing Date',
+  'will_custody': 'Will Storage Location',
+  'add_to_wills_register': 'Add to Wills Register'
+};
+
+function generateMissingFieldsMessage(missingFields: string[]): string {
+  if (missingFields.length === 0) {
+    return 'All required fields are complete.';
+  }
+
+  const missingLabels = missingFields.map(field => FIELD_LABELS[field] || field);
+  const groupedByCategory = missingLabels.reduce((acc: Record<string, string[]>, label) => {
+    const category = label.split(':')[0].trim();
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(label);
+    return acc;
+  }, {});
+
+  let message = `The following ${missingFields.length} field(s) need to be completed:\n\n`;
+  Object.entries(groupedByCategory).forEach(([category, fields]) => {
+    message += `${category}:\n`;
+    fields.forEach(field => {
+      message += `  • ${field}\n`;
+    });
+    message += '\n';
+  });
+
+  return message;
+}
+
 function validateIntakeForm(intakeData: any): { missingFields: string[]; hasData: boolean } {
   const missingFields: string[] = [];
 
@@ -498,7 +602,10 @@ export async function sendBackForm(formId: string) {
     // Validate form and get missing fields
     const validation = validateIntakeForm({ ...intakeData, ...inquiryData });
 
-    // Send webhook with missing fields
+    // Generate user-friendly message about missing fields
+    const missingFieldsMessage = generateMissingFieldsMessage(validation.missingFields);
+
+    // Send webhook with missing fields and message
     const formLink = `${window.location.origin}/intake-form?lead_id=${formId}`;
 
     const response = await fetch(SEND_BACK_WEBHOOK, {
@@ -511,6 +618,7 @@ export async function sendBackForm(formId: string) {
         form_link: formLink,
         missing_fields: validation.missingFields,
         missing_count: validation.missingFields.length,
+        missing_fields_message: missingFieldsMessage,
         sent_at: new Date().toISOString(),
       }),
     });
