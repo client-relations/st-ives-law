@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 
 type ContactType = 'person' | 'firm';
 
-const LAWYERS = ['John Smith', 'Emma Taylor', 'Michael Brown'];
+const LAWYERS = ['Sarah Southern'];
 const BILLING_TYPES = ['Fixed Fee', 'Fixed Fee Per Appearance', 'Time Based', 'Contingency ($)', 'Contingency (%)', 'Not Billable'];
 const REGIONS = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'];
 
