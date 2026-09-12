@@ -2090,7 +2090,7 @@ export default function DashboardV2() {
               </div>
               <div className='nv-modal-body'>
                 <p style={{ marginBottom: '16px', color: '#555' }}>
-                  This will validate the form for missing fields and send a webhook notification to the client with all empty fields they need to complete.
+                  This will email the client with a summary of the fields they need to complete.
                 </p>
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
                   <button
