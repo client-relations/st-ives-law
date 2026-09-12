@@ -200,7 +200,7 @@ export default function DashboardV2() {
   }, [lawyer?.id, lawyer?.is_admin, supabase]);
 
   const checkAndSendOverdueReminders = useCallback(async (forms: any[], sb: any) => {
-      const REMINDER_WEBHOOK = 'https://hook.eu2.make.com/mjiv8gg69a3dn5ktex4tqlj5j1oji5fk';
+      const REMINDER_WEBHOOK = 'https://hook.eu2.make.com/xckig8gzunjl5g45v86691skuw7588xi';
       const now = new Date();
 
       for (const form of forms) {
@@ -214,21 +214,20 @@ export default function DashboardV2() {
           console.log('3-day reminder triggering for form:', form.id, 'daysOld:', daysOld, 'reminder_3d_sent:', form.reminder_3d_sent);
           try {
             const formLink = `${window.location.origin}/?uniqueLink=${form.unique_link}`;
-            // WEBHOOK DISABLED - will re-enable with new Supabase
-            // const webhookRes = await fetch(REMINDER_WEBHOOK, {
-            //   method: 'POST',
-            //   headers: { 'Content-Type': 'application/json' },
-            //   body: JSON.stringify({
-            //     form_id: form.id,
-            //     client_name: form.client_name,
-            //     client_email: form.client_email,
-            //     form_link: formLink,
-            //     reminder_type: '3d',
-            //     days_old: daysOld,
-            //     sent_at: new Date().toISOString(),
-            //   }),
-            // });
-            // console.log('Webhook sent, status:', webhookRes.status);
+            const webhookRes = await fetch(REMINDER_WEBHOOK, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                form_id: form.id,
+                client_name: form.client_name,
+                client_email: form.client_email,
+                form_link: formLink,
+                reminder_type: '3d',
+                days_old: daysOld,
+                sent_at: new Date().toISOString(),
+              }),
+            });
+            console.log('3d reminder webhook sent, status:', webhookRes.status);
 
             // Mark form as overdue at 3-day threshold
             console.log('Attempting to update form', form.id, 'to overdue status');
@@ -318,10 +317,19 @@ export default function DashboardV2() {
 
     fetchData();
 
+    // Check for overdue reminders
+    const checkReminders = async () => {
+      const { data: forms } = await supabase.from('forms').select('*');
+      if (forms) {
+        await checkAndSendOverdueReminders(forms, supabase);
+      }
+    };
+    checkReminders();
+
     // Auto-refresh every 10 seconds
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
-  }, [lawyer?.id, lawyer?.is_admin, supabase, fetchData]);
+  }, [lawyer?.id, lawyer?.is_admin, supabase, fetchData, checkAndSendOverdueReminders]);
 
   // Overview filters
   const [pendingLeadsSearch, setPendingLeadsSearch] = useState('');
