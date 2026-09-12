@@ -20,7 +20,7 @@ import '../styles/dashboard.css';
 const ScreeningFormV2 = lazy(() => import('./ScreeningFormV2'));
 
 // Constants
-const LAWYERS = ['John Smith', 'Emma Taylor', 'Michael Brown'];
+const LAWYERS = ['Sarah Southern'];
 
 // Mock data
 const pendingLeads = [
@@ -1349,6 +1349,17 @@ export default function DashboardV2() {
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                          <button
+                            type='button'
+                            className='nv-btn-view'
+                            onClick={() => {
+                              setViewingIntakeForm(form);
+                              setViewMode('completed_intake');
+                            }}
+                            style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                          >
+                            View
+                          </button>
                           <button
                             type='button'
                             className='nv-btn-delete'
