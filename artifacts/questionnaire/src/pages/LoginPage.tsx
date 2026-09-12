@@ -178,16 +178,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div style={{
-          marginTop: '24px',
-          paddingTop: '24px',
-          borderTop: `1px solid ${C.bgBorder}`,
-          fontSize: '12px',
-          color: C.textL,
-          textAlign: 'center',
-        }}>
-          Don't have an account? <a href="/signup" style={{ color: C.teal, textDecoration: 'none', fontWeight: 600 }}>Sign up here</a>
-        </div>
       </div>
     </div>
   );

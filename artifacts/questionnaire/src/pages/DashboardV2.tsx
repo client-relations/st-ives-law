@@ -1212,7 +1212,7 @@ export default function DashboardV2() {
             <div className='nv-user-chip'>
               <div className='nv-user-avatar'>{userInitials}</div>
               <span className='nv-user-name'>{lawyer.full_name}</span>
-              {lawyer.is_admin && <span className='nv-user-badge'>Admin</span>}
+              {lawyer.is_admin && <span className='nv-user-badge'>Sarah Southern</span>}
             </div>
           )}
         </header>
