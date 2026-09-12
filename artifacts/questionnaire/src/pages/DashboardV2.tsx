@@ -1797,19 +1797,6 @@ export default function DashboardV2() {
                   </>
                 )}
               </div>
-              <div className='nv-toolbar-right'>
-                <span className='nv-toolbar-label'>Overdue</span>
-                <select
-                  className='nv-select'
-                  value={overdueFilter}
-                  onChange={(e) => setOverdueFilter(e.target.value)}
-                >
-                  <option value="all">All</option>
-                  <option value="7">7+ Days</option>
-                  <option value="14">14+ Days</option>
-                  <option value="30">30+ Days</option>
-                </select>
-              </div>
             </div>
 
             <div className='nv-kanban'>
