@@ -229,28 +229,13 @@ export default function DashboardV2() {
             });
             console.log('3d reminder webhook sent, status:', webhookRes.status);
 
-            // Mark form as overdue at 3-day threshold
-            console.log('Attempting to update form', form.id, 'to overdue status');
-            const { data, error } = await sb
+            // Track reminder sent timestamp only
+            await sb
               .from('forms')
               .update({
                 reminder_3d_sent: new Date().toISOString(),
-                status: 'overdue',
               })
-              .eq('id', form.id)
-              .select();
-
-            console.log('Update response - data:', data, 'error:', error);
-
-            if (error) {
-              console.error('Error updating form to overdue:', form.id, error);
-            } else {
-              console.log('Form updated successfully, updating local state');
-              // Update local state after successful database update
-              setRealForms(prev =>
-                prev.map(f => f.id === form.id ? { ...f, status: 'overdue', reminder_3d_sent: new Date().toISOString() } : f)
-              );
-            }
+              .eq('id', form.id);
           } catch (err) {
             console.error('Error sending 3-day reminder for form', form.id, err);
           }
