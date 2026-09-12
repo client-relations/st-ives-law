@@ -1342,30 +1342,30 @@ export default function DashboardV2() {
                     : overviewCompletedForms.map(form => (
                       <div key={form.id} className='nv-panel-item' style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p className='nv-panel-item-name'>{form.name}</p>
-                          <p className='nv-panel-item-meta'>{form.client_email || form.personResponsible || '—'}</p>
+                          <p className='nv-panel-item-name'>{form.client_name}</p>
+                          <p className='nv-panel-item-meta'>{form.client_email || '—'}</p>
                           <div className='nv-panel-item-row'>
-                            <p className='nv-panel-item-meta'>{form.personResponsible || 'Unassigned'}</p>
+                            <p className='nv-panel-item-meta'>{form.person_responsible || 'Unassigned'}</p>
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                           <button
                             type='button'
-                            className='nv-btn-view'
-                            onClick={() => console.log('Review - disabled')}
-                            disabled
+                            className='nv-btn-delete'
+                            onClick={async () => {
+                              if (confirm('Delete this form?')) {
+                                const success = await deleteForm(form.id);
+                                if (success) {
+                                  alert('✅ Form deleted');
+                                  fetchData();
+                                } else {
+                                  alert('❌ Error deleting form');
+                                }
+                              }
+                            }}
                             style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
                           >
-                            Review
-                          </button>
-                          <button
-                            type='button'
-                            className='nv-btn-edit'
-                            onClick={() => console.log('Send - disabled')}
-                            disabled
-                            style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
-                          >
-                            Send
+                            🗑️ Delete
                           </button>
                         </div>
                       </div>
