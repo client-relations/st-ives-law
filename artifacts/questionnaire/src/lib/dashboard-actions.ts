@@ -839,11 +839,11 @@ const PICKLIST_OPTIONS = {
   },
 };
 
-function mapPicklistValue(fieldName: string, textValue: string): number | string {
+function mapPicklistValue(fieldName: string, textValue: string): string {
+  // Since picklist fields are now text-only in Clio (checkboxes removed),
+  // just return the text value as-is
   if (!textValue) return '';
-  const options = PICKLIST_OPTIONS[fieldName as keyof typeof PICKLIST_OPTIONS];
-  if (!options) return textValue; // Not a picklist field, return as-is
-  return options[textValue as keyof typeof options] || textValue; // Return ID if found, else text
+  return textValue;
 }
 
 // Formatter functions for clean, readable Clio custom field display
