@@ -8,6 +8,7 @@ const SEND_INQUIRY_FORM_WEBHOOK = 'https://hook.eu2.make.com/x9outby9rqyxbwaf4g8
 const SEND_INTAKE_FORM_WEBHOOK = 'https://hook.eu2.make.com/uqjnkwsk8kx3ujsrancfkesdybyufw17';
 const REMINDER_WEBHOOK = import.meta.env.VITE_REMINDER_WEBHOOK || 'https://hook.eu2.make.com/mjiv8gg69a3dn5ktex4tqlj5j1oji5fk';
 const EMAIL_CONFIRMATION_WEBHOOK = import.meta.env.VITE_EMAIL_CONFIRMATION_WEBHOOK || 'https://hook.eu2.make.com/6xtuj8hqbt68f90v8y4iy3u3lylrs2hw';
+const SEND_BACK_WEBHOOK = 'https://hook.eu2.make.com/uqjnkwsk8kx3ujsrancfkesdybyufw17';
 
 export async function qualifyLead(screeningId: string, personResponsible: string) {
   try {
@@ -427,26 +428,99 @@ export async function deleteForm(formId: string) {
   }
 }
 
+function validateIntakeForm(intakeData: any): { missingFields: string[]; hasData: boolean } {
+  const missingFields: string[] = [];
+
+  // Check all common intake form fields
+  const fieldsToCheck = [
+    'scenario', 'client_name', 'client_address', 'client_state', 'client_marital_status',
+    'client_occupation', 'client_former_names', 'spouse_name', 'spouse_occupation',
+    'mirror_or_independent', 'financial_adviser', 'governing_jurisdiction',
+    'realestate', 'bank', 'super', 'other_assets',
+    'doc_will', 'doc_epa', 'doc_acd', 'doc_sdt',
+    'exec_initial_name', 'exec_initial_address', 'exec_initial_relationship',
+    'exec_backup', 'exec_further_backup', 'exec_joint',
+    'exec_power_of_sale', 'exclusion', 'no_contest_clause',
+    'gift', 'has_company', 'company_name', 'company_acn',
+    'company_on_death', 'company_share_treatment',
+    'has_life_tenancy', 'life_tenant', 'life_tenancy_property',
+    'life_tenancy_outgoings', 'life_tenancy_balance', 'life_tenancy_sale',
+    'fund_count', 'benef1_name', 'benef1_pct', 'benef2_name', 'benef2_pct',
+    'benef3_name', 'benef3_pct', 'calamity1', 'calamity1_pct',
+    'has_sdt', 'sdt_mechanism', 'sdt_principal',
+    'has_minors', 'guardian_initial', 'guardian_backup',
+    'organ_donation', 'burial_or_cremation', 'funeral_other',
+    'epa_initial_name', 'epa_backup', 'epa_further_backup',
+    'epa_jointly', 'epa_effective', 'epa_power_conflict',
+    'epa_power_charge', 'epa_power_gifts', 'epa_power_will',
+    'epa_power_spouse', 'epa_power_digital', 'has_letter_of_wishes',
+    'low_wishes', 'signing_date', 'will_custody', 'add_to_wills_register'
+  ];
+
+  fieldsToCheck.forEach(field => {
+    const value = intakeData[field];
+    // Consider field empty if: null, undefined, empty string, empty array, false (for checkboxes)
+    if (value === null || value === undefined || value === '' ||
+        (Array.isArray(value) && value.length === 0) ||
+        (typeof value === 'boolean' && !value)) {
+      missingFields.push(field);
+    }
+  });
+
+  return {
+    missingFields,
+    hasData: missingFields.length < fieldsToCheck.length
+  };
+}
+
 export async function sendBackForm(formId: string) {
   try {
     if (!supabase) throw new Error('Database connection error');
 
-    const response = await fetch('/api/send-back-form', {
+    // Fetch form data
+    const { data: form } = await supabase
+      .from('forms')
+      .select('*')
+      .eq('id', formId)
+      .single();
+
+    if (!form) throw new Error('Form not found');
+
+    // Parse form data
+    let formData = form.form_data;
+    if (typeof formData === 'string') {
+      formData = JSON.parse(formData);
+    }
+
+    const intakeData = formData.intake || {};
+    const inquiryData = formData.inquiry || {};
+
+    // Validate form and get missing fields
+    const validation = validateIntakeForm({ ...intakeData, ...inquiryData });
+
+    // Send webhook with missing fields
+    const formLink = `${window.location.origin}/intake-form?lead_id=${formId}`;
+
+    const response = await fetch(SEND_BACK_WEBHOOK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        lead_id: formId,
-        reason: 'incomplete',
+        form_id: formId,
+        client_name: form.client_name,
+        client_email: form.client_email,
+        form_link: formLink,
+        missing_fields: validation.missingFields,
+        missing_count: validation.missingFields.length,
+        sent_at: new Date().toISOString(),
       }),
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to send back form');
+      console.warn('Send-back webhook failed:', response.status);
+      return false;
     }
 
-    const result = await response.json();
-    console.log('Form send-back initiated:', result);
+    console.log('Form send-back initiated successfully');
     return true;
   } catch (err) {
     console.error('Error sending back form:', err);

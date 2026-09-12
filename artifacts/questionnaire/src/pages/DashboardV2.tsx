@@ -13,6 +13,7 @@ import {
   sendIntakeForm,
   deleteForm,
   populateMatterToClio,
+  sendBackForm,
 } from '../lib/dashboard-actions';
 import '../styles/dashboard.css';
 
@@ -2065,6 +2066,73 @@ export default function DashboardV2() {
 
         {/* Form Link Modal (temporary - until webhook automation) */}
         {renderLinkModal()}
+
+        {/* Send Back Modal */}
+        {showSendBackModal && (
+          <div
+            className='nv-modal-overlay'
+            onClick={() => setShowSendBackModal(false)}>
+            <div
+              className='nv-modal'
+              onClick={(e) => e.stopPropagation()}>
+              <div className='nv-modal-head'>
+                <div className='nv-modal-head-main'>
+                  <p className='nv-modal-eyebrow'>Form Validation</p>
+                  <h2 className='nv-modal-title'>Send Back for Completion</h2>
+                </div>
+                <button
+                  type='button'
+                  className='nv-modal-close'
+                  onClick={() => setShowSendBackModal(false)}
+                  aria-label='Close'>
+                  ×
+                </button>
+              </div>
+              <div className='nv-modal-body'>
+                <p style={{ marginBottom: '16px', color: '#555' }}>
+                  This will validate the form for missing fields and send a webhook notification to the client with all empty fields they need to complete.
+                </p>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                  <button
+                    type='button'
+                    onClick={() => setShowSendBackModal(false)}
+                    style={{
+                      padding: '8px 16px',
+                      background: '#f0f0f0',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}>
+                    Cancel
+                  </button>
+                  <button
+                    type='button'
+                    onClick={async () => {
+                      if (sendBackFormId) {
+                        const success = await sendBackForm(sendBackFormId);
+                        if (success) {
+                          alert('✅ Send-back notification sent successfully!');
+                        } else {
+                          alert('❌ Error sending notification. Check console for details.');
+                        }
+                        setShowSendBackModal(false);
+                      }
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      background: '#d97706',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}>
+                    Send Back
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Screening Form Modal */}
         {showScreeningModal && (
