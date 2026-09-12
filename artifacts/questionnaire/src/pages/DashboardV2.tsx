@@ -1535,6 +1535,22 @@ export default function DashboardV2() {
                   >
                     Rejected
                   </button>
+                  <button
+                    type='button'
+                    style={{
+                      display: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid #ddd',
+                      background: deprioritizedTypeFilter === 'no-response' ? '#f0f0f0' : 'transparent',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                    }}
+                    onClick={() => setDeprioritizedTypeFilter('no-response')}
+                  >
+                    No Response
+                  </button>
                 </div>
                 <div className='nv-lead-list'>
                   {deprioritizedLeads.length === 0
