@@ -572,35 +572,35 @@
 // ---- repeatable block templates ----
 const templates = {
   realestate: () => fieldRow([
-    {label:'Address', type:'text'},
-    {label:'Estimated value', type:'text'},
-    {label:'Tenancy type', type:'select', options:['Sole ownership','Joint tenants','Tenants in common']},
-    {label:'Mortgage details', type:'text'},
+    {label:'Address', key:'address', type:'text'},
+    {label:'Estimated value', key:'value', type:'text'},
+    {label:'Tenancy type', key:'type', type:'select', options:['Sole ownership','Joint tenants','Tenants in common']},
+    {label:'Mortgage details', key:'mortgage', type:'text'},
   ]),
   bank: () => fieldRow([
-    {label:'Bank', type:'text'},
-    {label:'Account type', type:'select', options:['Savings','Transaction/cheque','Term deposit','Offset']},
-    {label:'Held jointly or individually', type:'select', options:['Individual','Joint','Other']},
-    {label:'Value', type:'text'},
+    {label:'Bank', key:'institution', type:'text'},
+    {label:'Account type', key:'type', type:'select', options:['Savings','Transaction/cheque','Term deposit','Offset']},
+    {label:'Held jointly or individually', key:'holding', type:'select', options:['Individual','Joint','Other']},
+    {label:'Value', key:'balance', type:'text'},
   ]),
   super: () => fieldRow([
-    {label:'Fund name', type:'text'},
-    {label:'Member number', type:'text'},
-    {label:'Value', type:'text'},
-    {label:'Nominated beneficiary', type:'text'},
+    {label:'Fund name', key:'name', type:'text'},
+    {label:'Member number', key:'member_number', type:'text'},
+    {label:'Value', key:'balance', type:'text'},
+    {label:'Nominated beneficiary', key:'nominated_beneficiary', type:'text'},
   ]),
   gift: () => fieldRow([
-    {label:'Item description', type:'text'},
-    {label:'Recipient', type:'text'},
-    {label:'Fallback if recipient predeceases', type:'text'},
+    {label:'Item description', key:'description', type:'text'},
+    {label:'Recipient', key:'recipient', type:'text'},
+    {label:'Fallback if recipient predeceases', key:'fallback', type:'text'},
   ]),
   attorney: () => fieldRow([
-    {label:'Full name', type:'text'},
-    {label:'Address', type:'text'},
+    {label:'Full name', key:'name', type:'text'},
+    {label:'Address', key:'address', type:'text'},
   ]),
   exclusion: () => fieldRow([
-    {label:'Name', type:'text'},
-    {label:'Reason', type:'text'},
+    {label:'Name', key:'name', type:'text'},
+    {label:'Reason', key:'reason', type:'text'},
   ]),
 };
 
@@ -609,10 +609,11 @@ function fieldRow(fields){
   div.className = 'repeat-item';
   div.innerHTML = '<button type="button" class="remove-btn">Remove</button>' +
     fields.map(f => {
+      const fieldKey = f.key || f.label;
       if (f.type === 'select') {
-        return `<label>${f.label}</label><select data-field="${f.label}"><option value="">Select…</option>${f.options.map(o=>`<option>${o}</option>`).join('')}</select>`;
+        return `<label>${f.label}</label><select data-field="${fieldKey}"><option value="">Select…</option>${f.options.map(o=>`<option>${o}</option>`).join('')}</select>`;
       }
-      return `<label>${f.label}</label><input type="text" data-field="${f.label}">`;
+      return `<label>${f.label}</label><input type="text" data-field="${fieldKey}">`;
     }).join('');
   div.querySelector('.remove-btn').addEventListener('click', () => div.remove());
   return div;
