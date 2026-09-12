@@ -428,7 +428,7 @@ export async function deleteForm(formId: string) {
   }
 }
 
-// Field name mapping for user-friendly messages
+// Field name mapping for user-friendly messages (matching actual form field names)
 const FIELD_LABELS: Record<string, string> = {
   'scenario': 'Planning Scenario (Single/Couple)',
   'client_name': 'Client Name',
@@ -448,8 +448,6 @@ const FIELD_LABELS: Record<string, string> = {
   'other_assets': 'Other Assets',
   'doc_will': 'Document: Will',
   'doc_epa': 'Document: Enduring Power of Attorney',
-  'doc_acd': 'Document: Advance Care Directive',
-  'doc_sdt': 'Document: Special Disability Trust',
   'exec_initial_name': 'Initial Executor Name',
   'exec_initial_address': 'Initial Executor Address',
   'exec_initial_relationship': 'Initial Executor Relationship',
@@ -460,51 +458,34 @@ const FIELD_LABELS: Record<string, string> = {
   'exclusion': 'Exclusions from Estate',
   'no_contest_clause': 'No-Contest Clause',
   'gift': 'Specific Gifts',
-  'has_company': 'Company Directorship',
   'company_name': 'Company Name',
   'company_acn': 'Company ACN',
   'company_on_death': 'Company Treatment on Death',
   'company_share_treatment': 'Company Share Treatment',
-  'has_life_tenancy': 'Life Tenancy Details',
   'life_tenant': 'Life Tenant Name',
   'life_tenancy_property': 'Life Tenancy Property',
   'life_tenancy_outgoings': 'Life Tenancy Outgoings',
   'life_tenancy_balance': 'Life Tenancy Balance',
-  'life_tenancy_sale': 'Life Tenancy Sale Power',
-  'fund_count': 'Trust Fund Details',
-  'benef1_name': 'Beneficiary 1 Name',
-  'benef1_pct': 'Beneficiary 1 Percentage',
-  'benef2_name': 'Beneficiary 2 Name',
-  'benef2_pct': 'Beneficiary 2 Percentage',
-  'benef3_name': 'Beneficiary 3 Name',
-  'benef3_pct': 'Beneficiary 3 Percentage',
-  'calamity1': 'Calamity Beneficiary',
-  'calamity1_pct': 'Calamity Beneficiary Percentage',
-  'has_sdt': 'Special Disability Trust',
+  'beneficiary1': 'Beneficiary 1 Name',
+  'beneficiary1_pct': 'Beneficiary 1 Percentage',
+  'beneficiary2': 'Beneficiary 2 Name',
+  'beneficiary2_pct': 'Beneficiary 2 Percentage',
+  'beneficiary3': 'Beneficiary 3 Name',
+  'beneficiary3_pct': 'Beneficiary 3 Percentage',
+  'calamity1': 'Calamity Beneficiary 1',
+  'calamity1_pct': 'Calamity Beneficiary 1 Percentage',
   'sdt_mechanism': 'Special Disability Trust Mechanism',
-  'sdt_principal': 'Special Disability Trust Principal',
-  'has_minors': 'Minor Children',
+  'sdt_principal_beneficiary': 'Special Disability Trust Principal',
   'guardian_initial': 'Primary Guardian',
   'guardian_backup': 'Backup Guardian',
   'organ_donation': 'Organ Donation Preferences',
   'burial_or_cremation': 'Burial or Cremation Preference',
   'funeral_other': 'Other Funeral Wishes',
-  'epa_initial_name': 'Primary Attorney (EPA)',
-  'epa_backup': 'Backup Attorney (EPA)',
-  'epa_further_backup': 'Further Backup Attorney (EPA)',
   'epa_jointly': 'EPA Acting Arrangement',
   'epa_effective': 'EPA Effectiveness',
-  'epa_power_conflict': 'EPA Conflict Resolution Power',
-  'epa_power_charge': 'EPA Charging Power',
-  'epa_power_gifts': 'EPA Gift Power',
-  'epa_power_will': 'EPA Will Power',
-  'epa_power_spouse': 'EPA Spouse Power',
-  'epa_power_digital': 'EPA Digital Assets Power',
-  'has_letter_of_wishes': 'Letter of Wishes',
-  'low_wishes': 'Letter of Wishes Content',
   'signing_date': 'Document Signing Date',
   'will_custody': 'Will Storage Location',
-  'add_to_wills_register': 'Add to Wills Register'
+  'low_wishes': 'Letter of Wishes Content'
 };
 
 function generateMissingFieldsMessage(missingFields: string[]): string {
@@ -535,29 +516,28 @@ function generateMissingFieldsMessage(missingFields: string[]): string {
 function validateIntakeForm(intakeData: any): { missingFields: string[]; hasData: boolean } {
   const missingFields: string[] = [];
 
-  // Always check these core fields
+  // Always check these core fields (matching actual form field names)
   const alwaysCheck = [
     'scenario', 'client_name', 'client_address', 'client_state', 'client_marital_status',
     'client_occupation', 'financial_adviser', 'governing_jurisdiction',
-    'doc_will', 'doc_epa', 'doc_acd', 'doc_sdt',
+    'doc_will', 'doc_epa',
     'exec_initial_name', 'exec_initial_address', 'exec_initial_relationship',
     'exec_backup', 'exec_further_backup', 'exec_joint',
     'exec_power_of_sale', 'no_contest_clause',
-    'fund_count', 'benef1_name', 'benef1_pct',
+    'beneficiary1', 'beneficiary1_pct',
     'organ_donation', 'burial_or_cremation',
-    'epa_initial_name', 'epa_backup', 'epa_further_backup',
     'epa_jointly', 'epa_effective',
-    'signing_date', 'will_custody', 'add_to_wills_register'
+    'signing_date', 'will_custody'
   ];
 
   // Conditional fields based on scenario/responses
   const conditionalFields: Record<string, string[]> = {
     'Couple': ['spouse_name', 'spouse_occupation', 'mirror_or_independent'],
     'has_company_yes': ['company_name', 'company_acn', 'company_on_death', 'company_share_treatment'],
-    'has_life_tenancy_yes': ['life_tenant', 'life_tenancy_property', 'life_tenancy_outgoings', 'life_tenancy_balance', 'life_tenancy_sale'],
-    'has_sdt_yes': ['sdt_mechanism', 'sdt_principal'],
+    'has_life_tenancy_yes': ['life_tenant', 'life_tenancy_property', 'life_tenancy_outgoings', 'life_tenancy_balance'],
+    'has_sdt_yes': ['sdt_mechanism', 'sdt_principal_beneficiary'],
     'has_minors_yes': ['guardian_initial', 'guardian_backup'],
-    'has_letter_of_wishes_yes': ['low_wishes'],
+    'has_low_yes': ['low_wishes'],
   };
 
   // Build the fields to check based on actual data
@@ -581,11 +561,11 @@ function validateIntakeForm(intakeData: any): { missingFields: string[]; hasData
   if (intakeData.has_minors === true || intakeData.has_minors === 'Yes') {
     fieldsToCheck.push(...conditionalFields['has_minors_yes']);
   }
-  if (intakeData.has_letter_of_wishes === true || intakeData.has_letter_of_wishes === 'Yes') {
-    fieldsToCheck.push(...conditionalFields['has_letter_of_wishes_yes']);
+  if (intakeData.has_low === true || intakeData.has_low === 'Yes') {
+    fieldsToCheck.push(...conditionalFields['has_low_yes']);
   }
 
-  // Check all collected fields (assets, executors, gifts, etc. are optional repeatable items)
+  // Check all collected fields
   fieldsToCheck.forEach(field => {
     const value = intakeData[field];
     // Consider field empty if: null, undefined, empty string, empty array, false (for checkboxes)
