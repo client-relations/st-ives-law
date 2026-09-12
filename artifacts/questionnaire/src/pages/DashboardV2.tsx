@@ -1376,7 +1376,7 @@ export default function DashboardV2() {
                             }}
                             style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
                           >
-                            🗑️ Delete
+                            Delete
                           </button>
                         </div>
                       </div>
