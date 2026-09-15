@@ -15,6 +15,7 @@ import {
   populateMatterToClio,
   sendBackForm,
 } from '../lib/dashboard-actions';
+import { DocumentSelection, DocumentEditor } from '../components/DocumentGenerator';
 import '../styles/dashboard.css';
 
 const ScreeningFormV2 = lazy(() => import('./ScreeningFormV2'));
@@ -79,6 +80,11 @@ export default function DashboardV2() {
   // Send back modal
   const [showSendBackModal, setShowSendBackModal] = useState(false);
   const [sendBackFormId, setSendBackFormId] = useState<string | null>(null);
+
+  // Document generation
+  const [showDocumentGenerator, setShowDocumentGenerator] = useState(false);
+  const [showDocumentEditor, setShowDocumentEditor] = useState(false);
+  const [documentFormId, setDocumentFormId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -577,6 +583,19 @@ export default function DashboardV2() {
     .filter(f => !completedSearch || (f.name || '').toLowerCase().includes(completedSearch.toLowerCase()))
     .filter(f => !completedPersonFilter || f.personResponsible === completedPersonFilter)
     .filter(matchesCompletedPageDate);
+
+  // Handle document generation completion
+  useEffect(() => {
+    const handleDocumentGenerated = (event: any) => {
+      setShowDocumentGenerator(false);
+      setShowDocumentEditor(true);
+    };
+
+    window.addEventListener('documentGenerated', handleDocumentGenerated);
+    return () => {
+      window.removeEventListener('documentGenerated', handleDocumentGenerated);
+    };
+  }, []);
 
   const refreshData = async () => {
     if (!lawyer?.id || !supabase) return;
@@ -1361,6 +1380,17 @@ export default function DashboardV2() {
                           </button>
                           <button
                             type='button'
+                            className='nv-btn-view'
+                            onClick={() => {
+                              setDocumentFormId(form.id);
+                              setShowDocumentGenerator(true);
+                            }}
+                            style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', background: '#2f7c94' }}
+                          >
+                            📄 Generate
+                          </button>
+                          <button
+                            type='button'
                             className='nv-btn-delete'
                             onClick={async () => {
                               if (confirm('Delete this form?')) {
@@ -2064,6 +2094,71 @@ export default function DashboardV2() {
 
         {/* Form Link Modal (temporary - until webhook automation) */}
         {renderLinkModal()}
+
+        {/* Document Generator */}
+        {showDocumentGenerator && documentFormId && (
+          <div className='nv-modal-overlay' onClick={() => setShowDocumentGenerator(false)}>
+            <div
+              className='nv-modal'
+              style={{ maxWidth: '1200px' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className='nv-modal-head'>
+                <div className='nv-modal-head-main'>
+                  <p className='nv-modal-eyebrow'>Generate Documents</p>
+                  <h2 className='nv-modal-title'>Select & Customize Documents</h2>
+                </div>
+                <button
+                  type='button'
+                  className='nv-modal-close'
+                  onClick={() => setShowDocumentGenerator(false)}
+                  aria-label='Close'
+                >
+                  ×
+                </button>
+              </div>
+              <div className='nv-modal-body' style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+                <DocumentSelection
+                  formId={documentFormId}
+                  intakeData={viewingIntakeForm?.form_data?.intake || {}}
+                  onClose={() => setShowDocumentGenerator(false)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Document Editor */}
+        {showDocumentEditor && documentFormId && (
+          <div className='nv-modal-overlay' onClick={() => setShowDocumentEditor(false)}>
+            <div
+              className='nv-modal'
+              style={{ maxWidth: '1400px' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className='nv-modal-head'>
+                <div className='nv-modal-head-main'>
+                  <p className='nv-modal-eyebrow'>Edit Documents</p>
+                  <h2 className='nv-modal-title'>Document Editor</h2>
+                </div>
+                <button
+                  type='button'
+                  className='nv-modal-close'
+                  onClick={() => setShowDocumentEditor(false)}
+                  aria-label='Close'
+                >
+                  ×
+                </button>
+              </div>
+              <div className='nv-modal-body' style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+                <DocumentEditor
+                  formId={documentFormId}
+                  onClose={() => setShowDocumentEditor(false)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Send Back Modal */}
         {showSendBackModal && (
