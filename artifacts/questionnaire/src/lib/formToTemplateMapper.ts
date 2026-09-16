@@ -62,32 +62,61 @@ function formatPersonName(person: any): string {
   return parts.join(' ').trim();
 }
 
-export function mapFormDataToTemplate(formData: FormData, formId: string): TemplateVariables {
-  // Get client name and address (prefer client_1)
-  const client = formData.client_1 || formData.client_2 || {};
-  const clientName = formatPersonName(client);
-  const clientAddress = client.address || '';
+export function mapFormDataToTemplate(formData: any, formId: string): TemplateVariables {
+  // Handle both webhook structure and form object structure
+  let clientName = '';
+  let clientAddress = '';
+  let executors: any[] = [];
+  let guardians: any[] = [];
+  let beneProfiles: Record<string, any> = {};
+  let jurisdiction = '';
 
-  // Extract executors from array (webhook structure)
-  const executors = formData.executors || [];
+  // Check if this is a form object (has form_data) or webhook payload
+  if (formData.form_data) {
+    // Form object structure
+    const aData = formData.form_data.aData || {};
+    const cData = formData.form_data.cData || {};
+    const c1 = aData.c1 || {};
+
+    // Client name and address
+    clientName = formatPersonName({ first: c1.first, last: c1.last });
+    clientAddress = c1.addr || '';
+
+    // Executors from c1Execs array
+    executors = cData.c1Execs || [];
+
+    // Guardians
+    guardians = cData.guardians || [];
+
+    // Beneficiary profiles
+    beneProfiles = cData.beneProfiles || {};
+
+    // Jurisdiction from state
+    jurisdiction = aData.state || '';
+  } else {
+    // Webhook payload structure
+    const client = formData.client_1 || formData.client_2 || {};
+    clientName = formatPersonName(client);
+    clientAddress = client.address || '';
+    executors = formData.executors || [];
+    guardians = formData.guardians || [];
+    beneProfiles = formData.beneficiary_profiles || {};
+    jurisdiction = formData.engagement?.state || '';
+  }
+
+  // Extract executors
   const execInitial = executors[0] ? formatPersonName(executors[0]) : '';
   const execBackup = executors[1] ? formatPersonName(executors[1]) : '';
   const execFurther = executors[2] ? formatPersonName(executors[2]) : '';
 
-  // Extract guardians from array
-  const guardians = formData.guardians || [];
+  // Extract guardians
   const guardianInitial = guardians[0] ? formatPersonName(guardians[0]) : '';
   const guardianBackup = guardians[1] ? formatPersonName(guardians[1]) : '';
 
-  // Extract beneficiaries from profiles (structure depends on form)
-  // For now, try common patterns
-  const beneProfiles = formData.beneficiary_profiles || {};
+  // Extract beneficiaries from profiles
   const beneNames = Object.values(beneProfiles)
     .map((b: any) => formatPersonName(b))
     .filter(Boolean);
-
-  // Get jurisdiction from engagement state
-  const jurisdiction = formData.engagement?.state || '';
 
   return {
     client_name: clientName,
@@ -100,13 +129,12 @@ export function mapFormDataToTemplate(formData: FormData, formId: string): Templ
     beneficiary1: beneNames[0] || '',
     beneficiary2: beneNames[1] || '',
     beneficiary3: beneNames[2] || '',
-    calamity1: '', // TBD - depends on form structure
-    calamity2: '', // TBD
-    calamity3: '', // TBD
+    calamity1: '',
+    calamity2: '',
+    calamity3: '',
     governing_jurisdiction: jurisdiction,
     form_id: formId,
-    lawyer_initials: 'SA', // Will be configurable later
-    // TT1 fields - TBD pending form data structure
+    lawyer_initials: 'SA',
     initial_appointor_tt1: '',
     backup_appointor_tt1: '',
     further_backup_appointor_tt1: '',
