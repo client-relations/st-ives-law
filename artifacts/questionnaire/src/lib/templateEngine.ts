@@ -1,4 +1,4 @@
-import { TEMPLATES, FIRM_INFO, TemplateType, ScenarioType } from './templates.js';
+import { TEMPLATES, FIRM_INFO, TemplateType, ScenarioType } from './templates';
 
 interface TemplateVariables {
   client_name: string;
