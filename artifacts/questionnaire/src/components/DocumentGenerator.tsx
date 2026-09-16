@@ -58,11 +58,13 @@ export function DocumentSelection({ formId, intakeData, onClose }: DocumentGener
       );
 
       // Store generated documents and move to editor screen
+      // Get scenario from first template ID
+      const firstScenario = selectedTemplates[0]?.split('_')[selectedTemplates[0].split('_').length - 1] || 'individual';
       localStorage.setItem(
         `generated_docs_${formId}`,
         JSON.stringify({
           documents: generatedDocs,
-          scenario,
+          scenario: firstScenario,
           timestamp: new Date().toISOString(),
         })
       );
