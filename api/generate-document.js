@@ -6,52 +6,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const {
-      templateType,
-      scenario,
-      formId,
-      clientName,
-      clientAddress,
-      execInitialName,
-      execBackup,
-      execFurtherBackup,
-      guardianInitial,
-      guardianBackup,
-      beneficiary1,
-      beneficiary2,
-      beneficiary3,
-      calamity1,
-      calamity2,
-      calamity3,
-      governingJurisdiction,
-      lawyerInitials,
-    } = req.body;
+    const { templateType, scenario, ...templateVars } = req.body;
 
-    if (!templateType || !scenario || !clientName) {
+    if (!templateType || !scenario) {
       return res.status(400).json({
-        error: 'Missing required fields: templateType, scenario, clientName',
+        error: 'Missing required fields: templateType, scenario',
       });
     }
 
-    // Generate document with variables
-    const documentContent = generateDocument(templateType, scenario, {
-      client_name: clientName,
-      client_address: clientAddress || '',
-      exec_initial_name: execInitialName || '',
-      exec_backup: execBackup || '',
-      exec_further_backup: execFurtherBackup || '',
-      guardian_initial: guardianInitial || '',
-      guardian_backup: guardianBackup || '',
-      beneficiary1: beneficiary1 || '',
-      beneficiary2: beneficiary2 || '',
-      beneficiary3: beneficiary3 || '',
-      calamity1: calamity1 || '',
-      calamity2: calamity2 || '',
-      calamity3: calamity3 || '',
-      governing_jurisdiction: governingJurisdiction || '',
-      form_id: formId,
-      lawyer_initials: lawyerInitials || 'SA',
-    });
+    // Generate document with variables (already mapped by formToTemplateMapper)
+    const documentContent = generateDocument(templateType, scenario, templateVars);
 
     return res.status(200).json({
       success: true,

@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { mapFormDataToTemplate, type FormData } from '../lib/formToTemplateMapper';
 
 interface DocumentGeneratorProps {
   formId: string;
-  intakeData: any;
+  intakeData: FormData;
   onClose: () => void;
 }
 
@@ -30,7 +31,10 @@ export function DocumentSelection({ formId, intakeData, onClose }: DocumentGener
 
     setGenerating(true);
     try {
-      const scenario = intakeData.scenario === 'Couple' ? 'couple' : 'individual';
+      const scenario = intakeData.engagement?.type?.includes('Couple') ? 'couple' : 'individual';
+
+      // Map form data to template variables
+      const templateVars = mapFormDataToTemplate(intakeData, formId);
 
       // Generate documents
       const generatedDocs = await Promise.all(
@@ -41,22 +45,7 @@ export function DocumentSelection({ formId, intakeData, onClose }: DocumentGener
             body: JSON.stringify({
               templateType,
               scenario,
-              formId,
-              clientName: intakeData.client_name,
-              clientAddress: intakeData.client_address,
-              execInitialName: intakeData.exec_initial_name,
-              execBackup: intakeData.exec_backup,
-              execFurtherBackup: intakeData.exec_further_backup,
-              guardianInitial: intakeData.guardian_initial,
-              guardianBackup: intakeData.guardian_backup,
-              beneficiary1: intakeData.beneficiary1,
-              beneficiary2: intakeData.beneficiary2,
-              beneficiary3: intakeData.beneficiary3,
-              calamity1: intakeData.calamity1,
-              calamity2: intakeData.calamity2,
-              calamity3: intakeData.calamity3,
-              governingJurisdiction: intakeData.governing_jurisdiction,
-              lawyerInitials: 'SA',
+              ...templateVars,
             }),
           }).then((r) => r.json())
         )
