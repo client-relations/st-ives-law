@@ -1038,20 +1038,6 @@ export default function DashboardV2() {
                       </div>
                     )}
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        style={{
-                          padding: '6px 12px',
-                          fontSize: '12px',
-                          background: '#4a8fa0',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                        }}
-                        onClick={() => window.open(`/intake-form?lead_id=${viewingIntakeForm.id}&readonly=true&show_will=true`, '_blank')}
-                      >
-                        📄 View Generated Will
-                      </button>
                       {isCompletedIntake && (
                         <button
                           style={{
@@ -1106,6 +1092,16 @@ export default function DashboardV2() {
 
           {isCompletedIntake && (
             <div className='nv-modal-actions'>
+              <button
+                className='nv-btn-qualify'
+                style={{ background: '#2f7c94' }}
+                onClick={() => {
+                  setDocumentFormId(viewingIntakeForm.id);
+                  setShowDocumentGenerator(true);
+                }}
+              >
+                📄 Generate Documents
+              </button>
               <button
                 className='nv-btn-view'
                 onClick={() => {
@@ -1377,17 +1373,6 @@ export default function DashboardV2() {
                             style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
                           >
                             View
-                          </button>
-                          <button
-                            type='button'
-                            className='nv-btn-view'
-                            onClick={() => {
-                              setDocumentFormId(form.id);
-                              setShowDocumentGenerator(true);
-                            }}
-                            style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', background: '#2f7c94' }}
-                          >
-                            📄 Generate
                           </button>
                           <button
                             type='button'
