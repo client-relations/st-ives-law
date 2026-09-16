@@ -12,9 +12,12 @@ export function DocumentSelection({ formId, intakeData, onClose }: DocumentGener
   const [generating, setGenerating] = useState(false);
 
   const TEMPLATE_OPTIONS = [
-    { id: 'simple_will', label: 'Simple Will', description: 'Standard will with basic provisions' },
-    { id: 'single_tt_will', label: 'Single Testamentary Trust Will', description: 'Will with single testamentary trust' },
-    { id: 'multi_tt_will', label: 'Multi Testamentary Trust Will', description: 'Will with multiple testamentary trusts' },
+    { id: 'simple_will_individual', label: 'Simple Will - Individual', description: 'Standard will with basic provisions' },
+    { id: 'simple_will_couple', label: 'Simple Will - Couple', description: 'Standard will for couple' },
+    { id: 'single_tt_will_individual', label: 'Single TT Will - Individual', description: 'Will with single testamentary trust' },
+    { id: 'single_tt_will_couple', label: 'Single TT Will - Couple', description: 'Will with single testamentary trust for couple' },
+    { id: 'multi_tt_will_individual', label: 'Multi TT Will - Individual', description: 'Will with multiple testamentary trusts' },
+    { id: 'multi_tt_will_couple', label: 'Multi TT Will - Couple', description: 'Will with multiple testamentary trusts for couple' },
   ];
 
   const toggleTemplate = (id: string) => {
@@ -31,15 +34,18 @@ export function DocumentSelection({ formId, intakeData, onClose }: DocumentGener
 
     setGenerating(true);
     try {
-      const scenario = intakeData.engagement?.type?.includes('Couple') ? 'couple' : 'individual';
-
-      // Map form data to template variables
+      // Map form data to template variables once
       const templateVars = mapFormDataToTemplate(intakeData, formId);
 
-      // Generate documents
+      // Generate documents - extract scenario from template ID
       const generatedDocs = await Promise.all(
-        selectedTemplates.map((templateType) =>
-          fetch('/api/generate-document', {
+        selectedTemplates.map((templateId) => {
+          // Template IDs are like: simple_will_individual, multi_tt_will_couple
+          const parts = templateId.split('_');
+          const scenario = parts[parts.length - 1]; // 'individual' or 'couple'
+          const templateType = parts.slice(0, -1).join('_'); // 'simple_will', 'multi_tt_will', etc.
+
+          return fetch('/api/generate-document', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -47,8 +53,8 @@ export function DocumentSelection({ formId, intakeData, onClose }: DocumentGener
               scenario,
               ...templateVars,
             }),
-          }).then((r) => r.json())
-        )
+          }).then((r) => r.json());
+        })
       );
 
       // Store generated documents and move to editor screen
@@ -74,61 +80,44 @@ export function DocumentSelection({ formId, intakeData, onClose }: DocumentGener
   };
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
-      <h1>Generate Documents</h1>
+    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px' }}>
+      <h1>Select Templates to Generate</h1>
+      <p style={{ color: '#666', marginTop: '10px' }}>Choose which will templates you want to generate for this client</p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginTop: '40px' }}>
-        {/* Left: Standard Package */}
-        <div>
-          <h2 style={{ marginTop: 0 }}>Standard Package</h2>
-          <p style={{ color: '#666' }}>
-            Based on scenario: <strong>{intakeData.scenario === 'Couple' ? 'Couple' : 'Individual'}</strong>
-          </p>
-          <div style={{ background: '#f5f5f5', padding: '20px', borderRadius: '8px', marginTop: '20px' }}>
-            <p style={{ margin: '0 0 15px', fontWeight: 600 }}>Included in standard package:</p>
-            <ul style={{ margin: '0', paddingLeft: '20px' }}>
-              <li>Simple Will</li>
-              <li>Enduring Power of Attorney</li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Right: Additional Documents */}
-        <div>
-          <h2 style={{ marginTop: 0 }}>Select Additional Documents</h2>
-          <p style={{ color: '#666' }}>Choose which documents to generate</p>
-
-          <div style={{ marginTop: '20px' }}>
-            {TEMPLATE_OPTIONS.map((template) => (
-              <div
-                key={template.id}
-                style={{
-                  padding: '15px',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  marginBottom: '12px',
-                  cursor: 'pointer',
-                  background: selectedTemplates.includes(template.id) ? '#e8f4f8' : '#fff',
-                  borderColor: selectedTemplates.includes(template.id) ? '#4a8fa0' : '#ddd',
-                }}
-                onClick={() => toggleTemplate(template.id)}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedTemplates.includes(template.id)}
-                  onChange={() => {}}
-                  style={{ marginRight: '10px' }}
-                />
-                <label style={{ cursor: 'pointer', fontWeight: 600 }}>
+      <div style={{ marginTop: '30px' }}>
+        {TEMPLATE_OPTIONS.map((template) => (
+          <div
+            key={template.id}
+            style={{
+              padding: '18px',
+              border: '2px solid #ddd',
+              borderRadius: '8px',
+              marginBottom: '14px',
+              cursor: 'pointer',
+              background: selectedTemplates.includes(template.id) ? '#e8f4f8' : '#fff',
+              borderColor: selectedTemplates.includes(template.id) ? '#4a8fa0' : '#ddd',
+              transition: 'all 0.2s',
+            }}
+            onClick={() => toggleTemplate(template.id)}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <input
+                type="checkbox"
+                checked={selectedTemplates.includes(template.id)}
+                onChange={() => {}}
+                style={{ marginTop: '2px', cursor: 'pointer' }}
+              />
+              <div style={{ flex: 1 }}>
+                <label style={{ cursor: 'pointer', fontWeight: 600, fontSize: '15px' }}>
                   {template.label}
                 </label>
-                <p style={{ margin: '5px 0 0 30px', fontSize: '12px', color: '#666' }}>
+                <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#666' }}>
                   {template.description}
                 </p>
               </div>
-            ))}
+            </div>
           </div>
-        </div>
+        ))}
       </div>
 
       <div style={{ display: 'flex', gap: '12px', marginTop: '40px', justifyContent: 'flex-end' }}>
