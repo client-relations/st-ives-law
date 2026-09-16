@@ -23,7 +23,6 @@ export default async function handler(req: any, res: any) {
       documentName: `${templateType}_${templateVars.client_name?.replace(/\s+/g, '_') || 'document'}_${new Date().toISOString().split('T')[0]}`,
     });
   } catch (error: any) {
-    console.error('Error generating document:', error);
     return res.status(500).json({
       error: 'Failed to generate document',
       details: error.message,
