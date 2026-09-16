@@ -3,43 +3,58 @@ import { execSync } from 'child_process';
 import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import Docxtemplater from 'docxtemplater';
+import PizZip from 'pizzip';
 
-// Document processor - handles DOCX template processing and PDF conversion
-// Uses simple file-based approach with LibreOffice for PDF conversion
+// Document processor - handles DOCX template processing using docxtemplater
+// PizZip handles the DOCX ZIP structure, Docxtemplater replaces variables
 
 export async function processDocxTemplate(
   templatePath: string,
   variables: Record<string, string>
 ): Promise<Buffer> {
   try {
-    // Read the template DOCX file
+    // Read the template DOCX file as binary
     const docxBuffer = readFileSync(templatePath);
 
-    // Simple variable replacement - works by reading content as UTF-8
-    // This is a basic approach; production would use proper DOCX library
-    let content = docxBuffer.toString('utf-8', 0, Math.min(100000, docxBuffer.length));
+    // Load the DOCX using PizZip (DOCX is a ZIP file)
+    const zip = new PizZip(docxBuffer);
 
-    // Replace variables
-    Object.entries(variables).forEach(([key, value]) => {
-      const pattern = new RegExp(`<<\\s*${key}\\s*>>`, 'g');
-      content = content.replace(pattern, value || '');
+    // Create Docxtemplater instance
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
     });
 
-    // For now, return the modified buffer (real implementation would repackage DOCX XML)
-    return Buffer.from(content, 'utf-8');
+    // Convert variables to plain object (remove angle brackets if present)
+    const cleanVars: Record<string, string> = {};
+    Object.entries(variables).forEach(([key, value]) => {
+      // Handle both << Variable >> and Variable formats
+      const cleanKey = key.replace(/[<>\s]/g, '');
+      cleanVars[cleanKey] = value || '';
+    });
+
+    // Set template variables and render
+    doc.render(cleanVars);
+
+    // Get the generated document as Buffer
+    const output = doc.getZip().generate({ type: 'nodebuffer' });
+    return output;
   } catch (error) {
-    throw new Error(`Failed to process DOCX template: ${error}`);
+    throw new Error(`Failed to process DOCX template: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
 export async function convertDocxToPdf(docxPath: string): Promise<Buffer> {
-  const tempPdfPath = join(tmpdir(), `will_${Date.now()}.pdf`);
+  const tempDir = tmpdir();
+  const fileName = `will_${Date.now()}`;
+  const tempPdfPath = join(tempDir, `${fileName}.pdf`);
 
   try {
     // Use LibreOffice to convert DOCX to PDF
     // This requires LibreOffice to be installed on the server
     execSync(
-      `libreoffice --headless --convert-to pdf --outdir ${tmpdir()} "${docxPath}"`,
+      `libreoffice --headless --convert-to pdf --outdir "${tempDir}" "${docxPath}"`,
       { encoding: 'utf-8', stdio: 'pipe' }
     );
 
@@ -48,7 +63,7 @@ export async function convertDocxToPdf(docxPath: string): Promise<Buffer> {
     return pdfBuffer;
   } catch (error) {
     // Fallback: return DOCX as binary if PDF conversion fails
-    console.warn('PDF conversion failed, returning DOCX:', error);
+    console.warn('PDF conversion failed, returning DOCX as fallback:', error);
     return readFileSync(docxPath);
   } finally {
     // Clean up temp PDF
@@ -95,6 +110,7 @@ export async function generateWillFromTemplate(
     try {
       readFileSync(path);
       templatePath = path;
+      console.log(`Found template at: ${path}`);
       break;
     } catch (e) {
       // Try next path
