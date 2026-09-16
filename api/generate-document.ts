@@ -1,6 +1,6 @@
 import { generateDocument } from '../artifacts/questionnaire/src/lib/templateEngine';
 
-export default async function handler(req, res) {
+export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -20,9 +20,9 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       documentContent,
-      documentName: `${templateType}_${clientName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`,
+      documentName: `${templateType}_${templateVars.client_name?.replace(/\s+/g, '_') || 'document'}_${new Date().toISOString().split('T')[0]}`,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating document:', error);
     return res.status(500).json({
       error: 'Failed to generate document',
