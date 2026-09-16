@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { execSync } from 'child_process';
 import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';

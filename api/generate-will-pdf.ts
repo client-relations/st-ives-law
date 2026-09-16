@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { generateWillFromTemplate } from './document-processor';
 
 export default async function handler(req: any, res: any) {

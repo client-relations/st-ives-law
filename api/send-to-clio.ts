@@ -1,3 +1,4 @@
+/// <reference types="node" />
 // API endpoint to send generated PDF to Clio via Make webhook
 // This receives the PDF and forwards it to the Make workflow for Clio intake
 
