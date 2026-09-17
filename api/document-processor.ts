@@ -125,14 +125,22 @@ export async function generateWillFromTemplate(
   }
 
   // Look for template in multiple locations
+  // __dirname in Vercel points to the function directory
   const possiblePaths = [
     join(__dirname, 'templates', templateFile), // api/templates (for Vercel)
+    join(__dirname, templateFile), // Direct in api/
     join(process.cwd(), 'api', 'templates', templateFile),
     join(process.cwd(), 'public', 'templates', templateFile),
     join(process.cwd(), 'templates', templateFile),
-    join(process.cwd(), '..', 'OneDrive_2_9-3-2026', templateFile),
-    `C:\\Users\\yxzu\\Desktop\\st ives\\OneDrive_2_9-3-2026\\${templateFile}`,
   ];
+
+  // Add local development paths
+  if (!process.env.VERCEL) {
+    possiblePaths.push(
+      join(process.cwd(), '..', 'OneDrive_2_9-3-2026', templateFile),
+      `C:\\Users\\yxzu\\Desktop\\st ives\\OneDrive_2_9-3-2026\\${templateFile}`
+    );
+  }
 
   let templatePath = '';
   for (const path of possiblePaths) {
@@ -142,6 +150,7 @@ export async function generateWillFromTemplate(
       console.log(`Found template at: ${path}`);
       break;
     } catch (e) {
+      console.log(`Template not found at: ${path}`);
       // Try next path
     }
   }
