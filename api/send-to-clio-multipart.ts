@@ -75,8 +75,8 @@ export default async function handler(req: any, res: any) {
     // Combine all parts
     const body = Buffer.concat(parts);
 
-    // Send directly to Clio API v4
-    const clioUrl = 'https://app.clio.com/api/v4/documents';
+    // Send directly to Clio API v4 (AU region)
+    const clioUrl = 'https://au.app.clio.com/api/v4/documents';
 
     console.log(`Sending multipart document to Clio: ${clioUrl}`);
     console.log(`Matter ID: ${matter_id}, Document: ${documentName}`);
