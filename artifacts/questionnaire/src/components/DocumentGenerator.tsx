@@ -77,6 +77,7 @@ export function DocumentSelection({ formId, intakeData, onClose }: DocumentGener
           documents: generatedDocs,
           scenario: firstScenario,
           timestamp: new Date().toISOString(),
+          rawFormData: intakeData, // Store raw form data for reference
         })
       );
 
@@ -264,6 +265,22 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
     { label: 'Jurisdiction', key: 'Matter.CustomField.Jurisdiction' },
   ];
 
+  // Extract raw form data for beneficiary percentages display
+  const extractRawFormData = () => {
+    const stored = localStorage.getItem(`generated_docs_${formId}`);
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        return data.rawFormData || null;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const rawFormData = extractRawFormData();
+
   return (
     <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '20px' }}>
       <h1>Document Generated</h1>
@@ -309,6 +326,83 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
             );
           })}
         </div>
+
+        {/* Beneficiary Distribution Section */}
+        {rawFormData && (
+          <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #ddd' }}>
+            <h4 style={{ margin: '0 0 12px 0', color: '#2f4858', fontSize: '14px' }}>
+              💰 Beneficiary Distribution (Percentages)
+            </h4>
+            <p style={{ fontSize: '12px', color: '#999', margin: '0 0 12px 0' }}>
+              Review percentages below and manually integrate into the will document as needed.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+              {[1, 2, 3].map((num) => {
+                const name = rawFormData?.intake?.[`beneficiary${num}`] || '';
+                const pct = rawFormData?.intake?.[`beneficiary${num}_pct`] || '';
+                return (
+                  <div
+                    key={`bene${num}`}
+                    style={{
+                      padding: '10px',
+                      background: name ? '#f0f7fb' : '#f5f5f5',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#666', marginBottom: '4px' }}>
+                      Beneficiary {num}
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#333', marginBottom: '4px' }}>
+                      {name || '(not specified)'}
+                    </div>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#4a8fa0' }}>
+                      {pct ? `${pct}%` : '—'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Calamity Beneficiaries */}
+            {(rawFormData?.intake?.calamity1 ||
+              rawFormData?.intake?.calamity2 ||
+              rawFormData?.intake?.calamity3) && (
+              <div style={{ marginTop: '12px' }}>
+                <h5 style={{ margin: '0 0 8px 0', color: '#2f4858', fontSize: '13px' }}>
+                  ⚠️ Calamity Beneficiaries
+                </h5>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                  {[1, 2, 3].map((num) => {
+                    const name = rawFormData?.intake?.[`calamity${num}`] || '';
+                    const pct = rawFormData?.intake?.[`calamity${num}_pct`] || '';
+                    return name ? (
+                      <div
+                        key={`cal${num}`}
+                        style={{
+                          padding: '8px',
+                          background: '#fff3e0',
+                          border: '1px solid #ffc107',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#666', marginBottom: '2px' }}>
+                          Calamity {num}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#333' }}>
+                          {name}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#f57c00', fontWeight: 600 }}>
+                          {pct ? `${pct}%` : '—'}
+                        </div>
+                      </div>
+                    ) : null;
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '20px' }}>
