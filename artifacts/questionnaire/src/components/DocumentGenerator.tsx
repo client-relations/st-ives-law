@@ -295,12 +295,21 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
     }
 
     try {
-      // Send DOCX directly to Clio via Make.com webhook
-      const makeWebhookUrl = process.env.VITE_SEND_TO_CLIO_WEBHOOK;
-      if (!makeWebhookUrl) {
-        alert('Clio webhook not configured. Set VITE_SEND_TO_CLIO_WEBHOOK in .env');
+      // Fetch matter_id from Supabase for this form
+      const { supabase } = await import('../lib/supabase');
+      const { data: formData, error } = await supabase
+        .from('forms')
+        .select('matter_id')
+        .eq('id', formId)
+        .single();
+
+      if (error || !formData?.matter_id) {
+        alert('Matter ID not found. Please ensure the form is linked to a Clio matter.');
         return;
       }
+
+      // Send DOCX directly to Clio via Make.com webhook
+      const makeWebhookUrl = 'https://hook.eu2.make.com/5n4gkxudn5a79qwbl99wtmr9xg0ddpu8';
 
       const response = await fetch(makeWebhookUrl, {
         method: 'POST',
@@ -311,6 +320,7 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
           templateType: doc.templateType,
           scenario: doc.scenario,
           formId: formId,
+          matter_id: formData.matter_id,
           timestamp: new Date().toISOString(),
         }),
       });
@@ -322,7 +332,7 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
       alert('✓ Document sent to Clio successfully!');
     } catch (error) {
       console.error('Error sending to Clio:', error);
-      alert('Failed to send to Clio. Check webhook URL and Make.com flow.');
+      alert('Failed to send to Clio. Ensure matter_id is set in Supabase.');
     }
   };
 
