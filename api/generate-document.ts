@@ -35,24 +35,39 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // Map form variables to Clio format template variables
+    // Map form variables to template variables (match actual template field names)
+    // Templates use Matter.Relationships.Mr.Name and Matter.Relationships.Mrs.Name for client names
     const variables: Record<string, string> = {
-      'Matter.Client.Name': client_name || '',
+      // Client names (Mr/Mrs for couples, Mr or Mrs for individual)
+      'Matter.Relationships.Mr.Name': client_name || '',
+      'Matter.Relationships.Mrs.Name': client_name || '', // Same for both in couple scenario
       'Matter.Client.Address': client_address || '',
+
+      // Executors
       'Matter.CustomField.InitialExecutor': exec_initial_name || '',
       'Matter.CustomField.BackupExecutor': exec_backup || '',
       'Matter.CustomField.FurtherBackupExecutor': exec_further_backup || '',
+
+      // Guardians
       'Matter.CustomField.InitialGuardian': guardian_initial || '',
       'Matter.CustomField.BackupGuardian': guardian_backup || '',
+
+      // Beneficiaries
       'Matter.CustomField.Beneficiary1': beneficiary1 || '',
       'Matter.CustomField.Beneficiary2': beneficiary2 || '',
       'Matter.CustomField.Beneficiary3': beneficiary3 || '',
+
+      // Calamity beneficiaries
       'Matter.CustomField.CalamityBeneficiary1': calamity1 || '',
       'Matter.CustomField.CalamityBeneficiary2': calamity2 || '',
       'Matter.CustomField.CalamityBeneficiary3': calamity3 || '',
+
+      // Matter details
       'Matter.Jurisdiction': governing_jurisdiction || 'NSW',
       'Matter.ClientReferenceNumber': form_id || '',
       'Matter.OriginatingAttorney.Initials': lawyer_initials || 'SA',
+
+      // Firm details
       'Firm.Name': 'St Ives Law',
       'Firm.Address': 'St Ives Law Address',
       'Firm.Phone': '(02) 1234 5678',
