@@ -46,15 +46,15 @@ export default async function handler(req: any, res: any) {
         pdf_filename,
         timestamp: new Date().toISOString(),
       }),
-    });
+    } as any);
 
-    if (!webhookResponse.ok) {
+    if (!(webhookResponse as any).ok) {
       throw new Error(
-        `Make webhook failed with status ${webhookResponse.status}: ${await webhookResponse.text()}`
+        `Make webhook failed with status ${(webhookResponse as any).status}: ${await (webhookResponse as any).text()}`
       );
     }
 
-    const webhookResult = await webhookResponse.json();
+    const webhookResult = await (webhookResponse as any).json();
 
     return res.status(200).json({
       success: true,
