@@ -46,7 +46,7 @@ export interface TemplateVariables {
   governing_jurisdiction?: string;
   form_id?: string;
   lawyer_initials?: string;
-  // TT1 fields (from distribution scenarios)
+  // TT1 fields (Testamentary Trust 1)
   initial_appointor_tt1?: string;
   backup_appointor_tt1?: string;
   further_backup_appointor_tt1?: string;
@@ -54,6 +54,14 @@ export interface TemplateVariables {
   backup_trustee_tt1?: string;
   further_backup_trustee_tt1?: string;
   nominated_beneficiary_tt1?: string;
+  // TT2 fields (Testamentary Trust 2 - for Multi TT Will)
+  initial_appointor_tt2?: string;
+  backup_appointor_tt2?: string;
+  further_backup_appointor_tt2?: string;
+  initial_trustee_tt2?: string;
+  backup_trustee_tt2?: string;
+  further_backup_trustee_tt2?: string;
+  nominated_beneficiary_tt2?: string;
 }
 
 function formatPersonName(person: any): string {
@@ -113,6 +121,15 @@ export function mapFormDataToTemplate(formData: any, formId: string): TemplateVa
   const trusteeTt1Further = intake?.fund1_trustee_further || '';
   const beneficiaryTt1 = intake?.fund1_beneficiary || '';
 
+  // Testamentary Trust 2 fields (for Multi TT Will)
+  const appointorTt2Initial = intake?.fund2_appointor_initial || '';
+  const appointorTt2Backup = intake?.fund2_appointor_backup || '';
+  const appointorTt2Further = intake?.fund2_appointor_further || '';
+  const trusteeTt2Initial = intake?.fund2_trustee_initial || '';
+  const trusteeTt2Backup = intake?.fund2_trustee_backup || '';
+  const trusteeTt2Further = intake?.fund2_trustee_further || '';
+  const beneficiaryTt2 = intake?.fund2_beneficiary || '';
+
   return {
     client_name: clientName,
     spouse_name: spouseName,
@@ -138,6 +155,13 @@ export function mapFormDataToTemplate(formData: any, formId: string): TemplateVa
     backup_trustee_tt1: trusteeTt1Backup,
     further_backup_trustee_tt1: trusteeTt1Further,
     nominated_beneficiary_tt1: beneficiaryTt1,
+    initial_appointor_tt2: appointorTt2Initial,
+    backup_appointor_tt2: appointorTt2Backup,
+    further_backup_appointor_tt2: appointorTt2Further,
+    initial_trustee_tt2: trusteeTt2Initial,
+    backup_trustee_tt2: trusteeTt2Backup,
+    further_backup_trustee_tt2: trusteeTt2Further,
+    nominated_beneficiary_tt2: beneficiaryTt2,
   };
 }
 

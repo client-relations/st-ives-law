@@ -29,7 +29,7 @@ export default async function handler(req: any, res: any) {
       calamity1,
       calamity2,
       calamity3,
-      // Testamentary Trust fields (for Single TT Will)
+      // Testamentary Trust 1 fields (for Single TT Will)
       initial_appointor_tt1,
       backup_appointor_tt1,
       further_backup_appointor_tt1,
@@ -37,6 +37,14 @@ export default async function handler(req: any, res: any) {
       backup_trustee_tt1,
       further_backup_trustee_tt1,
       nominated_beneficiary_tt1,
+      // Testamentary Trust 2 fields (for Multi TT Will)
+      initial_appointor_tt2,
+      backup_appointor_tt2,
+      further_backup_appointor_tt2,
+      initial_trustee_tt2,
+      backup_trustee_tt2,
+      further_backup_trustee_tt2,
+      nominated_beneficiary_tt2,
       ...extraVars
     } = req.body;
 
@@ -81,6 +89,19 @@ export default async function handler(req: any, res: any) {
 
       // Testamentary Trust 1 - Beneficiary (Single TT Will)
       'Matter.CustomField.NominatedBeneficiaryTt1': nominated_beneficiary_tt1 || '',
+
+      // Testamentary Trust 2 - Appointors (Multi TT Will)
+      'Matter.CustomField.InitialAppointorTt2': initial_appointor_tt2 || '',
+      'Matter.CustomField.BackupAppointorTt2': backup_appointor_tt2 || '',
+      'Matter.CustomField.FurtherBackupAppointorTt2': further_backup_appointor_tt2 || '',
+
+      // Testamentary Trust 2 - Trustees (Multi TT Will)
+      'Matter.CustomField.InitialTrusteeTt2': initial_trustee_tt2 || '',
+      'Matter.CustomField.BackupTrusteeTt2': backup_trustee_tt2 || '',
+      'Matter.CustomField.FurtherBackupTrusteeTt2': further_backup_trustee_tt2 || '',
+
+      // Testamentary Trust 2 - Beneficiary (Multi TT Will)
+      'Matter.CustomField.NominatedBeneficiaryTt2': nominated_beneficiary_tt2 || '',
 
       // Guardians (both templates)
       'Matter.CustomField.InitialGuardian': guardian_initial || '',
