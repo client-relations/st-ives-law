@@ -10,7 +10,7 @@ import { execSync } from 'child_process';
  */
 export async function convertDocxToHtml(docxBase64: string): Promise<string> {
   try {
-    const { Mammoth } = await import('mammoth');
+    const Mammoth = await import('mammoth');
 
     // Decode Base64 to buffer
     const docxBuffer = Buffer.from(docxBase64, 'base64');
@@ -28,35 +28,10 @@ export async function convertDocxToHtml(docxBase64: string): Promise<string> {
 /**
  * Convert edited HTML back to DOCX
  * Returns DOCX as Base64
+ * NOTE: Requires 'docx' package - not currently installed
  */
 export async function convertHtmlToDocx(htmlContent: string): Promise<string> {
-  try {
-    const { Document, Packer, Paragraph, Table, TableRow, TableCell } = await import('docx');
-
-    // Simple HTML to DOCX conversion (maintains basic formatting)
-    // This is a simplified version - for complex formatting, would need more sophisticated parsing
-    const paragraphs = htmlContent
-      .split('<p>')
-      .filter(p => p.trim())
-      .map(p => {
-        const text = p.replace(/<\/?[^>]+(>|$)/g, '').trim();
-        return new Paragraph({
-          text: text || ' ',
-        });
-      });
-
-    const doc = new Document({
-      sections: [{
-        children: paragraphs,
-      }],
-    });
-
-    const buffer = await Packer.toBuffer(doc);
-    return buffer.toString('base64');
-  } catch (error) {
-    console.error('HTML to DOCX conversion error:', error);
-    throw new Error(`Failed to convert HTML to DOCX: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  throw new Error('HTML to DOCX conversion not available. Install docx package to enable.');
 }
 
 /**
