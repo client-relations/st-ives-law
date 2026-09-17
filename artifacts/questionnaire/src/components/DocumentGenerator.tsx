@@ -308,31 +308,30 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
         return;
       }
 
-      // Send DOCX directly to Clio via Make.com webhook
-      const makeWebhookUrl = 'https://hook.eu2.make.com/5n4gkxudn5a79qwbl99wtmr9xg0ddpu8';
-
-      const response = await fetch(makeWebhookUrl, {
+      // Send DOCX as multipart/form-data to Clio via Make.com webhook
+      const response = await fetch('/api/send-to-clio-multipart', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          documentName: doc.documentName,
           docxBase64: doc.documentBase64,
+          matter_id: formData.matter_id,
+          documentName: doc.documentName,
           templateType: doc.templateType,
           scenario: doc.scenario,
           formId: formId,
-          matter_id: formData.matter_id,
-          timestamp: new Date().toISOString(),
         }),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error(`Webhook returned ${response.status}`);
+        throw new Error(result.details || `Request failed: ${response.status}`);
       }
 
       alert('✓ Document sent to Clio successfully!');
     } catch (error) {
       console.error('Error sending to Clio:', error);
-      alert('Failed to send to Clio. Ensure matter_id is set in Supabase.');
+      alert(`Failed to send to Clio: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
