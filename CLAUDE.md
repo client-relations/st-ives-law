@@ -1,23 +1,23 @@
 # St Ives Law Lawyer Dashboard
 
-**Purpose**: Multi-lawyer intake management system for St Ives Law. Tracks client screening, lead qualification, form completion, and submission to Smokeball.
+**Purpose**: Multi-lawyer intake management system for St Ives Law. Tracks client screening, lead qualification, intake form completion, document generation, and PDF preview.
 
-**Current Date**: 2026-09-09
+**Current Date**: 2026-09-17
 
 ## Project Overview
 
-A React-based dashboard for lawyers to manage client intake from screening form through estate planning questionnaire completion. Supports multi-role access (lawyer vs admin), webhook integration for notifications/reminders, and real-time data sync with Supabase backend.
+A React-based dashboard for lawyers to manage client intake from screening through intake form completion and DOCX document generation. Supports multi-role access (lawyer vs admin), webhook integration for form submissions and email confirmations, and real-time data sync with Supabase backend.
 
 ### Key Features
 
-1. **Lead Management** - Pending leads with qualification workflow (+ deprioritized)
-2. **Form Tracking** - Kanban board: Appointment Sent → Scheduled → Pending Intake → Completed Intake
-3. **Screening Forms** - ScreeningFormV2.tsx for collecting initial client info (person or firm)
-4. **Inquiry Form** - Standalone HTML form (lead-inquiry.html) with 8 questions + early-exit handling
-5. **Webhook Integration** - Make platform for notifications, reminders, Smokeball submission
+1. **Inquiry Form** - Lead-inquiry.html for initial 8-question screening with early-exit handling
+2. **Intake Form** - 14-step estate planning questionnaire (client, assets, executors, beneficiaries, etc.)
+3. **Document Generation** - Auto-generate DOCX from intake form data + optional PDF preview
+4. **Lawyer Dashboard** - View completed forms, download/preview generated documents
+5. **Webhook Integration** - Form completion triggers Make.com for email confirmations
 6. **Multi-Lawyer Support** - Role-based access, lawyer assignment, filtering by responsible lawyer
-7. **Dashboard Overview** - Stats on pending leads, pending intake forms, completed forms
-8. **Delete Functionality** - Delete forms in Appointment Sent and Scheduled columns
+7. **Form Tracking** - Status workflow from inquiry through document generation
+8. **PDF Preview** - View generated documents before download (requires LibreOffice)
 
 ## Tech Stack
 
@@ -89,8 +89,8 @@ src/
 │   ├── dashboard.css                (Kanban, grid, modals)
 │   ├── auth.css                     (Login/signup styling)
 │   └── ...
-├── utils/
-│   ├── webhookBuilder.ts            (Smokeball payload builder)
+├── lib/
+│   ├── formToTemplateMapper.ts      (Map webhook → template variables)
 │   └── ...
 ├── public/
 │   ├── lead-inquiry.html            (Standalone inquiry form, 8 questions)
@@ -183,152 +183,104 @@ completed_intake → submitted (TBD - button not shown yet)
 
 ## API Endpoints
 
-### /api/submit-form (POST)
-**Purpose**: Save form data, update form status
+### /api/generate-document (POST)
+**Purpose**: Generate DOCX from template with filled form data
 
 **Request**:
 ```json
 {
-  "lead_id": "form-uuid",
-  "form_data": { "inquiry_reason": "...", "client_name": "...", ... },
-  "form_type": "inquiry"
+  "templateType": "simple_will|single_tt_will|multi_tt_will",
+  "scenario": "individual|couple",
+  "client_name": "John Smith",
+  "client_address": "123 Main St",
+  "exec_initial_name": "Bob Brown",
+  "beneficiary1": "Son Name",
+  "governing_jurisdiction": "NSW",
+  "form_id": "form-uuid"
 }
 ```
 
-**Status Logic**:
-- If inquiry + status appointment_sent → update to 'scheduled'
-- If intake + status pending_intake → update to 'completed_intake'
-- Otherwise: keep status
+**Response**:
+```json
+{
+  "success": true,
+  "documentName": "Will - Couple (single_tt_will)",
+  "documentBase64": "UEsDBBQABgAI...",
+  "documentPdfBase64": "JVBERi0xLjQK..." (optional, null if LibreOffice unavailable),
+  "variables": {...}
+}
+```
 
-**Response**: `{ success: true, lead_id }`
+### Form Webhook (Intake Form Completion)
+**Purpose**: Receive completed intake form data and trigger email confirmation
 
-### /api/get-form (GET)
-**Purpose**: Fetch saved form data for viewing
+**Source**: `intake-form-site/index.html` via Make.com
 
-**Query**: `?lead_id=form-uuid`
-
-**Response**: `{ success: true, data: { inquiry: {...} }, status: "scheduled" }`
+**Payload**: Flat JSON structure with client_first_name, executor names, beneficiaries, etc.
 
 ## Webhook Integration
 
 ### Current Implementation
-- Using Make platform for email/reminders (TBD)
-- Using n8n for Clio integration (NEW)
+- **Intake Form Completion**: Make.com webhook for email confirmations (TBD setup)
+- **Data Storage**: Completed forms stored in Supabase `forms.form_data` (JSONB)
+- **Document Generation**: API endpoint triggers DOCX generation with template variables
 
-### Webhooks to Implement
+### Webhook Flow
+1. Client completes 14-step intake form
+2. Form posts to Make.com webhook
+3. Make.com triggers confirmation email
+4. Form data stored in Supabase
+5. Lawyer views completed form in dashboard
+6. Lawyer clicks "Generate Document"
+7. API calls `/api/generate-document` with mapped template variables
+8. DOCX generated and returned with optional PDF preview
 
-**SEND_FORM_EMAIL_WEBHOOK** (Make Platform)
-- Triggers when form created (qualification)
-- Payload: form_id, client_name, client_email, form_link
-- Action: Sends email to client with inquiry form link
-
-**EMAIL_CONFIRMATION_WEBHOOK** (Make Platform)
-- Triggers when client completes inquiry
-- Payload: form_id, client_name, client_email, completed_at
-- Action: Sends confirmation email to client
-
-**REMINDER_WEBHOOK** (Make Platform)
-- Triggers at 3d, 1w, 2w
-- Payload: form_id, reminder_type, client details
-- Action: Sends reminder email to client
-
-**CLIO_INTAKE_WEBHOOK** (n8n - NEW)
-- Triggers when intake form completed & validated
-- Payload: Full intake form data in Clio API format (see below)
-- Action: Creates/updates matter in Clio
-
-**CLIO_SEND_BACK_WEBHOOK** (n8n - NEW)
-- Triggers when intake validation fails
-- Payload: form_id, client info, missing_fields array, validation_errors
-- Action: Sends form back to client with missing info report via n8n
-
-### Clio Webhook Format (RESEARCHED)
-
-**Clio Data Structure** (from Zapier integration research):
-
-#### Client/Contact Data
-```json
-{
-  "type": "person|company",
-  "first_name": "string",
-  "middle_name": "string (optional)",
-  "last_name": "string",
-  "prefix": "string (optional)",
-  "title": "string (optional)",
-  "date_of_birth": "YYYY-MM-DD (optional)",
-  "email": "string (optional)",
-  "phone": "string (optional)",
-  "website": "string (optional)",
-  "instant_messenger": "string (optional)",
-  "address": {
-    "street": "string",
-    "city": "string",
-    "province_state": "string",
-    "postal_code": "string",
-    "country": "string"
-  },
-  "company": "string (optional - for person contacts)"
-}
-```
-
-#### Matter Data
-```json
-{
-  "client_id": "integer (required - Clio client ID)",
-  "practice_area": "string",
-  "description": "string",
-  "originating_attorney_id": "integer (optional)",
-  "responsible_attorney_id": "integer (optional)",
-  "status": "string (e.g., 'Open', 'Closed')",
-  "billable": "boolean",
-  "budget": "decimal (optional)",
-  "pending_date": "YYYY-MM-DD (optional)",
-  "open_date": "YYYY-MM-DD (optional)",
-  "close_date": "YYYY-MM-DD (optional)",
-  "location": "string (optional)",
-  "due_date": "YYYY-MM-DD (optional)",
-  "notification": "boolean (optional)"
-}
-```
-
-#### Custom Fields (For Estate Planning)
-Clio supports custom fields via API. Likely needed:
-- Will details (executors, beneficiaries, specific gifts)
-- Trust information
-- Power of Attorney designations
-- Guardian assignments (for minors)
-- Asset inventory
-- Funeral preferences
-
-**Authentication:**
-- Clio uses OAuth 2.0 or API token authentication
-- n8n has built-in Clio integration node (via OAuth)
-
----
-
-**Intake Form (14 Steps):**
+### Intake Form (14 Steps)
 Located at: `C:\Users\yxzu\Desktop\st ives\intake-form-site (2)\index.html`
 
-1. Scenario & Client Details (Single/Couple, name, address, state, marital status, spouse info, jurisdiction)
-2. Assets & Liabilities (real estate, bank, superannuation, other assets - repeatable items)
-3. Document Type (Will, EPA, Advance Care Directive, SDT - at least one required)
-4. Executor(s) (primary, backup, tertiary, joint/sole, power of sale)
+1. Scenario & Client Details (Single/Couple, name, address, state, spouse info)
+2. Assets & Liabilities (real estate, bank, superannuation, other assets)
+3. Document Type (Will, EPA, Advance Care Directive, SDT)
+4. Executor(s) (primary, backup, tertiary, joint/sole arrangement)
 5. Exclusions (who to exclude, reason, no-contest clause)
-6. Specific Gifts (up to 5 in standard fee, repeatable)
-7. Company Directorship (company name, ACN, treatment, share disposition)
-8. Life Tenancy (life tenant, property, outgoings, balance, sale power)
-9. Residuary Estate (trust funds 0-2, beneficiaries 1-3, calamity beneficiaries, FPE trust)
-10. Special Disability Trust (yes/no, mechanism, principal beneficiary)
+6. Specific Gifts (repeatable items with value)
+7. Company Directorship (company name, ACN, treatment)
+8. Life Tenancy (life tenant, property, outgoings)
+9. Residuary Estate (trust structure, beneficiaries, distribution)
+10. Special Disability Trust (yes/no, beneficiary)
 11. Guardianship (minor children, guardians)
-12. Funeral Wishes (organ donation, burial/cremation, other wishes)
-13. Enduring Power of Attorney (attorneys, jointly/severally, effectiveness, additional powers)
-14. Letter of Wishes & Custody (signing date, custody, wills register)
+12. Funeral Wishes (organ donation, burial/cremation preferences)
+13. Enduring Power of Attorney (attorneys, arrangements, additional powers)
+14. Letter of Wishes & Custody (signing date, storage location, register)
 
-**Current Data Flow:**
-- Form completion triggers webhook to Make.com
-- Webhook payload contains structured form data for confirmation email
-- Completed form is stored in Supabase with form_data JSONB
-- Webhook data → builds client/matter/custom fields for Clio (via webhookBuilder.ts)
+### Webhook Payload Structure
+```json
+{
+  "client_first_name": "Warren",
+  "client_last_name": "Coupl",
+  "client_email": "warren.ocampo@lex-ops.io",
+  "client_phone": "123123",
+  "client_address": "test address",
+  "client_state": "VIC",
+  "scenario": "Couple",
+  "spouse_name": "test wife",
+  "executor_primary_name": "test executor",
+  "executor_backup_name": "backup",
+  "executor_tertiary_name": "further",
+  "beneficiaries": "Beneficiaries:\n• beneficiary 1 - 90%",
+  "calamity_beneficiaries": "No calamity beneficiaries",
+  "has_minors": "Yes",
+  "guardian_primary": "",
+  "guardian_backup": "",
+  "form_id": "415a7c1e-cb0b-4075-be65-d925ee1e8c41",
+  "submission_date": "2026-09-12T17:58:12.893"
+}
+```
+
+### Future: Clio Integration (TBD)
+- Research required: Clio API authentication, custom field mapping
+- Plan: n8n flow to transform form data → Clio client/matter/custom fields
+- Not yet implemented
 
 ## Authentication & Authorization
 
@@ -385,28 +337,22 @@ Located at: `C:\Users\yxzu\Desktop\st ives\intake-form-site (2)\index.html`
 ## Known Limitations & TODOs
 
 ### Not Yet Implemented
-- [ ] Intake form (Parts A-D) - Send Intake Form button disabled
-- [ ] Populate Matter to Smokeball - button not shown
-- [ ] Edit/Send Back buttons - not shown
-- [ ] Overdue reminders (3d, 1w, 2w)
-- [ ] Webhook automation (Make platform integration)
-- [ ] Demo mode removed from main workflow
-
-### Disabled Features
-- View button in Pending Intake (form not ready)
-- Send Intake Form button (form not implemented)
-- Webhooks (awaiting Make platform setup)
+- [ ] Make.com webhook setup (form completion → email confirmation)
+- [ ] Edited DOCX storage in Supabase
+- [ ] DOCX download/preview in dashboard (currently only API endpoint)
+- [ ] Clio integration (webhook to create matters)
+- [ ] Email reminders (3d, 1w, 2w overdue)
 
 ### Known Issues
-- None currently
+- PDF generation requires LibreOffice installed (gracefully falls back to DOCX only)
+- Lawyer assignment workflow needs refinement
 
 ### Production Checklist
 - [ ] Enable RLS policies on lawyers table
-- [ ] Set up Make platform webhooks
-- [ ] Implement intake form (Parts A-D)
-- [ ] Add Smokeball submission workflow
-- [ ] Enable email confirmations
-- [ ] Test full end-to-end workflow
+- [ ] Set up Make.com webhook for form confirmation emails
+- [ ] Test document generation with actual form data
+- [ ] Configure PDF generation if LibreOffice available
+- [ ] Test full end-to-end workflow (form → document → download)
 - [ ] Set admin account creation process
 
 ## Setup Notes

@@ -63,60 +63,22 @@ function formatPersonName(person: any): string {
 }
 
 export function mapFormDataToTemplate(formData: any, formId: string): TemplateVariables {
-  // Handle both webhook structure and form object structure
-  let clientName = '';
-  let clientAddress = '';
-  let executors: any[] = [];
-  let guardians: any[] = [];
-  let beneProfiles: Record<string, any> = {};
-  let jurisdiction = '';
+  // Current webhook structure: flat JSON with client_first_name, client_last_name, etc.
+  const clientName = `${formData.client_first_name || ''} ${formData.client_last_name || ''}`.trim();
+  const spouseName = formData.spouse_name || '';
+  const clientAddress = formData.client_address || '';
 
-  // Check if this is a form object (has form_data) or webhook payload
-  if (formData.form_data) {
-    // Form object structure
-    const aData = formData.form_data.aData || {};
-    const cData = formData.form_data.cData || {};
-    const c1 = aData.c1 || {};
+  // Executors
+  const execInitial = formData.executor_primary_name || '';
+  const execBackup = formData.executor_backup_name || '';
+  const execFurther = formData.executor_tertiary_name || '';
 
-    // Client name and address
-    clientName = formatPersonName({ first: c1.first, last: c1.last });
-    clientAddress = c1.addr || '';
+  // Guardians (from has_minors and guardian fields)
+  const guardianInitial = formData.guardian_primary || '';
+  const guardianBackup = formData.guardian_backup || '';
 
-    // Executors from c1Execs array
-    executors = cData.c1Execs || [];
-
-    // Guardians
-    guardians = cData.guardians || [];
-
-    // Beneficiary profiles
-    beneProfiles = cData.beneProfiles || {};
-
-    // Jurisdiction from state
-    jurisdiction = aData.state || '';
-  } else {
-    // Webhook payload structure
-    const client = formData.client_1 || formData.client_2 || {};
-    clientName = formatPersonName(client);
-    clientAddress = client.address || '';
-    executors = formData.executors || [];
-    guardians = formData.guardians || [];
-    beneProfiles = formData.beneficiary_profiles || {};
-    jurisdiction = formData.engagement?.state || '';
-  }
-
-  // Extract executors
-  const execInitial = executors[0] ? formatPersonName(executors[0]) : '';
-  const execBackup = executors[1] ? formatPersonName(executors[1]) : '';
-  const execFurther = executors[2] ? formatPersonName(executors[2]) : '';
-
-  // Extract guardians
-  const guardianInitial = guardians[0] ? formatPersonName(guardians[0]) : '';
-  const guardianBackup = guardians[1] ? formatPersonName(guardians[1]) : '';
-
-  // Extract beneficiaries from profiles
-  const beneNames = Object.values(beneProfiles)
-    .map((b: any) => formatPersonName(b))
-    .filter(Boolean);
+  // Beneficiaries (extracted from beneficiaries text field "Beneficiaries:\n• beneficiary 1 - 90%")
+  const beneNames = extractBeneficiaryNames(formData.beneficiaries || '');
 
   return {
     client_name: clientName,
@@ -129,10 +91,10 @@ export function mapFormDataToTemplate(formData: any, formId: string): TemplateVa
     beneficiary1: beneNames[0] || '',
     beneficiary2: beneNames[1] || '',
     beneficiary3: beneNames[2] || '',
-    calamity1: '',
-    calamity2: '',
-    calamity3: '',
-    governing_jurisdiction: jurisdiction,
+    calamity1: extractCalamityBeneficiary(formData.calamity_beneficiaries || '', 0),
+    calamity2: extractCalamityBeneficiary(formData.calamity_beneficiaries || '', 1),
+    calamity3: extractCalamityBeneficiary(formData.calamity_beneficiaries || '', 2),
+    governing_jurisdiction: formData.client_state || '',
     form_id: formId,
     lawyer_initials: 'SA',
     initial_appointor_tt1: '',
@@ -143,4 +105,24 @@ export function mapFormDataToTemplate(formData: any, formId: string): TemplateVa
     further_backup_trustee_tt1: '',
     nominated_beneficiary_tt1: '',
   };
+}
+
+function extractBeneficiaryNames(beneficiariesText: string): string[] {
+  // Parse "Beneficiaries:\n• beneficiary 1 - 90%\n• beneficiary 2 - 10%"
+  if (!beneficiariesText || beneficiariesText === 'No beneficiaries defined') return [];
+  const lines = beneficiariesText.split('\n').slice(1); // Skip "Beneficiaries:" header
+  return lines
+    .map(line => {
+      const match = line.match(/•\s*([^-]+)\s*-/);
+      return match ? match[1].trim() : '';
+    })
+    .filter(Boolean);
+}
+
+function extractCalamityBeneficiary(calamityText: string, index: number): string {
+  // Parse "Calamity Beneficiaries:\n• name1\n• name2"
+  if (!calamityText || calamityText === 'No calamity beneficiaries') return '';
+  const lines = calamityText.split('\n').slice(1); // Skip header
+  const match = lines[index]?.match(/•\s*(.+)/);
+  return match ? match[1].trim() : '';
 }
