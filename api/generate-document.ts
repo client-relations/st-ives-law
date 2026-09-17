@@ -1,40 +1,6 @@
 /// <reference types="node" />
 import { generateWillFromTemplate } from './document-processor';
 
-// Helper to extract text content from DOCX for preview
-async function extractTextFromDocx(docxBuffer: Buffer): Promise<string> {
-  try {
-    const JSZip = require('jszip');
-
-    // Parse DOCX as ZIP
-    const zip = await JSZip.loadAsync(docxBuffer);
-
-    // Extract document.xml which contains the actual text content
-    const documentXml = await zip.file('word/document.xml')?.async('text');
-
-    if (!documentXml) {
-      return '[Document content could not be extracted]';
-    }
-
-    // Extract text from XML by removing tags
-    let textContent = documentXml
-      .replace(/<[^>]*>/g, '') // Remove XML tags
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&quot;/g, '"')
-      .replace(/&apos;/g, "'")
-      .replace(/\s+/g, ' ') // Normalize whitespace
-      .trim();
-
-    return textContent || '[Document appears to be empty or unreadable]';
-  } catch (error) {
-    console.error('Error extracting text from DOCX:', error);
-    return '[Unable to extract document preview - document is generated correctly for download]';
-  }
-}
-
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -138,6 +104,7 @@ export default async function handler(req: any, res: any) {
       scenario,
       clientName: client_name || 'Client',
       clientAddress: client_address || '',
+      variables, // Include variables for reference (helps with debugging)
     });
   } catch (error: any) {
     console.error('Document generation error:', error);
