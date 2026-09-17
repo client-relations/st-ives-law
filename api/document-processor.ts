@@ -68,6 +68,19 @@ export async function processDocxTemplate(
             console.log(`  Replaced &lt;&lt;${key}&gt;&gt;`);
           }
 
+          // Handle split placeholders (Word breaks them across runs)
+          // Match: &lt;&lt; [any chars except &] KEY [any chars except &] &gt;&gt;
+          // This allows XML tags to be interspersed within the placeholder
+          const splitPattern = new RegExp(
+            `&lt;&lt;[^&]*?${escapedKey}[^&]*?&gt;&gt;`,
+            'g'
+          );
+          const beforeSplit = xmlContent.length;
+          xmlContent = xmlContent.replace(splitPattern, value || '');
+          if (xmlContent.length !== beforeSplit && xmlContent.length !== beforeHtml) {
+            console.log(`  Replaced ${key} (split format)`);
+          }
+
           // Also handle plain format in case it exists
           const plainPattern = new RegExp(`<<\\s*${escapedKey}\\s*>>`, 'g');
           const beforePlain = xmlContent.length;
