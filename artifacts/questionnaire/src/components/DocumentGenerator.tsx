@@ -295,38 +295,10 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
     }
 
     try {
-      // First, convert to PDF
-      let pdfBase64 = doc.documentPdfBase64;
-
-      if (!pdfBase64) {
-        // Convert DOCX to PDF if not already done
-        const response = await fetch('/api/convert-docx', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'docx-to-pdf',
-            docxBase64: doc.documentBase64,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('PDF conversion failed');
-        }
-
-        const result = await response.json();
-        pdfBase64 = result.pdfBase64;
-      }
-
-      if (!pdfBase64) {
-        alert('PDF conversion failed');
-        return;
-      }
-
-      // Send to Clio via Make.com webhook
-      // TODO: Add Make.com webhook URL from environment
+      // Send DOCX directly to Clio via Make.com webhook
       const makeWebhookUrl = process.env.VITE_SEND_TO_CLIO_WEBHOOK;
       if (!makeWebhookUrl) {
-        alert('Clio webhook not configured. Contact admin.');
+        alert('Clio webhook not configured. Set VITE_SEND_TO_CLIO_WEBHOOK in .env');
         return;
       }
 
@@ -335,20 +307,22 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           documentName: doc.documentName,
-          pdfBase64: pdfBase64,
+          docxBase64: doc.documentBase64,
+          templateType: doc.templateType,
+          scenario: doc.scenario,
           formId: formId,
           timestamp: new Date().toISOString(),
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send to Clio');
+        throw new Error(`Webhook returned ${response.status}`);
       }
 
       alert('✓ Document sent to Clio successfully!');
     } catch (error) {
       console.error('Error sending to Clio:', error);
-      alert('Failed to send to Clio. Please try again.');
+      alert('Failed to send to Clio. Check webhook URL and Make.com flow.');
     }
   };
 
