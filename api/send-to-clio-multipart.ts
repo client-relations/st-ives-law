@@ -21,14 +21,6 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    const clioApiToken = process.env.CLIO_API_TOKEN;
-    if (!clioApiToken) {
-      return res.status(500).json({
-        error: 'CLIO_API_TOKEN environment variable not set',
-      });
-    }
-
-    console.log(`Token length: ${clioApiToken.length}, First 10 chars: ${clioApiToken.substring(0, 10)}, Last 10 chars: ${clioApiToken.substring(clioApiToken.length - 10)}`);
 
     // Convert Base64 to Buffer
     const docxBuffer = Buffer.from(docxBase64, 'base64');
@@ -75,18 +67,17 @@ export default async function handler(req: any, res: any) {
     // Combine all parts
     const body = Buffer.concat(parts);
 
-    // Send directly to Clio API v4 (AU region)
-    const clioUrl = 'https://au.app.clio.com/api/v4/documents';
+    // Send multipart to Make.com webhook for Clio forwarding
+    const makeWebhookUrl = 'https://hook.eu2.make.com/5n4gkxudn5a79qwbl99wtmr9xg0ddpu8';
 
-    console.log(`Sending multipart document to Clio: ${clioUrl}`);
+    console.log(`Sending multipart document to Make.com webhook: ${makeWebhookUrl}`);
     console.log(`Matter ID: ${matter_id}, Document: ${documentName}`);
     console.log(`Body size: ${body.length} bytes`);
 
-    const response = await fetch(clioUrl, {
+    const response = await fetch(makeWebhookUrl, {
       method: 'POST',
       body: body,
       headers: {
-        'Authorization': `Bearer ${clioApiToken}`,
         'Content-Type': `multipart/form-data; boundary=${boundary}`,
         'Content-Length': body.length.toString(),
       },
@@ -103,10 +94,10 @@ export default async function handler(req: any, res: any) {
 
     return res.status(200).json({
       success: true,
-      message: 'Document uploaded to Clio',
+      message: 'Document sent to Make.com webhook for Clio upload',
       matter_id: matter_id,
       documentName: documentName,
-      clioResponse: result,
+      webhookResponse: result,
     });
   } catch (error: any) {
     console.error('Send to Clio multipart error:', error);
