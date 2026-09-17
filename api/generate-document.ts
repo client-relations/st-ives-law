@@ -18,6 +18,18 @@ export default async function handler(req: any, res: any) {
       governing_jurisdiction,
       form_id,
       lawyer_initials,
+      // Executor fields (for Simple Will)
+      exec_initial_name,
+      exec_backup,
+      exec_further_backup,
+      // Beneficiary fields (for Simple Will)
+      beneficiary1,
+      beneficiary2,
+      beneficiary3,
+      calamity1,
+      calamity2,
+      calamity3,
+      // Testamentary Trust fields (for Single TT Will)
       initial_appointor_tt1,
       backup_appointor_tt1,
       further_backup_appointor_tt1,
@@ -35,36 +47,51 @@ export default async function handler(req: any, res: any) {
     }
 
     // Map form variables to actual template field names in the DOCX
-    // Template uses Clio-style field names with TT1 (Testamentary Trust 1) suffixes
+    // Supports both Simple Will and Testamentary Trust Will templates
     const variables: Record<string, string> = {
-      // Client names for couple templates
+      // Client names (used by both Simple Will and TT Will)
       'Matter.Relationships.Mr.Name': client_name || '',
       'Matter.Relationships.Mrs.Name': spouse_name || '',
       'Matter.Client.Address': client_address || '',
 
-      // Testamentary Trust 1 - Appointors (successor trustees if trust modified)
+      // Executors (Simple Will templates)
+      'Matter.CustomField.InitialExecutor': exec_initial_name || '',
+      'Matter.CustomField.BackupExecutor': exec_backup || '',
+      'Matter.CustomField.FurtherBackupExecutor': exec_further_backup || '',
+
+      // Beneficiaries (Simple Will templates)
+      'Matter.CustomField.Beneficiary1': beneficiary1 || '',
+      'Matter.CustomField.Beneficiary2': beneficiary2 || '',
+      'Matter.CustomField.Beneficiary3': beneficiary3 || '',
+
+      // Calamity beneficiaries (Simple Will templates)
+      'Matter.CustomField.CalamityBeneficiary1': calamity1 || '',
+      'Matter.CustomField.CalamityBeneficiary2': calamity2 || '',
+      'Matter.CustomField.CalamityBeneficiary3': calamity3 || '',
+
+      // Testamentary Trust 1 - Appointors (Single TT Will)
       'Matter.CustomField.InitialAppointorTt1': initial_appointor_tt1 || '',
       'Matter.CustomField.BackupAppointorTt1': backup_appointor_tt1 || '',
       'Matter.CustomField.FurtherBackupAppointorTt1': further_backup_appointor_tt1 || '',
 
-      // Testamentary Trust 1 - Trustees (manage trust assets after death)
+      // Testamentary Trust 1 - Trustees (Single TT Will)
       'Matter.CustomField.InitialTrusteeTt1': initial_trustee_tt1 || '',
       'Matter.CustomField.BackupTrusteeTt1': backup_trustee_tt1 || '',
       'Matter.CustomField.FurtherBackupTrusteeTt1': further_backup_trustee_tt1 || '',
 
-      // Testamentary Trust 1 - Beneficiary
+      // Testamentary Trust 1 - Beneficiary (Single TT Will)
       'Matter.CustomField.NominatedBeneficiaryTt1': nominated_beneficiary_tt1 || '',
 
-      // Guardians (for minor children)
+      // Guardians (both templates)
       'Matter.CustomField.InitialGuardian': guardian_initial || '',
       'Matter.CustomField.BackupGuardian': guardian_backup || '',
 
-      // Matter details
+      // Matter details (both templates)
       'Matter.CustomField.Jurisdiction': governing_jurisdiction || 'VIC',
       'Matter.ClientReferenceNumber': form_id || '',
       'Matter.OriginatingAttorney.Initials': lawyer_initials || 'SA',
 
-      // Firm details
+      // Firm details (both templates)
       'Firm.Name': 'St Ives Law',
       'Firm.Address': 'St Ives Law Address',
       'Firm.Phone': '(02) 1234 5678',

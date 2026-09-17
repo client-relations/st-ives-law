@@ -115,20 +115,23 @@ export function mapFormDataToTemplate(formData: any, formId: string): TemplateVa
     client_name: clientName,
     spouse_name: spouseName,
     client_address: clientAddress,
-    exec_initial_name: '',  // Not used in current template
-    exec_backup: '',        // Not used in current template
-    exec_further_backup: '',  // Not used in current template
+    // Executors (for Simple Will templates)
+    exec_initial_name: formData.intake?.exec_initial_name || '',
+    exec_backup: formData.intake?.exec_backup || '',
+    exec_further_backup: formData.intake?.exec_further_backup || '',
     guardian_initial: guardianInitial,
     guardian_backup: guardianBackup,
-    beneficiary1: '',  // Not used - use TT1 beneficiary instead
-    beneficiary2: '',
-    beneficiary3: '',
-    calamity1: '',
-    calamity2: '',
-    calamity3: '',
+    // Beneficiaries (for Simple Will templates)
+    beneficiary1: formData.intake?.beneficiary1 || '',
+    beneficiary2: formData.intake?.beneficiary2 || '',
+    beneficiary3: formData.intake?.beneficiary3 || '',
+    calamity1: formData.intake?.calamity1 || '',
+    calamity2: formData.intake?.calamity2 || '',
+    calamity3: formData.intake?.calamity3 || '',
     governing_jurisdiction: jurisdiction,
     form_id: formId,
     lawyer_initials: 'SA',
+    // Testamentary Trust 1 fields (for Single TT Will templates)
     initial_appointor_tt1: appointorTt1Initial,
     backup_appointor_tt1: appointorTt1Backup,
     further_backup_appointor_tt1: appointorTt1Further,
