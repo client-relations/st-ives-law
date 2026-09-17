@@ -63,22 +63,54 @@ function formatPersonName(person: any): string {
 }
 
 export function mapFormDataToTemplate(formData: any, formId: string): TemplateVariables {
-  // Current webhook structure: flat JSON with client_first_name, client_last_name, etc.
-  const clientName = `${formData.client_first_name || ''} ${formData.client_last_name || ''}`.trim();
-  const spouseName = formData.spouse_name || '';
-  const clientAddress = formData.client_address || '';
+  // Handle both Supabase nested structure and webhook flat structure
+  let clientName = '';
+  let spouseName = '';
+  let clientAddress = '';
+  let execInitial = '';
+  let execBackup = '';
+  let execFurther = '';
+  let guardianInitial = '';
+  let guardianBackup = '';
+  let beneficiary1 = '';
+  let beneficiary2 = '';
+  let beneficiary3 = '';
+  let jurisdiction = '';
 
-  // Executors
-  const execInitial = formData.executor_primary_name || '';
-  const execBackup = formData.executor_backup_name || '';
-  const execFurther = formData.executor_tertiary_name || '';
-
-  // Guardians (from has_minors and guardian fields)
-  const guardianInitial = formData.guardian_primary || '';
-  const guardianBackup = formData.guardian_backup || '';
-
-  // Beneficiaries (extracted from beneficiaries text field "Beneficiaries:\n• beneficiary 1 - 90%")
-  const beneNames = extractBeneficiaryNames(formData.beneficiaries || '');
+  // Check if this is Supabase nested structure (has intake/inquiry objects)
+  if (formData.intake) {
+    // Supabase nested structure
+    const intake = formData.intake;
+    clientName = intake.client_name || '';
+    spouseName = intake.spouse_name || '';
+    clientAddress = intake.client_address || '';
+    execInitial = intake.exec_initial_name || '';
+    execBackup = intake.exec_backup || '';
+    execFurther = intake.exec_further_backup || '';
+    guardianInitial = intake.guardian_initial || '';
+    guardianBackup = intake.guardian_backup || '';
+    beneficiary1 = intake.beneficiary1 || '';
+    beneficiary2 = intake.beneficiary2 || '';
+    beneficiary3 = intake.beneficiary3 || '';
+    // Use governing_jurisdiction if filled, otherwise fall back to client_state
+    jurisdiction = intake.governing_jurisdiction || intake.client_state || '';
+  } else {
+    // Webhook flat structure (fallback)
+    clientName = `${formData.client_first_name || ''} ${formData.client_last_name || ''}`.trim();
+    spouseName = formData.spouse_name || '';
+    clientAddress = formData.client_address || '';
+    execInitial = formData.executor_primary_name || '';
+    execBackup = formData.executor_backup_name || '';
+    execFurther = formData.executor_tertiary_name || '';
+    guardianInitial = formData.guardian_primary || '';
+    guardianBackup = formData.guardian_backup || '';
+    // Parse beneficiaries from text format if available
+    const beneNames = extractBeneficiaryNames(formData.beneficiaries || '');
+    beneficiary1 = beneNames[0] || '';
+    beneficiary2 = beneNames[1] || '';
+    beneficiary3 = beneNames[2] || '';
+    jurisdiction = formData.client_state || '';
+  }
 
   return {
     client_name: clientName,
@@ -88,22 +120,22 @@ export function mapFormDataToTemplate(formData: any, formId: string): TemplateVa
     exec_further_backup: execFurther,
     guardian_initial: guardianInitial,
     guardian_backup: guardianBackup,
-    beneficiary1: beneNames[0] || '',
-    beneficiary2: beneNames[1] || '',
-    beneficiary3: beneNames[2] || '',
-    calamity1: extractCalamityBeneficiary(formData.calamity_beneficiaries || '', 0),
-    calamity2: extractCalamityBeneficiary(formData.calamity_beneficiaries || '', 1),
-    calamity3: extractCalamityBeneficiary(formData.calamity_beneficiaries || '', 2),
-    governing_jurisdiction: formData.client_state || '',
+    beneficiary1: beneficiary1,
+    beneficiary2: beneficiary2,
+    beneficiary3: beneficiary3,
+    calamity1: '',  // TODO: extract from intake.calamity1 when available
+    calamity2: '',  // TODO: extract from intake.calamity2 when available
+    calamity3: '',  // TODO: extract from intake.calamity3 when available
+    governing_jurisdiction: jurisdiction,
     form_id: formId,
     lawyer_initials: 'SA',
-    initial_appointor_tt1: '',
-    backup_appointor_tt1: '',
-    further_backup_appointor_tt1: '',
-    initial_trustee_tt1: '',
-    backup_trustee_tt1: '',
-    further_backup_trustee_tt1: '',
-    nominated_beneficiary_tt1: '',
+    initial_appointor_tt1: '',  // TODO: extract from intake.fund1_appointor_initial when available
+    backup_appointor_tt1: '',   // TODO: extract from intake.fund1_appointor_backup when available
+    further_backup_appointor_tt1: '', // TODO: extract from intake.fund1_appointor_further when available
+    initial_trustee_tt1: '',    // TODO: extract from intake.fund1_trustee_initial when available
+    backup_trustee_tt1: '',     // TODO: extract from intake.fund1_trustee_backup when available
+    further_backup_trustee_tt1: '', // TODO: extract from intake.fund1_trustee_further when available
+    nominated_beneficiary_tt1: '', // TODO: extract from intake.fund1_beneficiary when available
   };
 }
 
@@ -117,12 +149,4 @@ function extractBeneficiaryNames(beneficiariesText: string): string[] {
       return match ? match[1].trim() : '';
     })
     .filter(Boolean);
-}
-
-function extractCalamityBeneficiary(calamityText: string, index: number): string {
-  // Parse "Calamity Beneficiaries:\n• name1\n• name2"
-  if (!calamityText || calamityText === 'No calamity beneficiaries') return '';
-  const lines = calamityText.split('\n').slice(1); // Skip header
-  const match = lines[index]?.match(/•\s*(.+)/);
-  return match ? match[1].trim() : '';
 }
