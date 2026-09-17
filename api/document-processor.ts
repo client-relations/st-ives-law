@@ -53,34 +53,19 @@ export async function processDocxTemplate(
         console.log(`Processing ${xmlFile}, original size: ${xmlContent.length}`);
 
         // Replace all variables with their values
-        Object.entries(variables).forEach(([key, value]) => {
+        // Sort by length (longest first) to avoid partial matches
+        // E.g., replace "Mr.Name" before "Name", replace "Mrs.Name" before "Mr.Name" within it
+        const sortedVariables = Object.entries(variables).sort((a, b) => b[0].length - a[0].length);
+
+        sortedVariables.forEach(([key, value]) => {
           const escapedKey = key.replace(/\./g, '\\.');
 
           // Replace HTML-encoded format: &lt;&lt; Variable &gt;&gt; (most common in templates)
-          // This handles both normal and split (across runs) placeholders
           const htmlPattern = new RegExp(`&lt;&lt;\\s*${escapedKey}\\s*&gt;&gt;`, 'g');
           const beforeHtml = xmlContent.length;
           xmlContent = xmlContent.replace(htmlPattern, value || '');
           if (xmlContent.length !== beforeHtml) {
             console.log(`  Replaced &lt;&lt;${key}&gt;&gt;`);
-          }
-
-          // Also try to handle Word split format where placeholder is broken across runs
-          // Match: &lt;&lt; [XML stuff] Key.Part [XML stuff] MoreKey &gt;&gt;
-          // This is a fallback for edge cases
-          const parts = key.split('.');
-          if (parts.length > 1) {
-            // Build a pattern that matches parts separated by any XML tags
-            const partialPattern = parts.join('[^&]*'); // Allow any non-& characters between parts
-            const splitPattern = new RegExp(
-              `&lt;&lt;[^&]*${partialPattern}[^&]*&gt;&gt;`,
-              'g'
-            );
-            const beforeSplit = xmlContent.length;
-            xmlContent = xmlContent.replace(splitPattern, value || '');
-            if (xmlContent.length !== beforeSplit) {
-              console.log(`  Replaced ${key} (split format)`);
-            }
           }
 
           // Also handle plain format in case it exists
