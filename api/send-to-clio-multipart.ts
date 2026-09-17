@@ -21,6 +21,13 @@ export default async function handler(req: any, res: any) {
       });
     }
 
+    const clioApiToken = process.env.CLIO_API_TOKEN;
+    if (!clioApiToken) {
+      return res.status(500).json({
+        error: 'CLIO_API_TOKEN environment variable not set',
+      });
+    }
+
     // Convert Base64 to Buffer
     const docxBuffer = Buffer.from(docxBase64, 'base64');
 
@@ -45,8 +52,9 @@ export default async function handler(req: any, res: any) {
     };
 
     // Clio API v4 requires wrapped data structure
-    addField('data[matter][id]', matter_id);
-    addField('matter_id', matter_id); // Also send as top-level field for Make.com reference
+    addField('data[name]', documentName || 'Generated Will Document');
+    addField('data[parent][id]', matter_id);
+    addField('data[parent][type]', 'Matter');
     addField('data[description]', documentName || 'Generated Will Document');
     addField('data[document_category][name]', 'Legal Documents');
     addField('data[document_version][filename]', `${documentName || 'document'}.docx`);
@@ -59,28 +67,24 @@ export default async function handler(req: any, res: any) {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     );
 
-    // Add metadata for Make.com
-    addField('metadata[templateType]', templateType || '');
-    addField('metadata[scenario]', scenario || '');
-    addField('metadata[formId]', formId || '');
-    addField('metadata[timestamp]', new Date().toISOString());
-
     // Final boundary
     parts.push(Buffer.from(`--${boundary}--\r\n`));
 
     // Combine all parts
     const body = Buffer.concat(parts);
 
-    // Send to Make.com webhook
-    const webhookUrl = 'https://hook.eu2.make.com/5n4gkxudn5a79qwbl99wtmr9xg0ddpu8';
+    // Send directly to Clio API v4
+    const clioUrl = 'https://app.clio.com/api/v4/documents';
 
-    console.log(`Sending multipart form to webhook: ${webhookUrl}`);
+    console.log(`Sending multipart document to Clio: ${clioUrl}`);
+    console.log(`Matter ID: ${matter_id}, Document: ${documentName}`);
     console.log(`Body size: ${body.length} bytes`);
 
-    const response = await fetch(webhookUrl, {
+    const response = await fetch(clioUrl, {
       method: 'POST',
       body: body,
       headers: {
+        'Authorization': `Bearer ${clioApiToken}`,
         'Content-Type': `multipart/form-data; boundary=${boundary}`,
         'Content-Length': body.length.toString(),
       },
@@ -88,17 +92,19 @@ export default async function handler(req: any, res: any) {
 
     if (!response.ok) {
       const text = await response.text();
-      console.error(`Webhook error: ${response.status} - ${text}`);
-      throw new Error(`Webhook returned ${response.status}: ${text}`);
+      console.error(`Clio API error: ${response.status} - ${text}`);
+      throw new Error(`Clio API returned ${response.status}: ${text}`);
     }
 
-    console.log('Multipart document sent successfully to webhook');
+    const result = await response.json();
+    console.log('Document uploaded to Clio successfully');
 
     return res.status(200).json({
       success: true,
-      message: 'Document sent to Clio via Make.com webhook (multipart/form-data)',
+      message: 'Document uploaded to Clio',
       matter_id: matter_id,
       documentName: documentName,
+      clioResponse: result,
     });
   } catch (error: any) {
     console.error('Send to Clio multipart error:', error);
