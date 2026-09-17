@@ -56,31 +56,39 @@ export async function processDocxTemplate(
         Object.entries(variables).forEach(([key, value]) => {
           const escapedKey = key.replace(/\./g, '\\.');
 
-          // Replace plain format: << Variable >>
-          const plainPattern = new RegExp(`<<\\s*${escapedKey}\\s*>>`, 'g');
-          const beforePlain = xmlContent.length;
-          xmlContent = xmlContent.replace(plainPattern, value || '');
-          if (xmlContent.length !== beforePlain) {
-            console.log(`  Replaced <<${key}>> (plain format)`);
-          }
-
-          // Replace HTML-encoded format: &lt;&lt; Variable &gt;&gt;
+          // Replace HTML-encoded format: &lt;&lt; Variable &gt;&gt; (most common in templates)
+          // This handles both normal and split (across runs) placeholders
           const htmlPattern = new RegExp(`&lt;&lt;\\s*${escapedKey}\\s*&gt;&gt;`, 'g');
           const beforeHtml = xmlContent.length;
           xmlContent = xmlContent.replace(htmlPattern, value || '');
           if (xmlContent.length !== beforeHtml) {
-            console.log(`  Replaced &lt;&lt;${key}&gt;&gt; (HTML-encoded format)`);
+            console.log(`  Replaced &lt;&lt;${key}&gt;&gt;`);
           }
 
-          // Handle Word's split format (variable broken across runs)
-          const splitPattern = new RegExp(
-            `&lt;&lt;\\s*</w:t></w:r>.*?<w:r>.*?<w:t>${escapedKey}</w:t></w:r>.*?<w:r>.*?&gt;&gt;`,
-            'gs'
-          );
-          const beforeSplit = xmlContent.length;
-          xmlContent = xmlContent.replace(splitPattern, value || '');
-          if (xmlContent.length !== beforeSplit) {
-            console.log(`  Replaced ${key} (split format)`);
+          // Also try to handle Word split format where placeholder is broken across runs
+          // Match: &lt;&lt; [XML stuff] Key.Part [XML stuff] MoreKey &gt;&gt;
+          // This is a fallback for edge cases
+          const parts = key.split('.');
+          if (parts.length > 1) {
+            // Build a pattern that matches parts separated by any XML tags
+            const partialPattern = parts.join('[^&]*'); // Allow any non-& characters between parts
+            const splitPattern = new RegExp(
+              `&lt;&lt;[^&]*${partialPattern}[^&]*&gt;&gt;`,
+              'g'
+            );
+            const beforeSplit = xmlContent.length;
+            xmlContent = xmlContent.replace(splitPattern, value || '');
+            if (xmlContent.length !== beforeSplit) {
+              console.log(`  Replaced ${key} (split format)`);
+            }
+          }
+
+          // Also handle plain format in case it exists
+          const plainPattern = new RegExp(`<<\\s*${escapedKey}\\s*>>`, 'g');
+          const beforePlain = xmlContent.length;
+          xmlContent = xmlContent.replace(plainPattern, value || '');
+          if (xmlContent.length !== beforePlain) {
+            console.log(`  Replaced <<${key}>>`);
           }
         });
 

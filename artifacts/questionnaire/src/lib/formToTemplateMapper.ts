@@ -68,48 +68,43 @@ export function mapFormDataToTemplate(formData: any, formId: string): TemplateVa
   let clientName = '';
   let spouseName = '';
   let clientAddress = '';
-  let execInitial = '';
-  let execBackup = '';
-  let execFurther = '';
   let guardianInitial = '';
   let guardianBackup = '';
-  let beneficiary1 = '';
-  let beneficiary2 = '';
-  let beneficiary3 = '';
   let jurisdiction = '';
+  let appointorTt1Initial = '';
+  let appointorTt1Backup = '';
+  let appointorTt1Further = '';
+  let trusteeTt1Initial = '';
+  let trusteeTt1Backup = '';
+  let trusteeTt1Further = '';
+  let beneficiaryTt1 = '';
 
   // Check if this is Supabase nested structure (has intake/inquiry objects)
   if (formData.intake) {
-    // Supabase nested structure
+    // Supabase nested structure - priority mapping
     const intake = formData.intake;
     clientName = intake.client_name || '';
     spouseName = intake.spouse_name || '';
     clientAddress = intake.client_address || '';
-    execInitial = intake.exec_initial_name || '';
-    execBackup = intake.exec_backup || '';
-    execFurther = intake.exec_further_backup || '';
     guardianInitial = intake.guardian_initial || '';
     guardianBackup = intake.guardian_backup || '';
-    beneficiary1 = intake.beneficiary1 || '';
-    beneficiary2 = intake.beneficiary2 || '';
-    beneficiary3 = intake.beneficiary3 || '';
-    // Use governing_jurisdiction if filled, otherwise fall back to client_state
     jurisdiction = intake.governing_jurisdiction || intake.client_state || '';
+
+    // Testamentary Trust 1 fields (appointors, trustees, beneficiary)
+    appointorTt1Initial = intake.fund1_appointor_initial || '';
+    appointorTt1Backup = intake.fund1_appointor_backup || '';
+    appointorTt1Further = intake.fund1_appointor_further || '';
+    trusteeTt1Initial = intake.fund1_trustee_initial || '';
+    trusteeTt1Backup = intake.fund1_trustee_backup || '';
+    trusteeTt1Further = intake.fund1_trustee_further || '';
+    beneficiaryTt1 = intake.fund1_beneficiary || '';
   } else {
-    // Webhook flat structure (fallback)
+    // Webhook flat structure (fallback from Make.com)
     clientName = `${formData.client_first_name || ''} ${formData.client_last_name || ''}`.trim();
     spouseName = formData.spouse_name || '';
     clientAddress = formData.client_address || '';
-    execInitial = formData.executor_primary_name || '';
-    execBackup = formData.executor_backup_name || '';
-    execFurther = formData.executor_tertiary_name || '';
     guardianInitial = formData.guardian_primary || '';
     guardianBackup = formData.guardian_backup || '';
-    // Parse beneficiaries from text format if available
-    const beneNames = extractBeneficiaryNames(formData.beneficiaries || '');
-    beneficiary1 = beneNames[0] || '';
-    beneficiary2 = beneNames[1] || '';
-    beneficiary3 = beneNames[2] || '';
     jurisdiction = formData.client_state || '';
   }
 
@@ -117,27 +112,27 @@ export function mapFormDataToTemplate(formData: any, formId: string): TemplateVa
     client_name: clientName,
     spouse_name: spouseName,
     client_address: clientAddress,
-    exec_initial_name: execInitial,
-    exec_backup: execBackup,
-    exec_further_backup: execFurther,
+    exec_initial_name: '',  // Not used in current template
+    exec_backup: '',        // Not used in current template
+    exec_further_backup: '',  // Not used in current template
     guardian_initial: guardianInitial,
     guardian_backup: guardianBackup,
-    beneficiary1: beneficiary1,
-    beneficiary2: beneficiary2,
-    beneficiary3: beneficiary3,
-    calamity1: '',  // TODO: extract from intake.calamity1 when available
-    calamity2: '',  // TODO: extract from intake.calamity2 when available
-    calamity3: '',  // TODO: extract from intake.calamity3 when available
+    beneficiary1: '',  // Not used - use TT1 beneficiary instead
+    beneficiary2: '',
+    beneficiary3: '',
+    calamity1: '',
+    calamity2: '',
+    calamity3: '',
     governing_jurisdiction: jurisdiction,
     form_id: formId,
     lawyer_initials: 'SA',
-    initial_appointor_tt1: '',  // TODO: extract from intake.fund1_appointor_initial when available
-    backup_appointor_tt1: '',   // TODO: extract from intake.fund1_appointor_backup when available
-    further_backup_appointor_tt1: '', // TODO: extract from intake.fund1_appointor_further when available
-    initial_trustee_tt1: '',    // TODO: extract from intake.fund1_trustee_initial when available
-    backup_trustee_tt1: '',     // TODO: extract from intake.fund1_trustee_backup when available
-    further_backup_trustee_tt1: '', // TODO: extract from intake.fund1_trustee_further when available
-    nominated_beneficiary_tt1: '', // TODO: extract from intake.fund1_beneficiary when available
+    initial_appointor_tt1: appointorTt1Initial,
+    backup_appointor_tt1: appointorTt1Backup,
+    further_backup_appointor_tt1: appointorTt1Further,
+    initial_trustee_tt1: trusteeTt1Initial,
+    backup_trustee_tt1: trusteeTt1Backup,
+    further_backup_trustee_tt1: trusteeTt1Further,
+    nominated_beneficiary_tt1: beneficiaryTt1,
   };
 }
 
