@@ -11,6 +11,7 @@ export default async function handler(req: any, res: any) {
       templateType,
       scenario,
       client_name,
+      spouse_name,
       client_address,
       exec_initial_name,
       exec_backup,
@@ -36,11 +37,13 @@ export default async function handler(req: any, res: any) {
     }
 
     // Map form variables to template variables (match actual template field names)
-    // Templates use Matter.Relationships.Mr.Name and Matter.Relationships.Mrs.Name for client names
+    // NOTE: Individual templates use Matter.Client.Name
+    //       Couple templates use Matter.Relationships.Mr.Name and Matter.Relationships.Mrs.Name
     const variables: Record<string, string> = {
-      // Client names (Mr/Mrs for couples, Mr or Mrs for individual)
-      'Matter.Relationships.Mr.Name': client_name || '',
-      'Matter.Relationships.Mrs.Name': client_name || '', // Same for both in couple scenario
+      // Client names - map all variants so both individual and couple templates work
+      'Matter.Client.Name': client_name || '', // Used by Individual templates
+      'Matter.Relationships.Mr.Name': client_name || '', // Used by Couple templates
+      'Matter.Relationships.Mrs.Name': spouse_name || client_name || '', // Spouse name for couples, fallback to client name
       'Matter.Client.Address': client_address || '',
 
       // Executors
@@ -63,7 +66,7 @@ export default async function handler(req: any, res: any) {
       'Matter.CustomField.CalamityBeneficiary3': calamity3 || '',
 
       // Matter details
-      'Matter.Jurisdiction': governing_jurisdiction || 'NSW',
+      'Matter.CustomField.Jurisdiction': governing_jurisdiction || 'NSW',
       'Matter.ClientReferenceNumber': form_id || '',
       'Matter.OriginatingAttorney.Initials': lawyer_initials || 'SA',
 

@@ -30,6 +30,7 @@ export interface FormData {
 
 export interface TemplateVariables {
   client_name: string;
+  spouse_name?: string;
   client_address: string;
   exec_initial_name?: string;
   exec_backup?: string;
@@ -114,6 +115,7 @@ export function mapFormDataToTemplate(formData: any, formId: string): TemplateVa
 
   return {
     client_name: clientName,
+    spouse_name: spouseName,
     client_address: clientAddress,
     exec_initial_name: execInitial,
     exec_backup: execBackup,
