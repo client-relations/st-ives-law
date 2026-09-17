@@ -18,24 +18,33 @@ export function DocumentEditorV2({ formId, selectedTemplates, onClose }: Documen
   const loadAndConvertDocument = async (doc: any) => {
     try {
       if (doc.documentBase64) {
-        // Decode base64 to binary
-        const binaryStr = atob(doc.documentBase64);
-        const bytes = new Uint8Array(binaryStr.length);
-        for (let i = 0; i < binaryStr.length; i++) {
-          bytes[i] = binaryStr.charCodeAt(i);
-        }
+        try {
+          // Decode base64 to binary
+          const binaryStr = atob(doc.documentBase64);
+          const bytes = new Uint8Array(binaryStr.length);
+          for (let i = 0; i < binaryStr.length; i++) {
+            bytes[i] = binaryStr.charCodeAt(i);
+          }
 
-        // Convert DOCX to HTML using mammoth
-        const result = await mammoth.convertToHtml({ arrayBuffer: bytes.buffer });
-        setFormattedHtml(result.value);
-        setEditedContent(result.value);
+          // Convert DOCX to HTML using mammoth
+          const result = await mammoth.convertToHtml({ arrayBuffer: bytes.buffer });
+          setFormattedHtml(result.value);
+          setEditedContent(result.value);
+        } catch (mammothError) {
+          console.warn('Mammoth conversion failed, using text fallback:', mammothError);
+          // Fallback to text content if mammoth fails
+          setFormattedHtml('');
+          setEditedContent(doc.documentContent || '(Document content not available)');
+        }
       } else {
         // Fallback to text content
-        setEditedContent(doc.documentContent || '');
+        setFormattedHtml('');
+        setEditedContent(doc.documentContent || '(No document content available)');
       }
     } catch (error) {
-      console.error('Error converting DOCX:', error);
-      setEditedContent(doc.documentContent || 'Error loading document');
+      console.error('Error loading document:', error);
+      setFormattedHtml('');
+      setEditedContent('Error loading document. Check console for details.');
     }
   };
 

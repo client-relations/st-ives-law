@@ -3,8 +3,17 @@ import { execSync } from 'child_process';
 import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import Docxtemplater from 'docxtemplater';
-import PizZip from 'pizzip';
+
+// Dynamic imports to handle optional dependencies
+let Docxtemplater: any;
+let PizZip: any;
+
+try {
+  Docxtemplater = require('docxtemplater');
+  PizZip = require('pizzip');
+} catch (e) {
+  console.warn('docxtemplater/pizzip not available, using fallback mode');
+}
 
 // Document processor - handles DOCX template processing using docxtemplater
 // PizZip handles the DOCX ZIP structure, Docxtemplater replaces variables
@@ -117,6 +126,8 @@ export async function generateWillFromTemplate(
 
   // Look for template in multiple locations
   const possiblePaths = [
+    join(__dirname, 'templates', templateFile), // api/templates (for Vercel)
+    join(process.cwd(), 'api', 'templates', templateFile),
     join(process.cwd(), 'public', 'templates', templateFile),
     join(process.cwd(), 'templates', templateFile),
     join(process.cwd(), '..', 'OneDrive_2_9-3-2026', templateFile),
