@@ -64,74 +64,73 @@ function formatPersonName(person: any): string {
 }
 
 export function mapFormDataToTemplate(formData: any, formId: string): TemplateVariables {
-  // Handle both Supabase nested structure and webhook flat structure
-  let clientName = '';
-  let spouseName = '';
-  let clientAddress = '';
-  let guardianInitial = '';
-  let guardianBackup = '';
-  let jurisdiction = '';
-  let appointorTt1Initial = '';
-  let appointorTt1Backup = '';
-  let appointorTt1Further = '';
-  let trusteeTt1Initial = '';
-  let trusteeTt1Backup = '';
-  let trusteeTt1Further = '';
-  let beneficiaryTt1 = '';
+  // Handle multiple input structures
+  // Priority: full form object with intake > just intake object > webhook structure
+  let intake: any = null;
 
-  // Check if this is Supabase nested structure (has intake/inquiry objects)
-  if (formData.intake) {
-    // Supabase nested structure - priority mapping
-    const intake = formData.intake;
-    clientName = intake.client_name || '';
-    spouseName = intake.spouse_name || '';
-    clientAddress = intake.client_address || '';
-    guardianInitial = intake.guardian_initial || '';
-    guardianBackup = intake.guardian_backup || '';
-    // Use governing_jurisdiction if explicitly filled, otherwise default to client_state
-    jurisdiction = (intake.governing_jurisdiction && intake.governing_jurisdiction.trim())
-      ? intake.governing_jurisdiction
-      : (intake.client_state || 'VIC');
-
-    // Testamentary Trust 1 fields (appointors, trustees, beneficiary)
-    appointorTt1Initial = intake.fund1_appointor_initial || '';
-    appointorTt1Backup = intake.fund1_appointor_backup || '';
-    appointorTt1Further = intake.fund1_appointor_further || '';
-    trusteeTt1Initial = intake.fund1_trustee_initial || '';
-    trusteeTt1Backup = intake.fund1_trustee_backup || '';
-    trusteeTt1Further = intake.fund1_trustee_further || '';
-    beneficiaryTt1 = intake.fund1_beneficiary || '';
-  } else {
-    // Webhook flat structure (fallback from Make.com)
-    clientName = `${formData.client_first_name || ''} ${formData.client_last_name || ''}`.trim();
-    spouseName = formData.spouse_name || '';
-    clientAddress = formData.client_address || '';
-    guardianInitial = formData.guardian_primary || '';
-    guardianBackup = formData.guardian_backup || '';
-    jurisdiction = formData.client_state || '';
+  // Check if this is the full form object with intake property
+  if (formData?.intake && typeof formData.intake === 'object') {
+    intake = formData.intake;
   }
+  // Check if this IS the intake object directly (has expected intake properties)
+  else if (formData?.client_name || formData?.exec_initial_name || formData?.fund1_trustee_initial) {
+    intake = formData;
+  }
+  // Otherwise treat as webhook structure
+  else {
+    intake = formData;
+  }
+
+  // Extract all fields from intake/formData
+  const clientName = intake?.client_name || '';
+  const spouseName = intake?.spouse_name || '';
+  const clientAddress = intake?.client_address || '';
+  const guardianInitial = intake?.guardian_initial || '';
+  const guardianBackup = intake?.guardian_backup || '';
+  const jurisdiction = (intake?.governing_jurisdiction && intake.governing_jurisdiction.trim())
+    ? intake.governing_jurisdiction
+    : (intake?.client_state || 'VIC');
+
+  // Executors (for Simple Will)
+  const execInitialName = intake?.exec_initial_name || '';
+  const execBackup = intake?.exec_backup || '';
+  const execFurtherBackup = intake?.exec_further_backup || '';
+
+  // Beneficiaries (for Simple Will)
+  const beneficiary1 = intake?.beneficiary1 || '';
+  const beneficiary2 = intake?.beneficiary2 || '';
+  const beneficiary3 = intake?.beneficiary3 || '';
+  const calamity1 = intake?.calamity1 || '';
+  const calamity2 = intake?.calamity2 || '';
+  const calamity3 = intake?.calamity3 || '';
+
+  // Testamentary Trust 1 fields (for Single TT Will)
+  const appointorTt1Initial = intake?.fund1_appointor_initial || '';
+  const appointorTt1Backup = intake?.fund1_appointor_backup || '';
+  const appointorTt1Further = intake?.fund1_appointor_further || '';
+  const trusteeTt1Initial = intake?.fund1_trustee_initial || '';
+  const trusteeTt1Backup = intake?.fund1_trustee_backup || '';
+  const trusteeTt1Further = intake?.fund1_trustee_further || '';
+  const beneficiaryTt1 = intake?.fund1_beneficiary || '';
 
   return {
     client_name: clientName,
     spouse_name: spouseName,
     client_address: clientAddress,
-    // Executors (for Simple Will templates)
-    exec_initial_name: formData.intake?.exec_initial_name || '',
-    exec_backup: formData.intake?.exec_backup || '',
-    exec_further_backup: formData.intake?.exec_further_backup || '',
+    exec_initial_name: execInitialName,
+    exec_backup: execBackup,
+    exec_further_backup: execFurtherBackup,
     guardian_initial: guardianInitial,
     guardian_backup: guardianBackup,
-    // Beneficiaries (for Simple Will templates)
-    beneficiary1: formData.intake?.beneficiary1 || '',
-    beneficiary2: formData.intake?.beneficiary2 || '',
-    beneficiary3: formData.intake?.beneficiary3 || '',
-    calamity1: formData.intake?.calamity1 || '',
-    calamity2: formData.intake?.calamity2 || '',
-    calamity3: formData.intake?.calamity3 || '',
+    beneficiary1: beneficiary1,
+    beneficiary2: beneficiary2,
+    beneficiary3: beneficiary3,
+    calamity1: calamity1,
+    calamity2: calamity2,
+    calamity3: calamity3,
     governing_jurisdiction: jurisdiction,
     form_id: formId,
     lawyer_initials: 'SA',
-    // Testamentary Trust 1 fields (for Single TT Will templates)
     initial_appointor_tt1: appointorTt1Initial,
     backup_appointor_tt1: appointorTt1Backup,
     further_backup_appointor_tt1: appointorTt1Further,
