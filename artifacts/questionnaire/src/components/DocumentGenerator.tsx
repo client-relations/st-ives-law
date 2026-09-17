@@ -7,6 +7,17 @@ interface DocumentGeneratorProps {
   onClose: () => void;
 }
 
+interface GeneratedDoc {
+  documentName: string;
+  documentBase64: string;
+  documentPdfBase64?: string;
+  templateType: string;
+  scenario: string;
+  clientName?: string;
+  clientAddress?: string;
+  variables?: Record<string, string>;
+}
+
 export function DocumentSelection({ formId, intakeData, onClose }: DocumentGeneratorProps) {
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -158,8 +169,9 @@ export function DocumentSelection({ formId, intakeData, onClose }: DocumentGener
 }
 
 export function DocumentEditor({ formId, onClose }: { formId: string; onClose: () => void }) {
-  const [docs, setDocs] = useState<any[]>([]);
+  const [docs, setDocs] = useState<GeneratedDoc[]>([]);
   const [selectedDoc, setSelectedDoc] = useState(0);
+  const [formSummary, setFormSummary] = useState<any>(null);
 
   // Load generated documents from localStorage
   const loadDocs = () => {
@@ -167,6 +179,10 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
     if (stored) {
       const { documents } = JSON.parse(stored);
       setDocs(documents);
+      // Extract summary from first doc's variables
+      if (documents.length > 0 && documents[0].variables) {
+        setFormSummary(documents[0].variables);
+      }
     }
   };
 
@@ -234,12 +250,68 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
     return <div style={{ padding: '20px' }}>No documents generated</div>;
   }
 
-  return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px' }}>
-      <h1>Document Preview</h1>
-      <p style={{ color: '#666' }}>Download documents in DOCX or PDF format</p>
+  const summaryItems = [
+    { label: 'Client Name (Mr)', key: 'Matter.Relationships.Mr.Name' },
+    { label: 'Spouse Name (Mrs)', key: 'Matter.Relationships.Mrs.Name' },
+    { label: 'Address', key: 'Matter.Client.Address' },
+    { label: 'Initial Executor', key: 'Matter.CustomField.InitialExecutor' },
+    { label: 'Backup Executor', key: 'Matter.CustomField.BackupExecutor' },
+    { label: 'Further Backup Executor', key: 'Matter.CustomField.FurtherBackupExecutor' },
+    { label: 'Beneficiary 1', key: 'Matter.CustomField.Beneficiary1' },
+    { label: 'Beneficiary 2', key: 'Matter.CustomField.Beneficiary2' },
+    { label: 'Initial Guardian', key: 'Matter.CustomField.InitialGuardian' },
+    { label: 'Backup Guardian', key: 'Matter.CustomField.BackupGuardian' },
+    { label: 'Jurisdiction', key: 'Matter.CustomField.Jurisdiction' },
+  ];
 
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '20px', marginTop: '20px' }}>
+  return (
+    <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '20px' }}>
+      <h1>Document Generated</h1>
+
+      {/* Summary Section */}
+      <div
+        style={{
+          background: '#f0f7fb',
+          border: '1px solid #4a8fa0',
+          borderRadius: '8px',
+          padding: '20px',
+          marginBottom: '20px',
+        }}
+      >
+        <h3 style={{ marginTop: 0, color: '#2f4858' }}>📋 Form Summary — Please Verify</h3>
+        <p style={{ color: '#666', fontSize: '13px', marginBottom: '15px' }}>
+          Review the information captured below. If any fields are incorrect or missing, you can edit them before downloading.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          {summaryItems.map((item) => {
+            const value = formSummary?.[item.key] || '';
+            return (
+              <div key={item.key} style={{ display: 'flex', flexDirection: 'column' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#555', marginBottom: '4px' }}>
+                  {item.label}
+                </label>
+                <div
+                  style={{
+                    padding: '8px 10px',
+                    background: value ? '#fff' : '#fff9e6',
+                    border: value ? '1px solid #ddd' : '1px solid #ffc107',
+                    borderRadius: '4px',
+                    fontSize: '13px',
+                    color: value ? '#333' : '#999',
+                    minHeight: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  {value || '(not filled)'}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '20px' }}>
         {/* Left: Document List */}
         <div style={{ background: '#f5f5f5', borderRadius: '8px', padding: '15px', height: 'fit-content' }}>
           <h3 style={{ marginTop: 0 }}>Documents</h3>
@@ -262,49 +334,40 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
           ))}
         </div>
 
-        {/* Right: Download Options */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Right: Actions */}
+        <div>
           <div
             style={{
-              background: '#f9f9f9',
-              border: '2px dashed #ddd',
+              background: '#fff',
+              border: '1px solid #ddd',
               borderRadius: '8px',
-              padding: '40px',
+              padding: '30px',
               textAlign: 'center',
+              marginBottom: '20px',
             }}
           >
-            <p style={{ fontSize: '16px', margin: '0 0 20px 0', color: '#333' }}>
+            <p style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 10px 0', color: '#333' }}>
               {docs[selectedDoc]?.documentName}
             </p>
             <p style={{ fontSize: '14px', color: '#666', margin: 0 }}>
-              Ready to download
+              ✓ Document ready to download
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <button
-              onClick={onClose}
-              style={{
-                padding: '10px 20px',
-                background: '#f0f0f0',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px',
-              }}
-            >
-              Close
-            </button>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             <button
               onClick={handleDownloadDocx}
               style={{
-                padding: '10px 20px',
+                flex: 1,
+                padding: '12px 20px',
                 background: '#4a8fa0',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
                 cursor: 'pointer',
                 fontSize: '14px',
+                fontWeight: 600,
+                minWidth: '150px',
               }}
             >
               📥 Download DOCX
@@ -312,16 +375,35 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
             <button
               onClick={handleDownloadPdf}
               style={{
-                padding: '10px 20px',
+                flex: 1,
+                padding: '12px 20px',
                 background: '#4a8fa0',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
                 cursor: 'pointer',
                 fontSize: '14px',
+                fontWeight: 600,
+                minWidth: '150px',
               }}
             >
               📄 Download PDF
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                flex: 1,
+                padding: '12px 20px',
+                background: '#f0f0f0',
+                color: '#333',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                minWidth: '150px',
+              }}
+            >
+              Close
             </button>
           </div>
         </div>
