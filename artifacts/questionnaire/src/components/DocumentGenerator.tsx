@@ -220,14 +220,54 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
     }
   };
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     const doc = docs[selectedDoc];
-    if (!doc?.documentPdfBase64) {
-      alert('PDF data not available');
+    if (!doc?.documentBase64) {
+      alert('DOCX data not available');
       return;
     }
+
     try {
-      const binaryStr = atob(doc.documentPdfBase64);
+      // Try to use stored PDF if available
+      if (doc.documentPdfBase64) {
+        const binaryStr = atob(doc.documentPdfBase64);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+        const blob = new Blob([bytes.buffer], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${doc.documentName}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        return;
+      }
+
+      // Otherwise, convert DOCX to PDF on server
+      const response = await fetch('/api/convert-docx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'docx-to-pdf',
+          docxBase64: doc.documentBase64,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('PDF conversion failed');
+      }
+
+      const result = await response.json();
+      if (!result.pdfBase64) {
+        alert('PDF conversion failed. LibreOffice may not be installed on server.');
+        return;
+      }
+
+      const binaryStr = atob(result.pdfBase64);
       const bytes = new Uint8Array(binaryStr.length);
       for (let i = 0; i < binaryStr.length; i++) {
         bytes[i] = binaryStr.charCodeAt(i);
@@ -243,7 +283,72 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
       document.body.removeChild(a);
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      alert('Failed to download PDF');
+      alert('Failed to download PDF. Please download DOCX and convert to PDF manually.');
+    }
+  };
+
+  const handleSendToClio = async () => {
+    const doc = docs[selectedDoc];
+    if (!doc?.documentBase64) {
+      alert('Document not available');
+      return;
+    }
+
+    try {
+      // First, convert to PDF
+      let pdfBase64 = doc.documentPdfBase64;
+
+      if (!pdfBase64) {
+        // Convert DOCX to PDF if not already done
+        const response = await fetch('/api/convert-docx', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'docx-to-pdf',
+            docxBase64: doc.documentBase64,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('PDF conversion failed');
+        }
+
+        const result = await response.json();
+        pdfBase64 = result.pdfBase64;
+      }
+
+      if (!pdfBase64) {
+        alert('PDF conversion failed');
+        return;
+      }
+
+      // Send to Clio via Make.com webhook
+      // TODO: Add Make.com webhook URL from environment
+      const makeWebhookUrl = process.env.VITE_SEND_TO_CLIO_WEBHOOK;
+      if (!makeWebhookUrl) {
+        alert('Clio webhook not configured. Contact admin.');
+        return;
+      }
+
+      const response = await fetch(makeWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentName: doc.documentName,
+          pdfBase64: pdfBase64,
+          formId: formId,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send to Clio');
+      }
+
+      alert('✓ Document sent to Clio successfully!');
+    } catch (error) {
+      console.error('Error sending to Clio:', error);
+      alert('Failed to send to Clio. Please try again.');
     }
   };
 
@@ -482,6 +587,24 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
               }}
             >
               📄 Download PDF
+            </button>
+            <button
+              onClick={handleSendToClio}
+              style={{
+                flex: 1,
+                padding: '12px 20px',
+                background: '#2d7a8f',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 600,
+                minWidth: '150px',
+              }}
+              title="Send PDF to Clio via Make.com"
+            >
+              🚀 Send to Clio
             </button>
             <button
               onClick={onClose}
