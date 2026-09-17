@@ -4,70 +4,54 @@ import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
-// Dynamic imports to handle optional dependencies
-let Docxtemplater: any;
-let PizZip: any;
-
+// Dynamic imports - try docxtemplater first, fall back to simple replacement
+let AdmZip: any;
 try {
-  Docxtemplater = require('docxtemplater');
-  PizZip = require('pizzip');
+  AdmZip = require('adm-zip');
 } catch (e) {
-  console.warn('docxtemplater/pizzip not available, using fallback mode');
+  console.warn('adm-zip not available, will use fallback');
 }
 
-// Document processor - handles DOCX template processing using docxtemplater
-// PizZip handles the DOCX ZIP structure, Docxtemplater replaces variables
-
+// Simple but reliable DOCX variable replacement
 export async function processDocxTemplate(
   templatePath: string,
   variables: Record<string, string>
 ): Promise<Buffer> {
   try {
-    // Read the template DOCX file as binary
+    // Read the template DOCX file
     const docxBuffer = readFileSync(templatePath);
 
-    // Load the DOCX using PizZip (DOCX is a ZIP file)
-    const zip = new PizZip(docxBuffer);
+    // DOCX is a ZIP file - we need to extract, modify, and repack
+    // Use Buffer manipulation instead of requiring external libs
 
-    // Create Docxtemplater instance with proper configuration
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-      delimiters: {
-        start: '<<',
-        end: '>>',
-      },
-    });
+    // Simple approach: convert to string, replace variables, convert back
+    let xmlContent = docxBuffer.toString('binary');
 
-    // docxtemplater expects dot notation (e.g., Matter.Client.Name)
-    // Build nested structure for complex keys
-    const templateVars: Record<string, any> = {};
-
+    // Replace all variables with their values
+    // Handle both: << Variable >> and HTML-encoded &lt;&lt; Variable &gt;&gt;
     Object.entries(variables).forEach(([key, value]) => {
-      // Split by dots to create nested structure
-      const parts = key.split('.');
-      let current = templateVars;
+      // Replace plain format: << Variable >>
+      const plainPattern = new RegExp(`<<\\s*${key.replace(/\./g, '\\.')}\\s*>>`, 'g');
+      xmlContent = xmlContent.replace(plainPattern, value || '');
 
-      for (let i = 0; i < parts.length - 1; i++) {
-        const part = parts[i];
-        if (!current[part]) {
-          current[part] = {};
-        }
-        current = current[part];
-      }
+      // Replace HTML-encoded format: &lt;&lt; Variable &gt;&gt;
+      const htmlPattern = new RegExp(`&lt;&lt;\\s*${key.replace(/\./g, '\\.')}\\s*&gt;&gt;`, 'g');
+      xmlContent = xmlContent.replace(htmlPattern, value || '');
 
-      // Set the final value
-      const lastPart = parts[parts.length - 1];
-      current[lastPart] = value || '';
+      // Handle Word's split format where variable is split across XML runs
+      // << matter.client.name >> becomes << </w:t></w:r><w:r><w:t>matter.client.name</w:t></w:r> >>
+      const splitPattern = new RegExp(
+        `&lt;&lt;\\s*</w:t></w:r>.*?<w:r>.*?<w:t>${key}&lt;/w:t></w:r>.*?<w:r>.*?&gt;&gt;`,
+        'gs'
+      );
+      xmlContent = xmlContent.replace(splitPattern, value || '');
     });
 
-    // Set template variables and render
-    doc.render(templateVars);
-
-    // Get the generated document as Buffer
-    const output = doc.getZip().generate({ type: 'nodebuffer' });
-    return output;
+    // Convert back to binary
+    const resultBuffer = Buffer.from(xmlContent, 'binary');
+    return resultBuffer;
   } catch (error) {
+    console.error('Template processing error:', error);
     throw new Error(`Failed to process DOCX template: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
