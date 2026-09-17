@@ -28,6 +28,8 @@ export default async function handler(req: any, res: any) {
       });
     }
 
+    console.log(`Token length: ${clioApiToken.length}, First 10 chars: ${clioApiToken.substring(0, 10)}, Last 10 chars: ${clioApiToken.substring(clioApiToken.length - 10)}`);
+
     // Convert Base64 to Buffer
     const docxBuffer = Buffer.from(docxBase64, 'base64');
 
