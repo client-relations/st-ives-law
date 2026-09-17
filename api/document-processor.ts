@@ -20,22 +20,40 @@ export async function processDocxTemplate(
     // Load the DOCX using PizZip (DOCX is a ZIP file)
     const zip = new PizZip(docxBuffer);
 
-    // Create Docxtemplater instance
+    // Create Docxtemplater instance with proper configuration
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true,
+      delimiters: {
+        start: '<<',
+        end: '>>',
+      },
     });
 
-    // Convert variables to plain object (remove angle brackets if present)
-    const cleanVars: Record<string, string> = {};
+    // docxtemplater expects dot notation (e.g., Matter.Client.Name)
+    // Build nested structure for complex keys
+    const templateVars: Record<string, any> = {};
+
     Object.entries(variables).forEach(([key, value]) => {
-      // Handle both << Variable >> and Variable formats
-      const cleanKey = key.replace(/[<>\s]/g, '');
-      cleanVars[cleanKey] = value || '';
+      // Split by dots to create nested structure
+      const parts = key.split('.');
+      let current = templateVars;
+
+      for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i];
+        if (!current[part]) {
+          current[part] = {};
+        }
+        current = current[part];
+      }
+
+      // Set the final value
+      const lastPart = parts[parts.length - 1];
+      current[lastPart] = value || '';
     });
 
     // Set template variables and render
-    doc.render(cleanVars);
+    doc.render(templateVars);
 
     // Get the generated document as Buffer
     const output = doc.getZip().generate({ type: 'nodebuffer' });
