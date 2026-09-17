@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { mapFormDataToTemplate, type FormData } from '../lib/formToTemplateMapper';
 
 interface DocumentGeneratorProps {
@@ -174,22 +174,22 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
   const [selectedDoc, setSelectedDoc] = useState(0);
   const [formSummary, setFormSummary] = useState<any>(null);
 
-  // Load generated documents from localStorage
-  const loadDocs = () => {
+  // Load generated documents from localStorage on mount
+  useEffect(() => {
     const stored = localStorage.getItem(`generated_docs_${formId}`);
     if (stored) {
-      const { documents } = JSON.parse(stored);
-      setDocs(documents);
-      // Extract summary from first doc's variables
-      if (documents.length > 0 && documents[0].variables) {
-        setFormSummary(documents[0].variables);
+      try {
+        const { documents } = JSON.parse(stored);
+        setDocs(documents);
+        // Extract summary from first doc's variables
+        if (documents && documents.length > 0 && documents[0].variables) {
+          setFormSummary(documents[0].variables);
+        }
+      } catch (e) {
+        console.error('Failed to load documents:', e);
       }
     }
-  };
-
-  if (docs.length === 0) {
-    loadDocs();
-  }
+  }, [formId]);
 
   const handleDownloadDocx = () => {
     const doc = docs[selectedDoc];
