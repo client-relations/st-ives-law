@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import * as mammoth from 'mammoth';
 
 interface DocumentEditorV2Props {
   formId: string;
@@ -7,55 +8,81 @@ interface DocumentEditorV2Props {
 }
 
 export function DocumentEditorV2({ formId, selectedTemplates, onClose }: DocumentEditorV2Props) {
+  const [formattedHtml, setFormattedHtml] = useState('');
   const [editedContent, setEditedContent] = useState('');
   const [selectedDoc, setSelectedDoc] = useState(0);
   const [isSending, setIsSending] = useState(false);
   const [generatedDocuments, setGeneratedDocuments] = useState<any[]>([]);
 
+  // Load and convert DOCX to formatted HTML
+  const loadAndConvertDocument = async (doc: any) => {
+    try {
+      if (doc.documentBase64) {
+        // Decode base64 to binary
+        const binaryStr = atob(doc.documentBase64);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+
+        // Convert DOCX to HTML using mammoth
+        const result = await mammoth.convertToHtml({ arrayBuffer: bytes.buffer });
+        setFormattedHtml(result.value);
+        setEditedContent(result.value);
+      } else {
+        // Fallback to text content
+        setEditedContent(doc.documentContent || '');
+      }
+    } catch (error) {
+      console.error('Error converting DOCX:', error);
+      setEditedContent(doc.documentContent || 'Error loading document');
+    }
+  };
+
   // Load generated documents
-  const loadDocuments = () => {
+  const loadDocuments = async () => {
     const stored = localStorage.getItem(`generated_docs_${formId}`);
     if (stored) {
       const { documents } = JSON.parse(stored);
       setGeneratedDocuments(documents);
       if (documents.length > 0) {
-        setEditedContent(documents[0].documentContent);
+        await loadAndConvertDocument(documents[0]);
       }
     }
   };
 
-  if (generatedDocuments.length === 0 && editedContent === '') {
-    loadDocuments();
-  }
+  useEffect(() => {
+    if (generatedDocuments.length === 0 && editedContent === '' && formattedHtml === '') {
+      loadDocuments();
+    }
+  }, []);
 
   const handleDownloadDocx = async () => {
     const doc = generatedDocuments[selectedDoc];
     if (!doc) return;
 
     try {
-      // Call backend to generate DOCX with current content
-      const response = await fetch('/api/generate-will-docx', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          templateType: doc.templateType,
-          scenario: doc.scenario,
-          content: editedContent, // Send edited content
-          clientName: doc.clientName,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to generate DOCX');
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${doc.documentName}.docx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // Use stored base64 DOCX if available
+      if (doc.documentBase64) {
+        const binaryStr = atob(doc.documentBase64);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+        const blob = new Blob([bytes.buffer], {
+          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${doc.documentName}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('Document not available for download');
+      }
     } catch (error) {
       console.error('Error downloading DOCX:', error);
       alert('Failed to download DOCX');
@@ -189,7 +216,7 @@ export function DocumentEditorV2({ formId, selectedTemplates, onClose }: Documen
 
         {/* Right: Document Editor */}
         <div>
-          {/* Formatted Preview */}
+          {/* Formatted Preview - Shows actual DOCX formatting */}
           <div
             style={{
               background: '#f9f9f9',
@@ -200,14 +227,22 @@ export function DocumentEditorV2({ formId, selectedTemplates, onClose }: Documen
               minHeight: '400px',
               maxHeight: '500px',
               overflowY: 'auto',
-              fontFamily: 'Arial, sans-serif',
-              fontSize: '11px',
-              lineHeight: '1.5',
-              whiteSpace: 'pre-wrap',
-              wordWrap: 'break-word',
+              fontFamily: 'Calibri, Arial, sans-serif',
+              fontSize: '11pt',
+              lineHeight: '1.6',
             }}
           >
-            {editedContent}
+            {formattedHtml ? (
+              <div
+                dangerouslySetInnerHTML={{ __html: formattedHtml }}
+                style={{
+                  fontSize: '11pt',
+                  lineHeight: '1.6',
+                }}
+              />
+            ) : (
+              <p style={{ color: '#999' }}>Loading document...</p>
+            )}
           </div>
 
           {/* Edit Area */}
