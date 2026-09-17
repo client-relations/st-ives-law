@@ -4,13 +4,20 @@ import { generateWillFromTemplate } from './document-processor';
 // Helper to extract text content from DOCX for preview
 async function extractTextFromDocx(docxBuffer: Buffer): Promise<string> {
   try {
-    // DOCX is a ZIP file, we need to extract document.xml and get text
-    // For now, convert to UTF-8 string and extract text
-    let textContent = '';
-    const utf8Content = docxBuffer.toString('utf-8', 0, Math.min(1000000, docxBuffer.length));
+    const JSZip = require('jszip');
 
-    // Remove XML tags to get readable text
-    textContent = utf8Content
+    // Parse DOCX as ZIP
+    const zip = await JSZip.loadAsync(docxBuffer);
+
+    // Extract document.xml which contains the actual text content
+    const documentXml = await zip.file('word/document.xml')?.async('text');
+
+    if (!documentXml) {
+      return '[Document content could not be extracted]';
+    }
+
+    // Extract text from XML by removing tags
+    let textContent = documentXml
       .replace(/<[^>]*>/g, '') // Remove XML tags
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
@@ -21,10 +28,10 @@ async function extractTextFromDocx(docxBuffer: Buffer): Promise<string> {
       .replace(/\s+/g, ' ') // Normalize whitespace
       .trim();
 
-    return textContent;
+    return textContent || '[Document appears to be empty or unreadable]';
   } catch (error) {
     console.error('Error extracting text from DOCX:', error);
-    return '';
+    return '[Unable to extract document preview - document is generated correctly for download]';
   }
 }
 
@@ -101,23 +108,36 @@ export default async function handler(req: any, res: any) {
       'docx'
     );
 
-    // Extract text content for preview
-    const documentContent = await extractTextFromDocx(docxBuffer);
+    // Try to generate PDF for preview (optional - some environments may not have LibreOffice)
+    let pdfBuffer: Buffer | null = null;
+    if (process.env.SKIP_PDF_GENERATION !== 'true') {
+      try {
+        pdfBuffer = await generateWillFromTemplate(
+          templateType as any,
+          scenario as any,
+          variables,
+          'pdf'
+        );
+      } catch (pdfError) {
+        console.warn('PDF generation skipped (LibreOffice not available or error):', pdfError);
+        // PDF is optional - continue with DOCX only
+      }
+    }
 
-    // Store DOCX in a cache (using base64 in response for now)
+    // Store DOCX in base64
     const docxBase64 = docxBuffer.toString('base64');
+    const pdfBase64 = pdfBuffer ? pdfBuffer.toString('base64') : null;
 
-    // Return document metadata + preview content
+    // Return document metadata
     return res.status(200).json({
       success: true,
       documentName: `Will - ${scenario} (${templateType})`,
-      documentContent, // Text preview for display
-      documentBase64: docxBase64, // Base64 for actual DOCX download
+      documentBase64: docxBase64, // Base64 for DOCX download
+      documentPdfBase64: pdfBase64, // Base64 for PDF viewer (null if generation failed)
       templateType,
       scenario,
       clientName: client_name || 'Client',
       clientAddress: client_address || '',
-      variables, // Include variables for reference
     });
   } catch (error: any) {
     console.error('Document generation error:', error);

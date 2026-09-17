@@ -12,43 +12,67 @@ try {
   console.warn('adm-zip not available, will use fallback');
 }
 
-// Simple but reliable DOCX variable replacement
+// Simple but reliable DOCX variable replacement using JSZip
 export async function processDocxTemplate(
   templatePath: string,
   variables: Record<string, string>
 ): Promise<Buffer> {
   try {
-    // Read the template DOCX file
+    const JSZip = require('jszip');
+
+    // Read the template DOCX file (it's a ZIP)
     const docxBuffer = readFileSync(templatePath);
+    const zip = await JSZip.loadAsync(docxBuffer);
 
-    // DOCX is a ZIP file - we need to extract, modify, and repack
-    // Use Buffer manipulation instead of requiring external libs
+    // Files to process: document.xml and all headers/footers
+    const filesToProcess = ['word/document.xml'];
 
-    // Simple approach: convert to string, replace variables, convert back
-    let xmlContent = docxBuffer.toString('binary');
-
-    // Replace all variables with their values
-    // Handle both: << Variable >> and HTML-encoded &lt;&lt; Variable &gt;&gt;
-    Object.entries(variables).forEach(([key, value]) => {
-      // Replace plain format: << Variable >>
-      const plainPattern = new RegExp(`<<\\s*${key.replace(/\./g, '\\.')}\\s*>>`, 'g');
-      xmlContent = xmlContent.replace(plainPattern, value || '');
-
-      // Replace HTML-encoded format: &lt;&lt; Variable &gt;&gt;
-      const htmlPattern = new RegExp(`&lt;&lt;\\s*${key.replace(/\./g, '\\.')}\\s*&gt;&gt;`, 'g');
-      xmlContent = xmlContent.replace(htmlPattern, value || '');
-
-      // Handle Word's split format where variable is split across XML runs
-      // << matter.client.name >> becomes << </w:t></w:r><w:r><w:t>matter.client.name</w:t></w:r> >>
-      const splitPattern = new RegExp(
-        `&lt;&lt;\\s*</w:t></w:r>.*?<w:r>.*?<w:t>${key}&lt;/w:t></w:r>.*?<w:r>.*?&gt;&gt;`,
-        'gs'
-      );
-      xmlContent = xmlContent.replace(splitPattern, value || '');
+    // Add header files if they exist
+    const allFiles = Object.keys(zip.files);
+    allFiles.forEach((filename) => {
+      if (filename.startsWith('word/header') && filename.endsWith('.xml')) {
+        filesToProcess.push(filename);
+      }
+      if (filename.startsWith('word/footer') && filename.endsWith('.xml')) {
+        filesToProcess.push(filename);
+      }
     });
 
-    // Convert back to binary
-    const resultBuffer = Buffer.from(xmlContent, 'binary');
+    // Process each XML file
+    for (const xmlFile of filesToProcess) {
+      try {
+        let xmlContent = await zip.file(xmlFile)?.async('text');
+        if (!xmlContent) continue;
+
+        // Replace all variables with their values
+        Object.entries(variables).forEach(([key, value]) => {
+          const escapedKey = key.replace(/\./g, '\\.');
+
+          // Replace plain format: << Variable >>
+          const plainPattern = new RegExp(`<<\\s*${escapedKey}\\s*>>`, 'g');
+          xmlContent = xmlContent.replace(plainPattern, value || '');
+
+          // Replace HTML-encoded format: &lt;&lt; Variable &gt;&gt;
+          const htmlPattern = new RegExp(`&lt;&lt;\\s*${escapedKey}\\s*&gt;&gt;`, 'g');
+          xmlContent = xmlContent.replace(htmlPattern, value || '');
+
+          // Handle Word's split format (variable broken across runs)
+          const splitPattern = new RegExp(
+            `&lt;&lt;\\s*</w:t></w:r>.*?<w:r>.*?<w:t>${escapedKey}</w:t></w:r>.*?<w:r>.*?&gt;&gt;`,
+            'gs'
+          );
+          xmlContent = xmlContent.replace(splitPattern, value || '');
+        });
+
+        // Update the file in the ZIP
+        zip.file(xmlFile, xmlContent);
+      } catch (e) {
+        console.warn(`Failed to process ${xmlFile}:`, e);
+      }
+    }
+
+    // Generate new DOCX buffer
+    const resultBuffer = await zip.generateAsync({ type: 'nodebuffer' });
     return resultBuffer;
   } catch (error) {
     console.error('Template processing error:', error);

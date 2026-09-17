@@ -163,6 +163,9 @@ importers:
       docxtemplater:
         specifier: ^3.70.0
         version: 3.70.0
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.2
       mammoth:
         specifier: ^1.12.3
         version: 1.12.3

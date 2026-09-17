@@ -173,7 +173,14 @@ export function DocumentEditorV2({ formId, onClose }: DocumentEditorV2Props) {
                 title="Document Preview"
               />
             ) : (
-              <p style={{ color: '#999' }}>Loading document...</p>
+              <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                <p style={{ fontSize: '16px', marginBottom: '10px' }}>
+                  PDF preview not available
+                </p>
+                <p style={{ fontSize: '14px', color: '#999' }}>
+                  Download the DOCX to view the formatted document
+                </p>
+              </div>
             )}
           </div>
 
