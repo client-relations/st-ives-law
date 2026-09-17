@@ -88,7 +88,10 @@ export function mapFormDataToTemplate(formData: any, formId: string): TemplateVa
     clientAddress = intake.client_address || '';
     guardianInitial = intake.guardian_initial || '';
     guardianBackup = intake.guardian_backup || '';
-    jurisdiction = intake.governing_jurisdiction || intake.client_state || '';
+    // Use governing_jurisdiction if explicitly filled, otherwise default to client_state
+    jurisdiction = (intake.governing_jurisdiction && intake.governing_jurisdiction.trim())
+      ? intake.governing_jurisdiction
+      : (intake.client_state || 'VIC');
 
     // Testamentary Trust 1 fields (appointors, trustees, beneficiary)
     appointorTt1Initial = intake.fund1_appointor_initial || '';
