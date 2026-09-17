@@ -160,7 +160,6 @@ export function DocumentSelection({ formId, intakeData, onClose }: DocumentGener
 export function DocumentEditor({ formId, onClose }: { formId: string; onClose: () => void }) {
   const [docs, setDocs] = useState<any[]>([]);
   const [selectedDoc, setSelectedDoc] = useState(0);
-  const [editedContent, setEditedContent] = useState('');
 
   // Load generated documents from localStorage
   const loadDocs = () => {
@@ -168,25 +167,67 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
     if (stored) {
       const { documents } = JSON.parse(stored);
       setDocs(documents);
-      if (documents.length > 0) {
-        setEditedContent(documents[0].documentContent);
-      }
     }
   };
 
-  if (docs.length === 0 && editedContent === '') {
+  if (docs.length === 0) {
     loadDocs();
   }
 
-  const handleDownload = () => {
+  const handleDownloadDocx = () => {
     const doc = docs[selectedDoc];
-    const element = document.createElement('a');
-    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(editedContent));
-    element.setAttribute('download', `${doc.documentName}.txt`);
-    element.style.display = 'none';
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+    if (!doc?.documentBase64) {
+      alert('DOCX data not available');
+      return;
+    }
+    try {
+      const binaryStr = atob(doc.documentBase64);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+      const blob = new Blob([bytes.buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${doc.documentName}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading:', error);
+      alert('Failed to download DOCX');
+    }
+  };
+
+  const handleDownloadPdf = () => {
+    const doc = docs[selectedDoc];
+    if (!doc?.documentPdfBase64) {
+      alert('PDF data not available');
+      return;
+    }
+    try {
+      const binaryStr = atob(doc.documentPdfBase64);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+      const blob = new Blob([bytes.buffer], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${doc.documentName}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Failed to download PDF');
+    }
   };
 
   if (docs.length === 0) {
@@ -195,7 +236,8 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px' }}>
-      <h1>Document Editor</h1>
+      <h1>Document Preview</h1>
+      <p style={{ color: '#666' }}>Download documents in DOCX or PDF format</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '20px', marginTop: '20px' }}>
         {/* Left: Document List */}
@@ -204,10 +246,7 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
           {docs.map((doc, idx) => (
             <div
               key={idx}
-              onClick={() => {
-                setSelectedDoc(idx);
-                setEditedContent(doc.documentContent);
-              }}
+              onClick={() => setSelectedDoc(idx)}
               style={{
                 padding: '12px',
                 background: selectedDoc === idx ? '#4a8fa0' : '#fff',
@@ -223,24 +262,26 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
           ))}
         </div>
 
-        {/* Right: Document Editor */}
-        <div>
-          <textarea
-            value={editedContent}
-            onChange={(e) => setEditedContent(e.target.value)}
+        {/* Right: Download Options */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div
             style={{
-              width: '100%',
-              height: '600px',
-              padding: '15px',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
-              fontFamily: 'monospace',
-              fontSize: '12px',
-              lineHeight: '1.6',
+              background: '#f9f9f9',
+              border: '2px dashed #ddd',
+              borderRadius: '8px',
+              padding: '40px',
+              textAlign: 'center',
             }}
-          />
+          >
+            <p style={{ fontSize: '16px', margin: '0 0 20px 0', color: '#333' }}>
+              {docs[selectedDoc]?.documentName}
+            </p>
+            <p style={{ fontSize: '14px', color: '#666', margin: 0 }}>
+              Ready to download
+            </p>
+          </div>
 
-          <div style={{ display: 'flex', gap: '12px', marginTop: '20px', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <button
               onClick={onClose}
               style={{
@@ -249,12 +290,13 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
                 border: '1px solid #ddd',
                 borderRadius: '6px',
                 cursor: 'pointer',
+                fontSize: '14px',
               }}
             >
               Close
             </button>
             <button
-              onClick={handleDownload}
+              onClick={handleDownloadDocx}
               style={{
                 padding: '10px 20px',
                 background: '#4a8fa0',
@@ -262,9 +304,24 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
                 border: 'none',
                 borderRadius: '6px',
                 cursor: 'pointer',
+                fontSize: '14px',
               }}
             >
-              📥 Download
+              📥 Download DOCX
+            </button>
+            <button
+              onClick={handleDownloadPdf}
+              style={{
+                padding: '10px 20px',
+                background: '#4a8fa0',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+              }}
+            >
+              📄 Download PDF
             </button>
           </div>
         </div>
