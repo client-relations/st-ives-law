@@ -88,15 +88,15 @@ export default async function handler(req: any, res: any) {
         'Content-Type': `multipart/form-data; boundary=${boundary}`,
         'Content-Length': body.length.toString(),
       },
-    });
+    } as any);
 
-    if (!response.ok) {
-      const text = await response.text();
-      console.error(`Clio API error: ${response.status} - ${text}`);
-      throw new Error(`Clio API returned ${response.status}: ${text}`);
+    if (!(response as any).ok) {
+      const text = await (response as any).text();
+      console.error(`Clio API error: ${(response as any).status} - ${text}`);
+      throw new Error(`Clio API returned ${(response as any).status}: ${text}`);
     }
 
-    const result = await response.json();
+    const result = await (response as any).json();
     console.log('Document uploaded to Clio successfully');
 
     return res.status(200).json({
