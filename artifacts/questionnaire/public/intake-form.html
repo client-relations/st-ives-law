@@ -400,6 +400,7 @@
               </div>
             </div>
           </div>
+          <p class="error-msg" id="beneficiary-error">Name every residuary beneficiary — a will cannot be drafted without them.</p>
           <label>Should personal belongings pass to the same named beneficiary(ies), or to the client's children?</label>
           <select name="personal_belongings_to">
             <option value="">Select…</option>
@@ -674,6 +675,29 @@ document.getElementById('doc-type-group').addEventListener('change', () => {
 });
 
 // ---- load saved form data on page load ----
+/**
+ * Seed step 1 from data captured earlier in the pipeline. Only fills fields the
+ * client has not already answered — never overwrites their own input.
+ */
+function prefillFromEarlierStages(result) {
+  const inquiry = (result && result.data && result.data.inquiry) || {};
+  const client = (result && result.client) || {};
+
+  const seed = {
+    client_name: inquiry.full_name || inquiry.name || client.name || '',
+    client_state: inquiry.state || inquiry.client_state || '',
+  };
+
+  Object.keys(seed).forEach(fieldName => {
+    const value = seed[fieldName];
+    if (!value) return;
+    const field = document.querySelector('[name="' + fieldName + '"]');
+    if (!field || field.value) return; // never clobber an existing answer
+    field.value = value;
+    field.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
 async function loadSavedForm() {
   const params = new URLSearchParams(window.location.search);
   const leadId = params.get('lead_id');
@@ -693,7 +717,10 @@ async function loadSavedForm() {
     const metadata = result.data?.metadata || {};
 
     if (!intakeData || Object.keys(intakeData).length === 0) {
-      // No saved data, start fresh
+      // No intake answers yet. Seed the client's identity from what the firm
+      // already holds (screening record + inquiry form) so they are not asked
+      // to retype details they have already given.
+      prefillFromEarlierStages(result);
       return;
     }
 
@@ -801,6 +828,26 @@ function validateStep(stepEl){
     if (!field.value) { if (!firstInvalid) firstInvalid = field; field.style.borderColor = 'var(--error)'; }
     else { field.style.borderColor = ''; }
   });
+
+  // A residuary beneficiary is the one instruction a will cannot be drafted
+  // without, yet the fields carry no `required` attribute. Enforce it whenever
+  // the direct-beneficiary block is the active distribution method.
+  const benefBlock = stepEl.querySelector('#direct-beneficiary-block');
+  if (benefBlock && isVisible(benefBlock)) {
+    const rows = Array.from(benefBlock.querySelectorAll('.beneficiary-row')).filter(isVisible);
+    const missing = rows.filter(row => {
+      const nameInput = row.querySelector('input[type=text]');
+      return !nameInput || !nameInput.value.trim();
+    });
+    const benefError = document.getElementById('beneficiary-error');
+    const benefOk = rows.length > 0 && missing.length === 0;
+    if (benefError) benefError.style.display = benefOk ? 'none' : 'block';
+    missing.forEach(row => {
+      const nameInput = row.querySelector('input[type=text]');
+      if (nameInput) nameInput.style.borderColor = 'var(--error)';
+    });
+    if (!benefOk && !firstInvalid) firstInvalid = missing[0] || benefBlock;
+  }
 
   if (stepEl.querySelector('#doc-type-group')) {
     const anyChecked = Array.from(stepEl.querySelectorAll('#doc-type-group input[type=checkbox]')).some(c => c.checked);
@@ -1353,7 +1400,6 @@ async function autoSaveForm(stepNumber) {
 
   try {
     const data = collectData();
-    console.log('[AUTO-SAVE] Collected data:', data);
 
     const payload = {
       lead_id: leadId,
@@ -1361,7 +1407,6 @@ async function autoSaveForm(stepNumber) {
       step: stepNumber,
       form_type: 'intake',
     };
-    console.log('[AUTO-SAVE] Sending payload:', payload);
 
     const response = await fetch('/api/submit-intake', {
       method: 'POST',
@@ -1467,7 +1512,6 @@ function submitForm(){
   const params = new URLSearchParams(window.location.search);
   const leadId = params.get('lead_id');
   const data = collectData();
-  console.log('[SUBMIT] Collected form data:', data);
   const willText = generateWillText(data);
   console.log('[SUBMIT] Generated will text length:', willText.length);
 

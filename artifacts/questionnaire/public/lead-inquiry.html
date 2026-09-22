@@ -331,7 +331,17 @@ async function loadExistingData() {
 
     const result = await response.json();
     if (!result.data || Object.keys(result.data).length === 0) {
-      // No saved data - show blank form
+      // No saved answers yet. Seed name and email from the screening record so
+      // the client is not asked to retype what the firm already has.
+      const client = result.client || {};
+      if (client.name) {
+        const nameEl = formEl.querySelector('input[name="client_name"]');
+        if (nameEl && !nameEl.value) nameEl.value = client.name;
+      }
+      if (client.email) {
+        const emailEl = formEl.querySelector('input[name="client_email"]');
+        if (emailEl && !emailEl.value) emailEl.value = client.email;
+      }
       spinner.style.display = 'none';
       formEl.classList.remove('hidden');
       render();

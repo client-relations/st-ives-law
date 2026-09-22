@@ -14,18 +14,18 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      // Demo mode for testing (remove in production)
-      const demoEmail = 'test@test.com';
-      const demoPassword = 'password123';
+      // Demo mode is development-only. It bypasses Supabase auth entirely and
+      // grants admin access, so it must never be reachable on a production
+      // build. import.meta.env.DEV is false in `vite build` output.
+      if (import.meta.env.DEV) {
+        const demoEmail = 'test@test.com';
+        const demoPassword = 'password123';
 
-      console.log('Login attempt:', { email, password, demoEmail, demoPassword });
-      console.log('Demo check:', email.trim() === demoEmail && password.trim() === demoPassword);
-
-      if (email.trim() === demoEmail && password.trim() === demoPassword) {
-        console.log('Demo mode activated');
-        localStorage.setItem('supabase_user_id', 'demo-user-id');
-        window.location.href = '/';
-        return;
+        if (email.trim() === demoEmail && password.trim() === demoPassword) {
+          localStorage.setItem('supabase_user_id', 'demo-user-id');
+          window.location.href = '/';
+          return;
+        }
       }
 
       if (!supabase) {
@@ -42,34 +42,6 @@ export default function LoginPage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      if (!supabase) {
-        throw new Error('Supabase not configured');
-      }
-      const { data, error: authError } = await supabase.auth.signUp({
-        email,
-        password
-      });
-      if (authError) throw authError;
-      if (data?.user) {
-        setError('');
-        setView('login');
-        setEmail('');
-        setPassword('');
-        // Show success message or auto-login
-        alert('Account created! Please log in with your credentials.');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Signup failed');
     } finally {
       setLoading(false);
     }

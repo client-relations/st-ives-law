@@ -93,9 +93,10 @@ export default function AppRouter() {
         }
       }
 
-      // Check for demo mode first
+      // Check for demo mode first (development builds only — this grants
+      // dashboard access without a Supabase session).
       const demoUserId = localStorage.getItem('supabase_user_id');
-      if (demoUserId === 'demo-user-id') {
+      if (import.meta.env.DEV && demoUserId === 'demo-user-id') {
         // Demo mode - allow access with admin lawyer context
         const urlFormId = params.get('formId');
         if (urlFormId) {

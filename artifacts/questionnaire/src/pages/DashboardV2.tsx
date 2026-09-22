@@ -12,6 +12,7 @@ import {
   submitFormToSmokeball,
   sendIntakeForm,
   deleteForm,
+  deleteLead,
   populateMatterToClio,
   sendBackForm,
 } from '../lib/dashboard-actions';
@@ -600,10 +601,14 @@ export default function DashboardV2() {
   const refreshData = async () => {
     if (!lawyer?.id || !supabase) return;
     try {
-      const { data: screenings } = await supabase
-        .from('screening_submissions')
-        .select('*')
-        .eq('lawyer_id', lawyer.id)
+      // Admins see every record; regular lawyers see only their own. This must
+      // match fetchData() — filtering an admin by lawyer_id returns nothing and
+      // blanks the whole dashboard after any action that calls refreshData().
+      let screeningQuery = supabase.from('screening_submissions').select('*');
+      if (!lawyer.is_admin) {
+        screeningQuery = screeningQuery.eq('lawyer_id', lawyer.id);
+      }
+      const { data: screenings } = await screeningQuery
         .order('created_at', { ascending: false });
       const processedScreenings = (screenings || []).map(s => ({
         ...s,
@@ -616,10 +621,11 @@ export default function DashboardV2() {
       }));
       setRealPendingLeads(processedScreenings);
 
-      const { data: forms } = await supabase
-        .from('forms')
-        .select('*')
-        .eq('lawyer_id', lawyer.id)
+      let formsQuery = supabase.from('forms').select('*');
+      if (!lawyer.is_admin) {
+        formsQuery = formsQuery.eq('lawyer_id', lawyer.id);
+      }
+      const { data: forms } = await formsQuery
         .order('created_at', { ascending: false });
       const processedForms = (forms || []).map(f => {
         // Calculate days overdue
@@ -910,9 +916,6 @@ export default function DashboardV2() {
 
     // Parse form_data if it's a string
     let formData = viewingIntakeForm.form_data;
-    console.log('DEBUG: viewingIntakeForm:', viewingIntakeForm);
-    console.log('DEBUG: form_data:', formData);
-    console.log('DEBUG: form_data type:', typeof formData);
 
     if (typeof formData === 'string') {
       try {
@@ -922,7 +925,6 @@ export default function DashboardV2() {
       }
     }
 
-    console.log('DEBUG: parsed formData:', formData);
 
     const isCompletedIntake = viewingIntakeForm.status === 'completed_intake';
     const isPendingIntake = viewingIntakeForm.status === 'pending_intake';
@@ -1293,8 +1295,14 @@ export default function DashboardV2() {
                           <button
                             type='button'
                             className='nv-btn-delete'
-                            onClick={() => console.log('Delete - disabled')}
-                            disabled
+                            onClick={async () => {
+                              if (!window.confirm(`Delete lead for ${lead.name}? This cannot be undone.`)) return;
+                              if (await deleteLead(lead.id)) {
+                                await refreshData();
+                              } else {
+                                alert('Could not delete this lead. Please try again.');
+                              }
+                            }}
                             style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
                           >
                             Delete
@@ -1506,8 +1514,14 @@ export default function DashboardV2() {
                         <button
                           type='button'
                           className='nv-btn-delete'
-                          onClick={() => console.log('Delete - disabled')}
-                          disabled
+                          onClick={async () => {
+                            if (!window.confirm(`Delete lead for ${lead.name}? This cannot be undone.`)) return;
+                            if (await deleteLead(lead.id)) {
+                              await refreshData();
+                            } else {
+                              alert('Could not delete this lead. Please try again.');
+                            }
+                          }}
                         >
                           Delete
                         </button>

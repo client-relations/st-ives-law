@@ -1,9 +1,13 @@
-import { useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { useState, useEffect, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 
 type ContactType = 'person' | 'firm';
 
-const LAWYERS = ['Sarah Southern'];
+// Fallback only. The dropdown is populated from the `lawyers` table at runtime
+// so it can never drift from the records this form looks up by full_name when
+// resolving lawyer_id — a hardcoded name that is absent from the table makes
+// the submit fail with "Lawyer not found".
+const FALLBACK_LAWYERS = ['Sarah Southern'];
 const BILLING_TYPES = ['Fixed Fee', 'Fixed Fee Per Appearance', 'Time Based', 'Contingency ($)', 'Contingency (%)', 'Not Billable'];
 const REGIONS = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'];
 
@@ -18,6 +22,28 @@ export default function ScreeningFormV2({ lawyerId, onSubmit, onClose }: Screeni
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [lawyers, setLawyers] = useState<string[]>(FALLBACK_LAWYERS);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!supabase) return;
+      const { data, error: lawyersError } = await supabase
+        .from('lawyers')
+        .select('full_name')
+        .order('full_name', { ascending: true });
+      if (cancelled) return;
+      if (lawyersError) {
+        console.error('Could not load lawyer list:', lawyersError);
+        return;
+      }
+      const names = (data || [])
+        .map((l: { full_name: string }) => l.full_name)
+        .filter(Boolean);
+      if (names.length > 0) setLawyers(names);
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const [personData, setPersonData] = useState({
     title: '',
@@ -267,7 +293,7 @@ export default function ScreeningFormV2({ lawyerId, onSubmit, onClose }: Screeni
         <h3 className='nv-screen-section-title'>Lead Details</h3>
         {renderField('Lead Type', renderTextInput(leadType, (v) => setLead('leadType', v), 'e.g. Estate Planning, Family Law'))}
         {renderField('Region (Australia)', renderSelect(region, (v) => setLead('region', v), REGIONS))}
-        {renderField('Person Responsible', renderSelect(personResponsible, (v) => setLead('personResponsible', v), LAWYERS))}
+        {renderField('Person Responsible', renderSelect(personResponsible, (v) => setLead('personResponsible', v), lawyers))}
         {renderField('Billing Type', renderSelect(billingType, (v) => setLead('billingType', v), BILLING_TYPES))}
       </section>
     );
