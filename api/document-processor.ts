@@ -15,7 +15,8 @@ try {
 // Simple but reliable DOCX variable replacement using JSZip
 export async function processDocxTemplate(
   templatePath: string,
-  variables: Record<string, string>
+  variables: Record<string, string>,
+  documentTitle?: string
 ): Promise<Buffer> {
   try {
     const JSZip = require('jszip');
@@ -103,6 +104,28 @@ export async function processDocxTemplate(
         zip.file(xmlFile, xmlContent);
       } catch (e) {
         console.warn(`Failed to process ${xmlFile}:`, e);
+      }
+    }
+
+    // Correct the document's own title.
+    //
+    // Every precedent in api/templates carries "Multi TT Will" in
+    // docProps/core.xml — the provider built the whole set by copying that one
+    // file and never updated the properties. Left alone, a Simple Will opens in
+    // Word and in PDF readers titled "Multi TT Will", which is confusing for
+    // the lawyer and embarrassing in front of a client.
+    if (documentTitle) {
+      const coreFile = zip.file('docProps/core.xml');
+      if (coreFile) {
+        const core = await coreFile.async('text');
+        const escaped = documentTitle
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        zip.file(
+          'docProps/core.xml',
+          core.replace(/<dc:title>.*?<\/dc:title>/, `<dc:title>${escaped}</dc:title>`)
+        );
       }
     }
 
@@ -207,8 +230,12 @@ export async function generateWillFromTemplate(
     throw new Error(`Template not found: ${templateFile}. Searched: ${possiblePaths.join(', ')}`);
   }
 
+  // Name the document after the precedent actually used, not whatever the
+  // provider left in the file's properties.
+  const documentTitle = templateFile.replace(/\s*\(Clio\)\.docx$/i, '');
+
   // Process the template
-  let result = await processDocxTemplate(templatePath, variables);
+  let result = await processDocxTemplate(templatePath, variables, documentTitle);
 
   // Convert to PDF if requested
   if (outputFormat === 'pdf') {
