@@ -25,9 +25,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        // Check for demo mode
+        // Check for demo mode (development builds only — this grants admin
+        // access without authenticating, so it must not ship to production).
         const demoUserId = localStorage.getItem('supabase_user_id');
-        if (demoUserId === 'demo-user-id') {
+        if (import.meta.env.DEV && demoUserId === 'demo-user-id') {
           setUser({ id: 'demo-user-id', email: 'test@test.com' });
           setLawyer({
             id: '5d136c20-1dc8-4b9f-a123-a01a56d763a0',

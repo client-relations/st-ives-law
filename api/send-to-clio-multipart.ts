@@ -68,7 +68,10 @@ export default async function handler(req: any, res: any) {
     const body = Buffer.concat(parts);
 
     // Send multipart to Make.com webhook for Clio forwarding
-    const makeWebhookUrl = 'https://hook.eu2.make.com/5n4gkxudn5a79qwbl99wtmr9xg0ddpu8';
+    // Server-side env var (not VITE_*, so it is never bundled to the client).
+    // Literal is a transitional fallback — set CLIO_DOCUMENT_WEBHOOK in Vercel.
+    const makeWebhookUrl = process.env.CLIO_DOCUMENT_WEBHOOK
+      || 'https://hook.eu2.make.com/5n4gkxudn5a79qwbl99wtmr9xg0ddpu8';
 
     console.log(`Sending multipart document to Make.com webhook: ${makeWebhookUrl}`);
     console.log(`Matter ID: ${matter_id}, Document: ${documentName}`);
@@ -89,8 +92,17 @@ export default async function handler(req: any, res: any) {
       throw new Error(`Clio API returned ${(response as any).status}: ${text}`);
     }
 
-    const result = await (response as any).json();
-    console.log('Document uploaded to Clio successfully');
+    // Make.com webhooks reply with the plain string "Accepted", not JSON.
+    // Read as text and only parse when the payload really is JSON, otherwise
+    // this throws and the whole upload is reported as a 500 failure.
+    const rawResponse = await (response as any).text();
+    let result: unknown = rawResponse;
+    try {
+      result = JSON.parse(rawResponse);
+    } catch {
+      // Plain-text acknowledgement ("Accepted") — expected, not an error.
+    }
+    console.log('Document forwarded to Make.com webhook. Response:', rawResponse);
 
     return res.status(200).json({
       success: true,

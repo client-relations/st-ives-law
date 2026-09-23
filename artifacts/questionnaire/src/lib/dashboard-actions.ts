@@ -1,18 +1,96 @@
 import { supabase } from './supabase';
 
-// Webhook URLs (Make integration)
-const MAKE_CLIO_WEBHOOK = 'https://hook.eu2.make.com/7kdud7kq1fjfb4d83f5h4o9o0qou1lgr';
+// Webhook URLs (Make integration).
+// Prefer environment configuration. The literals are transitional fallbacks so
+// existing deployments keep working — set the VITE_* vars in Vercel and then
+// delete the fallbacks, since anything committed here is public in the bundle.
+const MAKE_CLIO_WEBHOOK = import.meta.env.VITE_CLIO_MATTER_WEBHOOK || 'https://hook.eu2.make.com/7kdud7kq1fjfb4d83f5h4o9o0qou1lgr';
 const SMOKEBALL_WEBHOOK = import.meta.env.VITE_WEBHOOK_URL || 'https://hook.eu2.make.com/fou12e2mjy2wgv2h0e3jgqor7fu81rec';
 const SEND_FORM_EMAIL_WEBHOOK = import.meta.env.VITE_SEND_FORM_EMAIL_WEBHOOK || 'https://hook.eu2.make.com/f6lbcoppzzdjl7r5dh7i0uqpo3yx68y2';
-const SEND_INQUIRY_FORM_WEBHOOK = 'https://hook.eu2.make.com/x9outby9rqyxbwaf4g86jht5vic11dl2';
-const SEND_INTAKE_FORM_WEBHOOK = 'https://hook.eu2.make.com/uqjnkwsk8kx3ujsrancfkesdybyufw17';
+const SEND_INQUIRY_FORM_WEBHOOK = import.meta.env.VITE_SEND_INQUIRY_FORM_WEBHOOK || 'https://hook.eu2.make.com/x9outby9rqyxbwaf4g86jht5vic11dl2';
+const SEND_INTAKE_FORM_WEBHOOK = import.meta.env.VITE_SEND_INTAKE_FORM_WEBHOOK || 'https://hook.eu2.make.com/uqjnkwsk8kx3ujsrancfkesdybyufw17';
 const REMINDER_WEBHOOK = import.meta.env.VITE_REMINDER_WEBHOOK || 'https://hook.eu2.make.com/mjiv8gg69a3dn5ktex4tqlj5j1oji5fk';
 const EMAIL_CONFIRMATION_WEBHOOK = import.meta.env.VITE_EMAIL_CONFIRMATION_WEBHOOK || 'https://hook.eu2.make.com/6xtuj8hqbt68f90v8y4iy3u3lylrs2hw';
-const SEND_BACK_WEBHOOK = 'https://hook.eu2.make.com/b5iv2ah5zkkoacib1cq1v2w7rs9qqsuj';
+const SEND_BACK_WEBHOOK = import.meta.env.VITE_SEND_BACK_WEBHOOK || 'https://hook.eu2.make.com/b5iv2ah5zkkoacib1cq1v2w7rs9qqsuj';
+
+export type EmailDispatchResult = {
+  ok: boolean;
+  /** Human-readable reason, suitable for showing to the lawyer. */
+  detail: string;
+};
+
+/** Domains reserved by RFC 2606 / RFC 6761 — mail to these always bounces. */
+const UNDELIVERABLE_DOMAINS = ['example.com', 'example.org', 'example.net', 'test', 'invalid', 'localhost'];
+
+function validateRecipient(email: string): string | null {
+  const address = (email || '').trim();
+  if (!address) return 'No email address on file for this client.';
+  // Deliberately simple: one @, a dot in the domain, no whitespace.
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
+    return `"${address}" is not a valid email address.`;
+  }
+  const domain = address.split('@')[1].toLowerCase();
+  if (UNDELIVERABLE_DOMAINS.some(d => domain === d || domain.endsWith('.' + d))) {
+    return `"${address}" uses a reserved test domain and cannot receive mail.`;
+  }
+  return null;
+}
+
+/**
+ * POST a payload to a Make.com email webhook.
+ *
+ * Make acknowledges instantly with the plain string "Accepted" and sends the
+ * mail afterwards, so a 2xx here means "queued", NOT "delivered". Anything that
+ * fails later (bad address, mailbox connection expired, scenario switched off)
+ * is invisible to us. We therefore validate the recipient up front — which
+ * catches the common real-world cause — and never report delivery as confirmed.
+ */
+async function dispatchEmailWebhook(
+  webhookUrl: string,
+  payload: Record<string, unknown>,
+  label: string,
+): Promise<EmailDispatchResult> {
+  const recipient = typeof payload.client_email === 'string' ? payload.client_email : '';
+  const invalid = validateRecipient(recipient);
+  if (invalid) {
+    console.warn(`[EMAIL] ${label} not sent: ${invalid}`);
+    return { ok: false, detail: invalid };
+  }
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const body = (await response.text().catch(() => '')).trim();
+
+    if (!response.ok) {
+      const detail = `${label} could not be queued (webhook returned ${response.status}).`;
+      console.warn(`[EMAIL] ${detail} Body: ${body}`);
+      return { ok: false, detail };
+    }
+
+    // Make replies "Accepted" on success. Anything else means the scenario
+    // rejected the payload or is misconfigured.
+    if (body && !/^accepted$/i.test(body)) {
+      const detail = `${label} was rejected by the automation: ${body.slice(0, 200)}`;
+      console.warn(`[EMAIL] ${detail}`);
+      return { ok: false, detail };
+    }
+
+    console.log(`[EMAIL] ${label} queued for delivery to ${recipient} (delivery not confirmed).`);
+    return { ok: true, detail: `${label} queued for delivery to ${recipient}.` };
+  } catch (err) {
+    const detail = `${label} failed to reach the automation service.`;
+    console.error(`[EMAIL] ${detail}`, err);
+    return { ok: false, detail };
+  }
+}
 
 export async function qualifyLead(screeningId: string, personResponsible: string) {
   try {
-    console.log('qualifyLead called with personResponsible:', personResponsible);
 
     if (!supabase) throw new Error('Database connection error');
 
@@ -24,7 +102,6 @@ export async function qualifyLead(screeningId: string, personResponsible: string
       .single();
 
     if (!screening) throw new Error('Screening not found');
-    console.log('Screening found:', screening);
 
     // Look up lawyer ID by person_responsible name
     const { data: lawyer, error: lawyerError } = await supabase
@@ -33,7 +110,6 @@ export async function qualifyLead(screeningId: string, personResponsible: string
       .eq('full_name', personResponsible)
       .single();
 
-    console.log('Lawyer lookup result:', { lawyer, lawyerError });
 
     if (lawyerError) throw lawyerError;
     if (!lawyer) throw new Error(`Lawyer "${personResponsible}" not found`);
@@ -94,9 +170,14 @@ export async function qualifyLead(screeningId: string, personResponsible: string
 
     if (updateError) throw updateError;
 
-    // Send inquiry form email
-    if (formRecord.client_email) {
-      await sendInquiryFormEmail(formRecord.id, formRecord.client_name, formRecord.client_email);
+    // Send inquiry form email. A failure here must not be silent: the lead is
+    // already created, so the lawyer needs to know to share the link manually.
+    const emailResult = formRecord.client_email
+      ? await sendInquiryFormEmail(formRecord.id, formRecord.client_name, formRecord.client_email)
+      : { ok: false, detail: 'No email address on file for this client.' };
+
+    if (!emailResult.ok) {
+      alert(`Lead qualified, but the inquiry email was NOT sent.\n\n${emailResult.detail}\n\nShare the link on the next screen with the client directly.`);
     }
 
     return formRecord.id;
@@ -136,6 +217,23 @@ export async function deprioritizeLead(screeningId: string) {
     return true;
   } catch (err) {
     console.error('Error deprioritizing lead:', err);
+    return false;
+  }
+}
+
+export async function deleteLead(screeningId: string) {
+  try {
+    if (!supabase) throw new Error('Database connection error');
+
+    const { error } = await supabase
+      .from('screening_submissions')
+      .delete()
+      .eq('id', screeningId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Error deleting lead:', err);
     return false;
   }
 }
@@ -398,12 +496,17 @@ export async function sendIntakeForm(formId: string) {
 
     if (error) throw error;
 
-    // Send intake form email
-    if (form.client_email) {
-      await sendIntakeFormEmail(form.id, form.client_name, form.client_email);
+    // Send intake form email. Surface failures — the status has already moved
+    // to pending_intake, so silent failure leaves the client waiting forever.
+    const emailResult = form.client_email
+      ? await sendIntakeFormEmail(form.id, form.client_name, form.client_email)
+      : { ok: false, detail: 'No email address on file for this client.' };
+
+    if (!emailResult.ok) {
+      alert(`Intake form status updated, but the email was NOT sent.\n\n${emailResult.detail}\n\nShare the link on the next screen with the client directly.`);
     }
 
-    console.log('Intake form sent, status updated to pending_intake');
+    console.log('Intake form status updated to pending_intake');
     return true;
   } catch (err) {
     console.error('Error sending intake form:', err);
@@ -645,28 +748,20 @@ export async function sendInquiryFormEmail(formId: string, clientName: string, c
   try {
     const formLink = `${window.location.origin}/lead-inquiry?lead_id=${formId}`;
 
-    const response = await fetch(SEND_INQUIRY_FORM_WEBHOOK, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    return await dispatchEmailWebhook(
+      SEND_INQUIRY_FORM_WEBHOOK,
+      {
         form_id: formId,
         client_name: clientName,
         client_email: clientEmail,
         form_link: formLink,
         sent_at: new Date().toISOString(),
-      }),
-    });
-
-    if (!response.ok) {
-      console.warn('Inquiry form email webhook failed:', response.status);
-      return false;
-    }
-
-    console.log('Inquiry form email sent successfully');
-    return true;
+      },
+      'Inquiry form email',
+    );
   } catch (err) {
     console.error('Error sending inquiry form email:', err);
-    return false;
+    return { ok: false, detail: 'Inquiry form email failed unexpectedly.' };
   }
 }
 
@@ -674,28 +769,20 @@ export async function sendIntakeFormEmail(formId: string, clientName: string, cl
   try {
     const formLink = `${window.location.origin}/intake-form?lead_id=${formId}`;
 
-    const response = await fetch(SEND_INTAKE_FORM_WEBHOOK, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    return await dispatchEmailWebhook(
+      SEND_INTAKE_FORM_WEBHOOK,
+      {
         form_id: formId,
         client_name: clientName,
         client_email: clientEmail,
         form_link: formLink,
         sent_at: new Date().toISOString(),
-      }),
-    });
-
-    if (!response.ok) {
-      console.warn('Intake form email webhook failed:', response.status);
-      return false;
-    }
-
-    console.log('Intake form email sent successfully');
-    return true;
+      },
+      'Intake form email',
+    );
   } catch (err) {
     console.error('Error sending intake form email:', err);
-    return false;
+    return { ok: false, detail: 'Intake form email failed unexpectedly.' };
   }
 }
 
@@ -766,13 +853,22 @@ export async function populateMatterToClio(formId: string) {
     const inquiryData = formData.inquiry || {};
     const metadata = formData.metadata || {};
 
-    // Merge intake and inquiry data - inquiry takes priority for missing fields
-    const completeFormData = { ...intakeData, ...inquiryData };
+    // Merge inquiry and intake data. The intake form is the later, more
+    // detailed source and must win on any field both collect (name, email,
+    // phone, state) — spreading inquiry last would overwrite corrected intake
+    // answers with the older inquiry ones. Inquiry only fills genuine gaps,
+    // so empty intake values do not clobber a populated inquiry value.
+    const completeFormData: Record<string, any> = { ...inquiryData };
+    for (const [key, value] of Object.entries(intakeData as Record<string, any>)) {
+      const isEmpty = value === undefined || value === null || value === '';
+      if (!isEmpty || !(key in completeFormData)) {
+        completeFormData[key] = value;
+      }
+    }
 
     // Build Clio payload
     const payload = buildClioPayload(completeFormData, form, metadata);
 
-    console.log('[CLIO] Sending payload to Make.com:', payload);
 
     const response = await fetch(MAKE_CLIO_WEBHOOK, {
       method: 'POST',
@@ -1051,6 +1147,11 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
     trust_fund_1: fundCount >= 1 ? formatTrustFund(1, trustFund1) : '',
     trust_fund_2: fundCount >= 2 ? formatTrustFund(2, trustFund2) : '',
     foreign_persons_excluded: fundCount > 0 ? (intakeData.fpe_trust ? 'Yes' : 'No') : 'N/A',
+
+    // Whether personal belongings follow the named beneficiaries or pass to
+    // the client's children. Collected on the intake form (step 9) and a real
+    // testamentary instruction — previously dropped before reaching Clio.
+    personal_belongings_to: intakeData.personal_belongings_to || 'Not specified',
 
     // Calamity Beneficiaries
     calamity_beneficiaries: formatCalamityBeneficiaries(calamityBeneficiaries),

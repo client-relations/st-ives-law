@@ -23,7 +23,7 @@ export default async function handler(req, res) {
 
     const { data: form, error } = await supabase
       .from('forms')
-      .select('form_data, status')
+      .select('form_data, status, client_name, client_email')
       .eq('id', lead_id)
       .single();
 
@@ -40,6 +40,12 @@ export default async function handler(req, res) {
       success: true,
       data: formData,
       status: form.status,
+      // Returned so the client-facing forms can prefill the details the firm
+      // already captured at screening, instead of asking for them again.
+      client: {
+        name: form.client_name || '',
+        email: form.client_email || '',
+      },
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
