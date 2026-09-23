@@ -308,7 +308,8 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
         return;
       }
 
-      // Send DOCX as multipart/form-data to Clio via Make.com webhook
+      // Upload the DOCX straight into the Clio matter (three-step Clio v4 flow,
+      // handled server-side). A 200 here means the file is genuinely in Clio.
       const response = await fetch('/api/send-to-clio-multipart', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -325,10 +326,21 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.details || `Request failed: ${response.status}`);
+        // `details` is an object for Clio API failures (step, status, response)
+        // — stringify it so the lawyer sees the real reason, not [object Object].
+        const detail =
+          typeof result.details === 'string'
+            ? result.details
+            : result.details
+              ? JSON.stringify(result.details)
+              : '';
+        throw new Error(
+          [result.error, detail].filter(Boolean).join(' — ') ||
+            `Request failed: ${response.status}`,
+        );
       }
 
-      alert('✓ Document sent to Clio successfully!');
+      alert('✓ Document uploaded to Clio successfully!');
     } catch (error) {
       console.error('Error sending to Clio:', error);
       alert(`Failed to send to Clio: ${error instanceof Error ? error.message : 'Unknown error'}`);
