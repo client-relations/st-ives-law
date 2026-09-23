@@ -57,7 +57,13 @@ export default async function handler(req: any, res: any) {
     // Map form variables to actual template field names in the DOCX
     // Supports both Simple Will and Testamentary Trust Will templates
     const variables: Record<string, string> = {
-      // Client names (used by both Simple Will and TT Will)
+      // Client names (used by both Simple Will and TT Will).
+      // The INDIVIDUAL templates address the testator as Matter.Client.Name
+      // (title, "I, ...", "Testator means ...", and the execution block - 10
+      // occurrences). Only the COUPLE templates use Relationships.Mr.Name.
+      // Without this line every individual will was produced with the literal
+      // text "<< Matter.Client.Name >>" wherever the client's name belongs.
+      'Matter.Client.Name': client_name || '',
       'Matter.Relationships.Mr.Name': client_name || '',
       'Matter.Relationships.Mrs.Name': spouse_name || '',
       'Matter.Client.Address': client_address || '',
