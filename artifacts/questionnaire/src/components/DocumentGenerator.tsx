@@ -173,14 +173,17 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
   const [docs, setDocs] = useState<GeneratedDoc[]>([]);
   const [selectedDoc, setSelectedDoc] = useState(0);
   const [formSummary, setFormSummary] = useState<any>(null);
+  // Set when the documents came from the Clio client list rather than an intake form.
+  const [clioMatterId, setClioMatterId] = useState<string | number | null>(null);
 
   // Load generated documents from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem(`generated_docs_${formId}`);
     if (stored) {
       try {
-        const { documents } = JSON.parse(stored);
+        const { documents, matterId } = JSON.parse(stored);
         setDocs(documents);
+        if (matterId) setClioMatterId(matterId);
         // Extract summary from first doc's variables
         if (documents && documents.length > 0 && documents[0].variables) {
           setFormSummary(documents[0].variables);
@@ -295,17 +298,24 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
     }
 
     try {
-      // Fetch matter_id from Supabase for this form
-      const { supabase } = await import('../lib/supabase');
-      const { data: formData, error } = await supabase
-        .from('forms')
-        .select('matter_id')
-        .eq('id', formId)
-        .single();
+      // Documents generated from the Clio client list already know their
+      // matter — the id they were keyed under IS the Clio matter id. Only the
+      // intake-driven path needs the forms table to resolve one.
+      let matterId: string | number | null = clioMatterId;
 
-      if (error || !formData?.matter_id) {
-        alert('Matter ID not found. Please ensure the form is linked to a Clio matter.');
-        return;
+      if (!matterId) {
+        const { supabase } = await import('../lib/supabase');
+        const { data: formData, error } = await supabase
+          .from('forms')
+          .select('matter_id')
+          .eq('id', formId)
+          .single();
+
+        if (error || !formData?.matter_id) {
+          alert('Matter ID not found. Please ensure the form is linked to a Clio matter.');
+          return;
+        }
+        matterId = formData.matter_id;
       }
 
       // Upload the DOCX straight into the Clio matter (three-step Clio v4 flow,
@@ -315,7 +325,7 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           docxBase64: doc.documentBase64,
-          matter_id: formData.matter_id,
+          matter_id: matterId,
           documentName: doc.documentName,
           templateType: doc.templateType,
           scenario: doc.scenario,
