@@ -11,18 +11,57 @@ export interface Lawyer {
 interface AuthContextType {
   user: any | null;
   lawyer: Lawyer | null;
+  /** Why the signed-in user has no lawyer profile, if they don't. */
+  lawyerError: string;
   loading: boolean;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const PROFILE_ERRORS: Record<string, string> = {
+  NO_PROFILE: 'No lawyer profile exists for this email. Ask an admin to add you to the lawyer list.',
+  PROFILE_ALREADY_CLAIMED: 'The lawyer profile for this email is already linked to another account. Ask an admin to check it.',
+  DUPLICATE_PROFILE: 'More than one lawyer profile uses this email. Ask an admin to remove the duplicate.',
+};
+
+/**
+ * Resolve the lawyer record for the signed-in user. link_my_lawyer_profile()
+ * returns the profile already linked to this account, or links the one
+ * unclaimed profile an admin created for this email — never someone else's.
+ */
+async function loadLawyer(): Promise<{ lawyer: Lawyer | null; error: string }> {
+  const { data, error } = await supabase.rpc('link_my_lawyer_profile');
+  if (error) {
+    const code = Object.keys(PROFILE_ERRORS).find((c) => error.message?.includes(c));
+    return { lawyer: null, error: code ? PROFILE_ERRORS[code] : `Could not load your lawyer profile: ${error.message}` };
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ? { lawyer: row as Lawyer, error: '' } : { lawyer: null, error: PROFILE_ERRORS.NO_PROFILE };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any | null>(null);
   const [lawyer, setLawyer] = useState<Lawyer | null>(null);
+  const [lawyerError, setLawyerError] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+
+    const applySession = async (session: any) => {
+      if (!session?.user) {
+        setUser(null);
+        setLawyer(null);
+        setLawyerError('');
+        return;
+      }
+      setUser(session.user);
+      const result = await loadLawyer();
+      setLawyer(result.lawyer);
+      setLawyerError(result.error);
+    };
+
     const initAuth = async () => {
       try {
         // Check for demo mode (development builds only — this grants admin
@@ -36,55 +75,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             full_name: 'Sarah Southern',
             is_admin: true,
           });
-          setLoading(false);
           return;
         }
 
-        if (!supabase) {
-          setLoading(false);
-          return;
-        }
+        if (!supabase) return;
 
-        // Check for existing session
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setUser(session.user);
-          // Fetch lawyer record
-          const { data: lawyerData } = await supabase
-            .from('lawyers')
-            .select('*')
-            .eq('email', session.user.email)
-            .single();
-          if (lawyerData) {
-            setLawyer(lawyerData);
-          }
-        }
+        await applySession(session);
 
-        // Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          if (session?.user) {
-            setUser(session.user);
-            const { data: lawyerData } = await supabase
-              .from('lawyers')
-              .select('*')
-              .eq('email', session.user.email)
-              .single();
-            if (lawyerData) {
-              setLawyer(lawyerData);
-            }
-          } else {
-            setUser(null);
-            setLawyer(null);
-          }
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, next: any) => {
+          // TOKEN_REFRESHED fires hourly; the profile does not change with it.
+          if (event === 'TOKEN_REFRESHED') return;
+          // Deferred: calling Supabase inside this callback can deadlock the
+          // client's auth lock (supabase-js v2).
+          setTimeout(() => { applySession(next); }, 0);
         });
-
-        return () => subscription?.unsubscribe();
+        unsubscribe = () => subscription?.unsubscribe();
+      } catch (err) {
+        setLawyerError(`Could not check your sign-in: ${err instanceof Error ? err.message : String(err)}`);
       } finally {
         setLoading(false);
       }
     };
 
     initAuth();
+    return () => unsubscribe?.();
   }, []);
 
   const logout = async () => {
@@ -106,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, lawyer, loading, logout }}>
+    <AuthContext.Provider value={{ user, lawyer, lawyerError, loading, logout }}>
       {children}
     </AuthContext.Provider>
   );

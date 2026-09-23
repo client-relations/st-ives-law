@@ -1,4 +1,15 @@
-import { createClient } from '@supabase/supabase-js';
+import {
+  HttpError,
+  getAdminClient,
+  loadForm,
+  parseFormData,
+  readBody,
+  requireFormId,
+  sendError,
+} from './_lib/server.js';
+
+const TOTAL_STEPS = 14;
+const EDITABLE_STATUSES = ['pending_intake', 'completed_intake'];
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -6,85 +17,57 @@ export default async function handler(req, res) {
   }
 
   try {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      return res.status(500).json({ error: 'Supabase not configured' });
+    const { lead_id, form_data, step: rawStep } = readBody(req);
+    const formId = requireFormId(lead_id);
+    if (!form_data || typeof form_data !== 'object' || Array.isArray(form_data)) {
+      throw new HttpError(400, 'Missing form_data');
+    }
+    const step = Number(rawStep);
+    if (!Number.isInteger(step) || step < 1 || step > TOTAL_STEPS) {
+      throw new HttpError(400, `step must be a whole number from 1 to ${TOTAL_STEPS}`);
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    const { lead_id, form_data, step, form_type } = req.body;
-
-    if (!lead_id || !form_data || step === undefined) {
-      return res.status(400).json({ error: 'Missing lead_id, form_data, or step' });
+    const supabase = getAdminClient();
+    const form = await loadForm(supabase, formId, 'id, status, form_data');
+    if (!EDITABLE_STATUSES.includes(form.status)) {
+      throw new HttpError(409, 'This form can no longer be changed. Please contact the firm.');
     }
 
-    // Fetch current form
-    const { data: form, error: fetchError } = await supabase
-      .from('forms')
-      .select('*')
-      .eq('id', lead_id)
-      .single();
-
-    if (fetchError) {
-      return res.status(404).json({ error: 'Form not found', details: fetchError.message });
+    const existing = parseFormData(form.form_data);
+    const metadata = { ...(existing.metadata || {}), current_step: step };
+    if (step === TOTAL_STEPS) {
+      metadata.will_pdf_path = `/wills/will_${formId}_${Date.now()}.pdf`;
     }
 
-    // Parse existing form_data
-    const parsedFormData = typeof form.form_data === 'string'
-      ? JSON.parse(form.form_data || '{}')
-      : (form.form_data || {});
+    const newStatus = step === TOTAL_STEPS && form.status === 'pending_intake' ? 'completed_intake' : form.status;
+    const progressPct = Math.round((step / TOTAL_STEPS) * 100);
 
-    // Merge intake data with metadata
-    const updatedFormData = {
-      ...parsedFormData,
-      intake: form_data,
-      metadata: {
-        ...parsedFormData.metadata || {},
-        current_step: step,
-      },
-    };
-
-    // Calculate progress percentage (step/14 * 100)
-    const progressPct = Math.round((step / 14) * 100);
-
-    // On step 14, store will PDF path
-    if (step === 14) {
-      updatedFormData.metadata.will_pdf_path = `/wills/will_${lead_id}_${Date.now()}.pdf`;
-    }
-
-    // Determine new status based on step completion
-    let newStatus = form.status;
-    if (step === 14 && form.status === 'pending_intake') {
-      // Form fully completed
-      newStatus = 'completed_intake';
-    }
-
-    // Update form
-    const { error: updateError } = await supabase
+    const { data: updated, error: updateError } = await supabase
       .from('forms')
       .update({
-        form_data: updatedFormData,
+        form_data: { ...existing, intake: form_data, metadata },
         progress_pct: progressPct,
         last_accessed: new Date().toISOString(),
         status: newStatus,
       })
-      .eq('id', lead_id);
+      .eq('id', formId)
+      .eq('status', form.status)
+      .select('id');
 
-    if (updateError) {
-      return res.status(500).json({ error: 'Update failed', details: updateError.message });
+    if (updateError) throw updateError;
+    if (!updated || updated.length === 0) {
+      throw new HttpError(409, 'This form was changed by the firm while you were editing. Please reload the page.');
     }
 
     return res.status(200).json({
       success: true,
       message: 'Intake form saved',
-      lead_id,
+      lead_id: formId,
       step,
       progress_pct: progressPct,
       status: newStatus,
     });
-  } catch (error) {
-    return res.status(500).json({ error: 'Server error', details: error.message });
+  } catch (err) {
+    return sendError(res, err);
   }
 }

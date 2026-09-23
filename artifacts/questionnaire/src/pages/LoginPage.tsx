@@ -37,7 +37,6 @@ export default function LoginPage() {
       });
       if (authError) throw authError;
       if (data?.session) {
-        localStorage.setItem('supabase_user_id', data.user.id);
         window.location.href = '/';
       }
     } catch (err) {
