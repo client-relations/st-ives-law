@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { mapFormDataToTemplate, type FormData } from '../lib/formToTemplateMapper';
+import { authHeaders } from '../lib/dashboard-actions';
 
 interface DocumentGeneratorProps {
   formId: string;
@@ -47,6 +48,7 @@ export function DocumentSelection({ formId, intakeData, onClose }: DocumentGener
     try {
       // Map form data to template variables once
       const templateVars = mapFormDataToTemplate(intakeData, formId);
+      const headers = await authHeaders();
 
       // Generate documents - extract scenario from template ID
       const generatedDocs = await Promise.all(
@@ -58,7 +60,7 @@ export function DocumentSelection({ formId, intakeData, onClose }: DocumentGener
 
           return fetch('/api/generate-document', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({
               templateType,
               scenario,
@@ -312,7 +314,7 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
       // handled server-side). A 200 here means the file is genuinely in Clio.
       const response = await fetch('/api/send-to-clio-multipart', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders(),
         body: JSON.stringify({
           docxBase64: doc.documentBase64,
           matter_id: formData.matter_id,

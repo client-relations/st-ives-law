@@ -1,4 +1,21 @@
-import { createClient } from '@supabase/supabase-js';
+import {
+  HttpError,
+  getAdminClient,
+  loadForm,
+  parseFormData,
+  readBody,
+  requireFormId,
+  sendError,
+} from './_lib/server.js';
+
+// Which stage of the pipeline may still write each part of form_data, and the
+// status it moves to on submission. Anything else is rejected, so a client
+// cannot rewrite a form after the firm has moved it on, and cannot overwrite
+// other keys (metadata, the other form) by choosing their own form_type.
+const RULES = {
+  inquiry: { allowed: ['appointment_sent', 'scheduled'], advance: { appointment_sent: 'scheduled' } },
+  intake: { allowed: ['pending_intake', 'completed_intake'], advance: { pending_intake: 'completed_intake' } },
+};
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -6,75 +23,47 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Check env vars
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl) {
-      return res.status(500).json({ error: 'SUPABASE_URL not set' });
-    }
-    if (!supabaseKey) {
-      return res.status(500).json({ error: 'SUPABASE_ANON_KEY not set' });
+    const { lead_id, form_data, form_type } = readBody(req);
+    const formId = requireFormId(lead_id);
+    const rule = RULES[form_type];
+    if (!rule) throw new HttpError(400, 'Invalid form_type');
+    if (!form_data || typeof form_data !== 'object' || Array.isArray(form_data)) {
+      throw new HttpError(400, 'Missing form_data');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    const { lead_id, form_data, form_type } = req.body;
-
-    if (!lead_id || !form_data) {
-      return res.status(400).json({ error: 'Missing lead_id or form_data' });
+    const supabase = getAdminClient();
+    const form = await loadForm(supabase, formId, 'id, status, form_data');
+    if (!rule.allowed.includes(form.status)) {
+      throw new HttpError(409, 'This form can no longer be changed. Please contact the firm.');
     }
 
-    // Fetch form
-    const { data: form, error: fetchError } = await supabase
-      .from('forms')
-      .select('*')
-      .eq('id', lead_id)
-      .single();
+    const newStatus = rule.advance[form.status] || form.status;
+    const existing = parseFormData(form.form_data);
 
-    if (fetchError) {
-      return res.status(404).json({ error: 'Form not found', details: fetchError.message });
-    }
-
-    // Parse form_data
-    const parsedFormData = typeof form.form_data === 'string'
-      ? JSON.parse(form.form_data || '{}')
-      : (form.form_data || {});
-
-    // Determine new status
-    let newStatus = form.status;
-    console.log('DEBUG:', { form_type, current_status: form.status, newStatus_before: newStatus });
-
-    if (form_type === 'inquiry' && form.status === 'appointment_sent') {
-      newStatus = 'scheduled';
-    } else if (form_type === 'intake' && form.status === 'pending_intake') {
-      newStatus = 'completed_intake';
-    }
-
-    console.log('DEBUG:', { newStatus_after: newStatus });
-
-    // Update
-    const { error: updateError } = await supabase
+    // Conditional on the status we read, so a concurrent change by the firm
+    // wins instead of being overwritten.
+    const { data: updated, error: updateError } = await supabase
       .from('forms')
       .update({
-        form_data: {
-          ...parsedFormData,
-          [form_type]: form_data,
-        },
+        form_data: { ...existing, [form_type]: form_data },
         status: newStatus,
         last_accessed: new Date().toISOString(),
       })
-      .eq('id', lead_id);
+      .eq('id', formId)
+      .eq('status', form.status)
+      .select('id');
 
-    if (updateError) {
-      return res.status(500).json({ error: 'Update failed', details: updateError.message });
+    if (updateError) throw updateError;
+    if (!updated || updated.length === 0) {
+      throw new HttpError(409, 'This form was changed by the firm while you were editing. Please reload the page.');
     }
 
     return res.status(200).json({
       success: true,
       message: 'Form submitted successfully',
-      lead_id,
+      lead_id: formId,
     });
-  } catch (error) {
-    return res.status(500).json({ error: 'Server error', details: error.message, stack: error.stack });
+  } catch (err) {
+    return sendError(res, err);
   }
 }
