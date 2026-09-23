@@ -5,10 +5,8 @@ import {
   PACKAGES,
   WILL_DOCUMENT_IDS,
   completenessFor,
-  formatPrice,
   getDocument,
   missingFieldsFor,
-  priceSelection,
   type DocumentId,
 } from '../lib/documentPackages';
 
@@ -468,9 +466,6 @@ function DocumentPackageSelector({
             >
               <div className='nv-docgen-card-head'>
                 <span className='nv-docgen-card-title'>{pkg.label}</span>
-                <span className='nv-docgen-card-price'>
-                  {formatPrice(isCouple ? pkg.price.couple : pkg.price.single)}
-                </span>
               </div>
               <ol className='nv-docgen-card-list'>
                 {pkg.documents.map((id) => (
@@ -505,9 +500,6 @@ function DocumentPackageSelector({
                     {doc.label}
                     {isCouple ? ' (x2)' : ''}
                   </span>
-                  <span className='nv-docgen-card-price'>
-                    {formatPrice(isCouple ? doc.price.couple : doc.price.single)}
-                  </span>
                 </div>
                 <p className='nv-docgen-card-desc'>{doc.description}</p>
                 {!hasTemplate && (
@@ -526,9 +518,6 @@ function DocumentPackageSelector({
               {generatable.length * (isCouple ? 2 : 1)} document
               {generatable.length * (isCouple ? 2 : 1) === 1 ? '' : 's'} to generate
             </strong>
-            <span className='nv-docgen-total'>
-              {formatPrice(priceSelection(selected, isCouple))}
-            </span>
           </div>
 
           {unavailable.length > 0 && (

@@ -112,7 +112,13 @@ export function formatPrice(amount: number): string {
   return `$${amount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** Total for a selection, using the package price when the selection is one. */
+/**
+ * Total for a selection, using the package price when the selection is one.
+ *
+ * The generation screen no longer shows prices — kept because the figures are
+ * a faithful transcription of the firm's fee schedule and the package-vs-
+ * individual rule is the non-obvious part to rebuild.
+ */
 export function priceSelection(selected: DocumentId[], isCouple: boolean): number {
   const key = isCouple ? 'couple' : 'single';
   const matchingPackage = PACKAGES.find(
