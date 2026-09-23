@@ -990,9 +990,36 @@ function formatCalamityBeneficiaries(calamities: any[]): string {
     .join('\n');
 }
 
+/**
+ * Clio's one-line text custom fields reject anything over 255 characters with
+ * a 422, which fails the ENTIRE matter creation - no matter, no contact, and
+ * the UI still reports success. Every value written to a custom field must be
+ * clamped. 255 is Clio's documented limit; the ellipsis marks truncation so a
+ * lawyer can tell the value is incomplete rather than trusting it.
+ */
+const CLIO_TEXT_FIELD_MAX = 255;
+
+function clampForClio(value: string): string {
+  if (typeof value !== 'string' || value.length <= CLIO_TEXT_FIELD_MAX) return value;
+  return value.slice(0, CLIO_TEXT_FIELD_MAX - 1) + '…';
+}
+
 function formatTrustFund(fundNum: number, fundData: any): string {
   if (!fundData?.beneficiary) return '';
-  return `Trust Fund ${fundNum}:\nBeneficiary: ${fundData.beneficiary}\nClass: ${fundData.class || 'N/A'}\nPrimary Trustee: ${fundData.trustee_initial || 'N/A'}\nBackup Trustee: ${fundData.trustee_backup || 'N/A'}\nFurther Trustee: ${fundData.trustee_further || 'N/A'}\nPrimary Appointor: ${fundData.appointor_initial || 'N/A'}\nBackup Appointor: ${fundData.appointor_backup || 'N/A'}\nFurther Appointor: ${fundData.appointor_further || 'N/A'}`;
+  // Labels deliberately terse: the verbose version reached 261 characters with
+  // even short placeholder names, which exceeded Clio's limit and broke the
+  // whole sync for any client with a testamentary trust.
+  return [
+    `Trust Fund ${fundNum}:`,
+    `Benef: ${fundData.beneficiary}`,
+    `Class: ${fundData.class || 'N/A'}`,
+    `Trustee 1: ${fundData.trustee_initial || 'N/A'}`,
+    `Trustee 2: ${fundData.trustee_backup || 'N/A'}`,
+    `Trustee 3: ${fundData.trustee_further || 'N/A'}`,
+    `Appointor 1: ${fundData.appointor_initial || 'N/A'}`,
+    `Appointor 2: ${fundData.appointor_backup || 'N/A'}`,
+    `Appointor 3: ${fundData.appointor_further || 'N/A'}`,
+  ].join('\n');
 }
 
 function buildClioPayload(intakeData: any, form: any, metadata: any) {
@@ -1231,6 +1258,20 @@ function buildClioPayload(intakeData: any, form: any, metadata: any) {
     form_id: form.id,
     submission_date: form.created_at,
   };
+
+  // Final safety net: clamp every string to Clio's 255-character limit. One
+  // oversized value 422s the whole request, so no matter is created at all -
+  // losing one field's tail is far better than losing the entire client record.
+  for (const key of Object.keys(payload)) {
+    const original = payload[key];
+    if (typeof original === 'string') {
+      const clamped = clampForClio(original);
+      if (clamped !== original) {
+        console.warn(`[CLIO] "${key}" exceeded ${CLIO_TEXT_FIELD_MAX} chars (${original.length}) and was truncated.`);
+        payload[key] = clamped;
+      }
+    }
+  }
 
   return payload;
 }
