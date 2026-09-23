@@ -1,154 +1,90 @@
 /// <reference types="node" />
 
 /**
- * Upload a generated DOCX straight into a Clio matter.
+ * Hand a generated DOCX to the Make "Sending Document" scenario, which uploads
+ * it into the Clio matter using Make's stored Clio OAuth connection.
  *
- * Clio's v4 API does NOT accept a file inline (neither base64 in JSON nor a
- * single multipart POST). Uploading is a three-step handshake:
+ * The scenario reads three JSON fields — docxBase64, matter_id and
+ * documentName — and posts them to Clio's /documents endpoint. An earlier
+ * revision of this endpoint sent multipart/form-data instead, so
+ * {{1.docxBase64}} resolved to empty and Clio rejected every request with
+ * "Bad Request". Sending plain JSON with exactly those keys is what the
+ * scenario has always expected.
  *
- *   1. POST   /documents.json          -> create the record, receive a signed
- *                                         put_url + put_headers for S3
- *   2. PUT    <put_url>                -> upload the raw bytes to S3
- *   3. PATCH  /documents/{id}.json     -> mark fully_uploaded so Clio exposes it
- *
- * Earlier revisions tried to do this in one call (and against the US host),
- * which is why Clio answered "Bad Request" every time.
+ * Make replies with the literal string "Accepted" (not JSON) the moment it
+ * queues the payload, so the response is read as text and a 2xx here means
+ * "queued", not "delivered".
  */
 
-const CLIO_API_BASE = process.env.CLIO_API_BASE || 'https://au.app.clio.com/api/v4';
-
-type PutHeader = { name: string; value: string };
-
-function jsonError(res: any, status: number, error: string, details?: unknown) {
-  return res.status(status).json({ error, details });
-}
+const MAKE_DOCUMENT_WEBHOOK =
+  process.env.CLIO_DOCUMENT_WEBHOOK ||
+  'https://hook.eu2.make.com/5n4gkxudn5a79qwbl99wtmr9xg0ddpu8';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
-    return jsonError(res, 405, 'Method not allowed');
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const { docxBase64, matter_id, documentName } = req.body || {};
 
   if (!docxBase64 || !matter_id) {
-    return jsonError(res, 400, 'Missing required fields: docxBase64, matter_id');
+    return res.status(400).json({
+      error: 'Missing required fields: docxBase64, matter_id',
+    });
   }
-
-  const clioToken = process.env.CLIO_API_TOKEN;
-  if (!clioToken) {
-    return jsonError(
-      res,
-      500,
-      'CLIO_API_TOKEN is not configured',
-      'Set CLIO_API_TOKEN in the Vercel project environment variables.',
-    );
-  }
-
-  const fileName = `${documentName || 'document'}.docx`;
-  const docxBuffer = Buffer.from(docxBase64, 'base64');
-
-  const authHeaders = {
-    Authorization: `Bearer ${clioToken}`,
-    'Content-Type': 'application/json',
-  };
 
   try {
-    // ---- Step 1: create the document record and get a signed upload URL ----
-    const createUrl =
-      `${CLIO_API_BASE}/documents.json` +
-      `?fields=id,name,latest_document_version{uuid,put_url,put_headers}`;
+    // Field names must match the scenario's mappings exactly.
+    const payload = {
+      docxBase64,
+      matter_id: String(matter_id),
+      documentName: documentName || 'document',
+    };
 
-    const createResponse = await fetch(createUrl, {
-      method: 'POST',
-      headers: authHeaders,
-      body: JSON.stringify({
-        data: {
-          name: fileName,
-          parent: { id: Number(matter_id), type: 'Matter' },
-          document_version: { fully_uploaded: false },
-        },
-      }),
-    });
-
-    const createBody = await createResponse.text();
-    if (!createResponse.ok) {
-      console.error('Clio create failed:', createResponse.status, createBody);
-      return jsonError(res, 502, 'Clio rejected the document record', {
-        step: 'create',
-        status: createResponse.status,
-        response: createBody.slice(0, 1000),
-      });
-    }
-
-    const created = JSON.parse(createBody);
-    const documentId = created?.data?.id;
-    const version = created?.data?.latest_document_version;
-    const putUrl: string | undefined = version?.put_url;
-    const putHeaders: PutHeader[] = version?.put_headers || [];
-    const versionUuid: string | undefined = version?.uuid;
-
-    if (!documentId || !putUrl || !versionUuid) {
-      console.error('Clio create response missing upload fields:', createBody);
-      return jsonError(res, 502, 'Clio did not return an upload URL', {
-        step: 'create',
-        response: createBody.slice(0, 1000),
-      });
-    }
-
-    // ---- Step 2: PUT the raw bytes to the signed URL Clio handed back ----
-    const uploadHeaders: Record<string, string> = {};
-    for (const h of putHeaders) uploadHeaders[h.name] = h.value;
-
-    const uploadResponse = await fetch(putUrl, {
-      method: 'PUT',
-      headers: uploadHeaders,
-      body: docxBuffer,
-    });
-
-    if (!uploadResponse.ok) {
-      const uploadBody = await uploadResponse.text().catch(() => '');
-      console.error('Clio S3 upload failed:', uploadResponse.status, uploadBody);
-      return jsonError(res, 502, 'Uploading the file to Clio storage failed', {
-        step: 'upload',
-        status: uploadResponse.status,
-        response: uploadBody.slice(0, 1000),
-      });
-    }
-
-    // ---- Step 3: mark the version fully uploaded so Clio surfaces it ----
-    const finalizeResponse = await fetch(
-      `${CLIO_API_BASE}/documents/${documentId}.json?fields=id,name`,
-      {
-        method: 'PATCH',
-        headers: authHeaders,
-        body: JSON.stringify({
-          data: { uuid: versionUuid, fully_uploaded: true },
-        }),
-      },
+    console.log(
+      `Sending document to Make for Clio matter ${matter_id} ` +
+        `(${docxBase64.length} base64 chars)`,
     );
 
-    const finalizeBody = await finalizeResponse.text();
-    if (!finalizeResponse.ok) {
-      console.error('Clio finalize failed:', finalizeResponse.status, finalizeBody);
-      return jsonError(res, 502, 'Clio accepted the file but could not finalise it', {
-        step: 'finalize',
-        status: finalizeResponse.status,
-        response: finalizeBody.slice(0, 1000),
+    const response = await fetch(MAKE_DOCUMENT_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const body = (await response.text().catch(() => '')).trim();
+
+    if (!response.ok) {
+      console.error('Make webhook rejected the document:', response.status, body);
+      return res.status(502).json({
+        error: 'Could not queue the document for Clio',
+        details: `Automation returned ${response.status}: ${body.slice(0, 300)}`,
       });
     }
 
-    console.log(`Document ${documentId} uploaded to Clio matter ${matter_id}`);
+    // Make acknowledges with "Accepted" before it runs the scenario, so the
+    // upload itself may still fail downstream (e.g. scenario switched off).
+    if (body && !/^accepted$/i.test(body)) {
+      console.error('Unexpected Make response:', body);
+      return res.status(502).json({
+        error: 'The automation rejected the document',
+        details: body.slice(0, 300),
+      });
+    }
 
-    // Only now is the document genuinely in Clio and visible on the matter.
+    console.log(`Document queued for Clio matter ${matter_id}`);
+
     return res.status(200).json({
       success: true,
-      message: 'Document uploaded to Clio',
+      message: 'Document queued for upload to Clio',
       matter_id,
-      documentName: fileName,
-      clioDocumentId: documentId,
+      documentName: payload.documentName,
     });
   } catch (error: any) {
     console.error('Send to Clio error:', error);
-    return jsonError(res, 500, 'Failed to send document to Clio', error?.message);
+    return res.status(500).json({
+      error: 'Failed to send document to Clio',
+      details: error?.message,
+    });
   }
 }
