@@ -102,6 +102,16 @@
   margin-bottom: 16px;
 }
 
+.auth-notice {
+  background: #e8f4f8;
+  border: 1px solid #b6dbe6;
+  border-radius: 4px;
+  padding: 12px;
+  color: #1f4e5f;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
 .auth-footer {
   margin-top: 24px;
   padding-top: 24px;

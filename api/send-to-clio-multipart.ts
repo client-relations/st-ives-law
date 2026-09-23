@@ -18,6 +18,7 @@
  */
 
 import { CLIO_API, getClioAccessToken } from './clio-client';
+import { requireLawyer, sendError } from './_lib/server.js';
 
 type PutHeader = { name: string; value: string };
 
@@ -27,6 +28,13 @@ function fail(res: any, status: number, error: string, details?: unknown) {
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return fail(res, 405, 'Method not allowed');
+
+  // Uploads into the firm's Clio account, so only a signed-in lawyer may call it.
+  try {
+    await requireLawyer(req);
+  } catch (err) {
+    return sendError(res, err);
+  }
 
   const { docxBase64, matter_id, documentName } = req.body || {};
   if (!docxBase64 || !matter_id) {

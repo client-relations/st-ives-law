@@ -9,10 +9,19 @@
  */
 
 import { fetchMatter, getClioAccessToken, toTemplateVariables } from './clio-client';
+import { requireLawyer, sendError } from './_lib/server.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Same guard as the rest of the API: this reads a client's details out of
+  // Clio, so it must not be callable by anyone who finds the URL.
+  try {
+    await requireLawyer(req);
+  } catch (err) {
+    return sendError(res, err);
   }
 
   const matterId = req.query?.matter_id;

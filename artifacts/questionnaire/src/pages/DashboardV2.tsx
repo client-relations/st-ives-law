@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense, type ReactNode } from 'react';
 import { Plus } from 'lucide-react';
 import { C } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
@@ -6,81 +6,122 @@ import { supabase } from '../lib/supabase';
 import {
   qualifyLead,
   rejectLead,
-  deprioritizeLead,
-  deprioritizeForm,
-  markFormComplete,
-  submitFormToSmokeball,
   sendIntakeForm,
+  resendIntakeEmail,
   deleteForm,
   deleteLead,
   populateMatterToClio,
   sendBackForm,
+  publicLink,
+  errorMessage,
+  type ActionResult,
 } from '../lib/dashboard-actions';
+import { ALL_DATES, formatDbTimestamp, matchesDateFilter, type DateFilter, type DatePreset } from '../lib/dates';
 import { DocumentSelection, DocumentEditor } from '../components/DocumentGenerator';
 import { ClioDocumentGeneration } from '../components/ClioDocumentGeneration';
 import '../styles/dashboard.css';
 
 const ScreeningFormV2 = lazy(() => import('./ScreeningFormV2'));
 
-// Constants
-const LAWYERS = ['Sarah Southern'];
+const POLL_MS = 10_000;
 
-// Mock data
-const pendingLeads = [
-  { id: '1', name: 'John Smith', email: 'john@example.com', leadType: 'Direct', region: 'NSW', referralType: 'Accountant', personResponsible: 'Colin Long' },
-  { id: '2', name: 'Sarah Johnson', email: 'sarah@example.com', leadType: 'Referral', region: 'VIC', referralType: 'Existing Client', personResponsible: 'Emma Mathieson' },
-  { id: '3', name: 'Mike Brown', email: 'mike@example.com', leadType: 'Direct', region: 'QLD', referralType: 'Google', personResponsible: 'Katrina Elizabeth Brown' },
-];
+// Statuses each pipeline column shows. A form in any other status is listed
+// under "Needs attention" so no record can silently vanish from the board.
+const INTAKE_STATUSES = ['appointment_sent', 'scheduled', 'pending_intake', 'completed_intake'];
+const LEAD_STATUSES = ['pending', 'qualified', 'rejected', 'deprioritized'];
 
-const inProgressForms = [
-  { id: 'f1', name: 'Alice Chen', progress: 45, personResponsible: 'Sarah Tait', daysOverdue: 0 },
-  { id: 'f2', name: 'Bob Wilson', progress: 78, personResponsible: 'Tyler Smith', daysOverdue: 0 },
-];
+/** Filter value for records with no person responsible. */
+const UNASSIGNED = '__unassigned__';
 
-const completedForms = [
-  { id: 'f3', name: 'Carol Davis', personResponsible: 'Vicki Baker', lastAction: '2 days ago' },
-];
+type Notice = { kind: 'success' | 'error'; text: string } | null;
 
-const submittedForms = [
-  { id: 'f4', name: 'David Miller', personResponsible: 'Colin Long', submittedAt: '1 week ago' },
-];
+interface PageFilters {
+  search: string;
+  person: string;
+  date: DateFilter;
+}
 
-const overdueForms = [
-  { id: 'f5', name: 'Emma White', daysOverdue: 15, personResponsible: 'Emma Mathieson', progress: 25 },
-  { id: 'f6', name: 'Frank Green', daysOverdue: 8, personResponsible: 'Katrina Elizabeth Brown', progress: 40 },
-];
+const EMPTY_FILTERS: PageFilters = { search: '', person: '', date: ALL_DATES };
+
+const normalise = (value: string | null | undefined) => (value || '').trim().toLowerCase();
+
+/** One mapping for screening rows, used by every fetch. */
+function mapLead(s: any) {
+  const cd = s.contact_data || {};
+  return {
+    ...s,
+    name: cd.name || cd.contactName || 'Unknown',
+    email: cd.email || cd.contactEmail || '',
+    personResponsible: s.person_responsible || '',
+    region: s.region || '',
+    referralType: s.referral_type || '',
+    leadType: s.lead_type || '',
+  };
+}
+
+/** One mapping for form rows, used by every fetch. */
+function mapForm(f: any) {
+  return {
+    ...f,
+    name: f.client_name || 'Unknown',
+    email: f.client_email || '',
+    progress: f.progress_pct || 0,
+    personResponsible: f.person_responsible || '',
+  };
+}
+
+function matchesSearch(item: any, query: string) {
+  const q = normalise(query);
+  if (!q) return true;
+  return normalise(item.name).includes(q) || normalise(item.email).includes(q);
+}
+
+function matchesPerson(item: any, person: string) {
+  if (!person) return true;
+  if (person === UNASSIGNED) return !normalise(item.personResponsible);
+  return normalise(item.personResponsible) === normalise(person);
+}
+
+function applyFilters<T>(items: T[], filters: PageFilters): T[] {
+  return items.filter((item: any) =>
+    matchesSearch(item, filters.search)
+    && matchesPerson(item, filters.person)
+    && matchesDateFilter(item.created_at, filters.date));
+}
 
 export default function DashboardV2() {
-  const { user, lawyer, loading, logout } = useAuth();
+  const { user, lawyer, lawyerError, loading, logout } = useAuth();
   const [activeNav, setActiveNav] = useState('overview');
   const [pendingLeadsTab, setPendingLeadsTab] = useState('pending');
-  const [completedFormsTab, setCompletedFormsTab] = useState('completed');
 
-  // Real data from Supabase
-  const [realPendingLeads, setRealPendingLeads] = useState<any[]>([]);
-  const [realForms, setRealForms] = useState<any[]>([]);
-  const [dataLoading, setDataLoading] = useState(false);
+  // Data from Supabase
+  const [leads, setLeads] = useState<any[]>([]);
+  const [forms, setForms] = useState<any[]>([]);
+  const [lawyerNames, setLawyerNames] = useState<string[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [lawyerListError, setLawyerListError] = useState('');
+  const loadSeq = useRef(0);
+
+  // Result of the last action, shown as a banner
+  const [notice, setNotice] = useState<Notice>(null);
+  // Key of the action in flight; every action button is disabled while set
+  const [busy, setBusy] = useState<string | null>(null);
 
   // Screening modal
   const [showScreeningModal, setShowScreeningModal] = useState(false);
   const [showScreenScrollHint, setShowScreenScrollHint] = useState(false);
   const screeningScrollRef = useRef<HTMLDivElement>(null);
 
-  // Lead detail modal (view → then qualify/reject)
-  const [viewingLead, setViewingLead] = useState<any | null>(null);
-  const [leadActionLoading, setLeadActionLoading] = useState(false);
+  // Detail modals hold an id; the record itself is always read from the
+  // latest polled data, never from a snapshot taken when the modal opened.
+  const [viewingLeadId, setViewingLeadId] = useState<string | null>(null);
+  const [viewingFormId, setViewingFormId] = useState<string | null>(null);
 
-  // Intake form modal
-  const [viewingIntakeForm, setViewingIntakeForm] = useState<any | null>(null);
-  const [intakeActionLoading, setIntakeActionLoading] = useState(false);
-  const [viewMode, setViewMode] = useState<'pending_intake' | 'completed_intake' | null>(null);
-
-  // Form link modal (temporary - until webhook automation)
-  const [showLinkModal, setShowLinkModal] = useState(false);
-  const [generatedLink, setGeneratedLink] = useState('');
+  // Share-link modal
+  const [shareLink, setShareLink] = useState<{ url: string; warning?: string } | null>(null);
 
   // Send back modal
-  const [showSendBackModal, setShowSendBackModal] = useState(false);
   const [sendBackFormId, setSendBackFormId] = useState<string | null>(null);
 
   // Document generation
@@ -88,11 +129,23 @@ export default function DashboardV2() {
   const [showDocumentEditor, setShowDocumentEditor] = useState(false);
   const [documentFormId, setDocumentFormId] = useState<string | null>(null);
 
+  // Each page owns its own search and filters.
+  const [overviewSearch, setOverviewSearch] = useState({ leads: '', intake: '', completed: '' });
+  const [leadsFilters, setLeadsFilters] = useState<PageFilters>(EMPTY_FILTERS);
+  const [intakeFilters, setIntakeFilters] = useState<PageFilters>(EMPTY_FILTERS);
+  const [deprioritizedTypeFilter, setDeprioritizedTypeFilter] = useState('all');
+
   useEffect(() => {
     if (!loading && !user) {
       window.location.href = '/login';
     }
   }, [user, loading]);
+
+  useEffect(() => {
+    if (!notice || notice.kind !== 'success') return;
+    const timer = window.setTimeout(() => setNotice(null), 8000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   useEffect(() => {
     if (!showScreeningModal) {
@@ -138,596 +191,321 @@ export default function DashboardV2() {
     };
   }, [showScreeningModal]);
 
+  // DocumentSelection announces a finished generation; switch to the editor.
+  useEffect(() => {
+    const handleDocumentGenerated = () => {
+      setShowDocumentGenerator(false);
+      setShowDocumentEditor(true);
+    };
+    window.addEventListener('documentGenerated', handleDocumentGenerated);
+    return () => window.removeEventListener('documentGenerated', handleDocumentGenerated);
+  }, []);
+
   const handleScreenScrollHint = () => {
     const scrollEl = screeningScrollRef.current;
     if (!scrollEl) return;
     const remaining = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight;
     scrollEl.scrollBy({ top: Math.min(320, remaining), behavior: 'smooth' });
   };
-  const fetchData = useCallback(async () => {
-      setDataLoading(true);
-      console.log('Fetching data for lawyer:', lawyer.id, 'Admin:', lawyer.is_admin);
-      try {
-        let screeningQuery = supabase.from('screening_submissions').select('*');
-        let formsQuery = supabase.from('forms').select('*');
 
-        // Admin can see all, regular lawyers see only their own
-        if (!lawyer.is_admin) {
-          screeningQuery = screeningQuery.eq('lawyer_id', lawyer.id);
-          formsQuery = formsQuery.eq('lawyer_id', lawyer.id);
-        }
-
-        const { data: screenings, error: screeningError } = await screeningQuery.order('created_at', { ascending: false });
-        const { data: forms, error: formsError } = await formsQuery.order('created_at', { ascending: false });
-
-        if (screeningError) console.error('Screening error:', screeningError);
-        if (formsError) console.error('Forms error:', formsError);
-
-        console.log('Fetched screenings:', screenings?.length || 0);
-        console.log('Fetched forms:', forms?.length || 0);
-
-        // Extract names from contact_data
-        const processedScreenings = (screenings || []).map(s => ({
-          ...s,
-          name: s.contact_data?.name || s.contact_data?.contactName || 'Unknown',
-          email: s.contact_data?.email || s.contact_data?.contactEmail || '',
-          personResponsible: s.person_responsible || '',
-          region: s.region || '',
-          referralType: s.referral_type || '',
-          leadType: s.lead_type || '',
-        }));
-
-        setRealPendingLeads(processedScreenings);
-
-        // Map forms data to expected field names
-        const processedForms = (forms || []).map(f => {
-          // Calculate days overdue
-          const createdDate = new Date(f.created_at);
-          const today = new Date();
-          const daysOverdue = Math.floor((today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-
-          return {
-            ...f,
-            name: f.client_name || 'Unknown',
-            progress: f.progress_pct || 0,
-            personResponsible: f.person_responsible || '',
-            daysOverdue: f.status === 'overdue' ? daysOverdue : 0,
-          };
-        });
-
-        setRealForms(processedForms);
-
-        // DISABLED - Check for overdue forms and send reminders (will re-enable later)
-        // if (forms && forms.length > 0 && supabase) {
-        //   await checkAndSendOverdueReminders(forms, supabase);
-        // }
-      } catch (err) {
-        console.error('Error fetching data:', err);
-      } finally {
-        setDataLoading(false);
-      }
-  }, [lawyer?.id, lawyer?.is_admin, supabase]);
-
-  const checkAndSendOverdueReminders = useCallback(async (forms: any[], sb: any) => {
-      const REMINDER_WEBHOOK = 'https://hook.eu2.make.com/xckig8gzunjl5g45v86691skuw7588xi';
-      const now = new Date();
-
-      for (const form of forms) {
-        if (!form.created_at) continue;
-
-        const createdDate = new Date(form.created_at);
-        const daysOld = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-
-        // 3-day reminder (mark as overdue)
-        if (daysOld >= 3 && !form.reminder_3d_sent && form.status !== 'completed' && form.status !== 'submitted') {
-          console.log('3-day reminder triggering for form:', form.id, 'daysOld:', daysOld, 'reminder_3d_sent:', form.reminder_3d_sent);
-          try {
-            const formLink = `${window.location.origin}/?uniqueLink=${form.unique_link}`;
-            const webhookRes = await fetch(REMINDER_WEBHOOK, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                form_id: form.id,
-                client_name: form.client_name,
-                client_email: form.client_email,
-                form_link: formLink,
-                reminder_type: '3d',
-                days_old: daysOld,
-                sent_at: new Date().toISOString(),
-              }),
-            });
-            console.log('3d reminder webhook sent, status:', webhookRes.status);
-
-            // Track reminder sent timestamp only
-            await sb
-              .from('forms')
-              .update({
-                reminder_3d_sent: new Date().toISOString(),
-              })
-              .eq('id', form.id);
-          } catch (err) {
-            console.error('Error sending 3-day reminder for form', form.id, err);
-          }
-        }
-
-        // 1-week reminder
-        if (daysOld >= 7 && !form.reminder_1w_sent && form.status !== 'completed' && form.status !== 'submitted') {
-          try {
-            const formLink = `${window.location.origin}/?uniqueLink=${form.unique_link}`;
-            await fetch(REMINDER_WEBHOOK, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                form_id: form.id,
-                client_name: form.client_name,
-                client_email: form.client_email,
-                form_link: formLink,
-                reminder_type: '1w',
-                days_old: daysOld,
-                sent_at: new Date().toISOString(),
-              }),
-            });
-
-            await sb
-              .from('forms')
-              .update({ reminder_1w_sent: new Date().toISOString() })
-              .eq('id', form.id);
-          } catch (err) {
-            console.error('Error sending 1-week reminder for form', form.id, err);
-          }
-        }
-
-        // 2-week reminder
-        if (daysOld >= 14 && !form.reminder_2w_sent && form.status !== 'completed' && form.status !== 'submitted') {
-          try {
-            const formLink = `${window.location.origin}/?uniqueLink=${form.unique_link}`;
-            await fetch(REMINDER_WEBHOOK, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                form_id: form.id,
-                client_name: form.client_name,
-                client_email: form.client_email,
-                form_link: formLink,
-                reminder_type: '2w',
-                days_old: daysOld,
-                sent_at: new Date().toISOString(),
-              }),
-            });
-
-            await sb
-              .from('forms')
-              .update({ reminder_2w_sent: new Date().toISOString() })
-              .eq('id', form.id);
-          } catch (err) {
-            console.error('Error sending 2-week reminder for form', form.id, err);
-          }
-        }
-      }
-  }, []);
-
-  useEffect(() => {
+  /**
+   * The single loader used on mount, by the poll, and after every action.
+   * Admins see every record; other lawyers see their own. A failed fetch keeps
+   * the last good data on screen and shows an error instead of empty lists.
+   */
+  const loadData = useCallback(async () => {
     if (!lawyer?.id || !supabase) return;
-
-    fetchData();
-
-    // Check for overdue reminders
-    const checkReminders = async () => {
-      const { data: forms } = await supabase.from('forms').select('*');
-      if (forms) {
-        await checkAndSendOverdueReminders(forms, supabase);
-      }
-    };
-    checkReminders();
-
-    // Auto-refresh every 10 seconds
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
-  }, [lawyer?.id, lawyer?.is_admin, supabase, fetchData, checkAndSendOverdueReminders]);
-
-  // Overview filters
-  const [pendingLeadsSearch, setPendingLeadsSearch] = useState('');
-  const [intakeFormSearch, setIntakeFormSearch] = useState('');
-  const [intakeFormPersonFilter, setIntakeFormPersonFilter] = useState('');
-  const [intakeDateFilter, setIntakeDateFilter] = useState('all');
-  const [intakeDateStart, setIntakeDateStart] = useState('');
-  const [intakeDateEnd, setIntakeDateEnd] = useState('');
-  const [completedSearch, setCompletedSearch] = useState('');
-  const [completedPersonFilter, setCompletedPersonFilter] = useState('');
-  const [completedDateFilter, setCompletedDateFilter] = useState('all');
-  const [completedDateStart, setCompletedDateStart] = useState('');
-  const [completedDateEnd, setCompletedDateEnd] = useState('');
-
-  // Overdue filter
-  const [overdueFilter, setOverdueFilter] = useState('all');
-
-  // Pending leads filters
-  const [pendingLeadsPersonFilter, setPendingLeadsPersonFilter] = useState('');
-  const [pendingLeadsDateFilter, setPendingLeadsDateFilter] = useState('all');
-  const [pendingLeadsDateStart, setPendingLeadsDateStart] = useState('');
-  const [pendingLeadsDateEnd, setPendingLeadsDateEnd] = useState('');
-
-  // Deprioritized filter
-  const [deprioritizedTypeFilter, setDeprioritizedTypeFilter] = useState('all');
-
-  // Qualified leads filters
-  const [qualifiedLeadsSearch, setQualifiedLeadsSearch] = useState('');
-  const [qualifiedLeadsPersonFilter, setQualifiedLeadsPersonFilter] = useState('');
-  const [qualifiedLeadsDateFilter, setQualifiedLeadsDateFilter] = useState('all');
-  const [qualifiedLeadsDateStart, setQualifiedLeadsDateStart] = useState('');
-  const [qualifiedLeadsDateEnd, setQualifiedLeadsDateEnd] = useState('');
-
-  // Helper to calculate days overdue
-  const calculateDaysOverdue = (createdAt: string) => {
-    if (!createdAt) return 0;
-    const createdDate = new Date(createdAt);
-    return Math.floor((new Date().getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-  };
-
-  // Date filter helper
-  const matchesPendingLeadsDate = (lead: any) => {
-    if (pendingLeadsDateFilter === 'all') return true;
-    if (!lead.created_at) return false;
-    const leadDate = new Date(lead.created_at);
-    if (isNaN(leadDate.getTime())) return false;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const leadDateOnly = new Date(leadDate);
-    leadDateOnly.setHours(0, 0, 0, 0);
-    const diffDays = Math.floor((today.getTime() - leadDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-
-    switch(pendingLeadsDateFilter) {
-      case 'today':
-        return diffDays === 0;
-      case 'week':
-        return diffDays >= 0 && diffDays <= 7;
-      case 'month':
-        return diffDays >= 0 && diffDays <= 30;
-      case 'custom':
-        const startDate = pendingLeadsDateStart ? new Date(pendingLeadsDateStart) : null;
-        const endDate = pendingLeadsDateEnd ? new Date(pendingLeadsDateEnd) : null;
-        if (startDate && endDate) {
-          startDate.setHours(0, 0, 0, 0);
-          endDate.setHours(23, 59, 59, 999);
-          return leadDate >= startDate && leadDate <= endDate;
-        }
-        return true;
-      default:
-        return true;
-    }
-  };
-
-  // Use only real data from Supabase
-  const pendingLeads = realPendingLeads
-    .filter(lead => lead.status === 'pending')
-    .filter(lead => {
-      if (!pendingLeadsSearch) return true;
-      const cd = lead.contact_data || {};
-      const name = lead.client_name || cd.name || cd.contactName || '';
-      const email = lead.client_email || cd.email || cd.contactEmail || '';
-      return name.toLowerCase().includes(pendingLeadsSearch.toLowerCase()) ||
-             email.toLowerCase().includes(pendingLeadsSearch.toLowerCase());
-    })
-    .filter(lead => !pendingLeadsPersonFilter || lead.person_responsible === pendingLeadsPersonFilter)
-    .filter(matchesPendingLeadsDate);
-
-  // Combine deprioritized screening leads and deprioritized forms
-  const deprioritizedLeads = [
-    ...realPendingLeads.filter(lead => lead.status === 'deprioritized' || lead.status === 'rejected'),
-    ...realForms.filter(form => form.status === 'deprioritized'),
-  ]
-    .filter(item => {
-      if (deprioritizedTypeFilter === 'all') return true;
-      if (deprioritizedTypeFilter === 'rejected') return item.status === 'rejected';
-      if (deprioritizedTypeFilter === 'no-response') return item.status === 'deprioritized';
-      return true;
-    })
-    .filter(item => {
-      if (!pendingLeadsSearch) return true;
-      const name = item.client_name || item.name || '';
-      const email = item.client_email || item.email || '';
-      return name.toLowerCase().includes(pendingLeadsSearch.toLowerCase()) ||
-             email.toLowerCase().includes(pendingLeadsSearch.toLowerCase());
-    })
-    .filter(item => !pendingLeadsPersonFilter || item.person_responsible === pendingLeadsPersonFilter || item.personResponsible === pendingLeadsPersonFilter)
-    .filter(item => {
-      if (pendingLeadsDateFilter === 'all') return true;
-      if (!item.created_at) return false;
-      const itemDate = new Date(item.created_at);
-      if (isNaN(itemDate.getTime())) return false;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const itemDateOnly = new Date(itemDate);
-      itemDateOnly.setHours(0, 0, 0, 0);
-      const diffDays = Math.floor((today.getTime() - itemDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-      switch(pendingLeadsDateFilter) {
-        case 'today':
-          return diffDays === 0;
-        case 'week':
-          return diffDays >= 0 && diffDays <= 7;
-        case 'month':
-          return diffDays >= 0 && diffDays <= 30;
-        default:
-          return true;
-      }
-    });
-
-  const matchesQualifiedLeadsDate = (form: any) => {
-    if (qualifiedLeadsDateFilter === 'all') return true;
-    const dateStr = form.created_at;
-    if (!dateStr) return false;
-    const formDate = new Date(dateStr);
-    if (isNaN(formDate.getTime())) return false;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const formDateOnly = new Date(formDate);
-    formDateOnly.setHours(0, 0, 0, 0);
-    const diffDays = Math.floor((today.getTime() - formDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-
-    switch (qualifiedLeadsDateFilter) {
-      case 'today':
-        return diffDays === 0;
-      case 'week':
-        return diffDays >= 0 && diffDays <= 7;
-      case 'month':
-        return diffDays >= 0 && diffDays <= 30;
-      case 'custom': {
-        const startDate = qualifiedLeadsDateStart ? new Date(qualifiedLeadsDateStart) : null;
-        const endDate = qualifiedLeadsDateEnd ? new Date(qualifiedLeadsDateEnd) : null;
-        if (startDate && endDate) {
-          startDate.setHours(0, 0, 0, 0);
-          endDate.setHours(23, 59, 59, 999);
-          return formDate >= startDate && formDate <= endDate;
-        }
-        return true;
-      }
-      default:
-        return true;
-    }
-  };
-
-  const sentFormsAll = realForms.filter(f => f.status === 'to_send_appointment');
-  const sentForms = sentFormsAll
-    .filter(f => !qualifiedLeadsSearch || (f.name || '').toLowerCase().includes(qualifiedLeadsSearch.toLowerCase()))
-    .filter(f => !qualifiedLeadsPersonFilter || f.personResponsible === qualifiedLeadsPersonFilter)
-    .filter(matchesQualifiedLeadsDate);
-
-  const openedFormsAll = realForms.filter(f => f.status === 'appointment_sent');
-  const openedForms = openedFormsAll
-    .filter(f => !qualifiedLeadsSearch || (f.name || '').toLowerCase().includes(qualifiedLeadsSearch.toLowerCase()))
-    .filter(f => !qualifiedLeadsPersonFilter || f.personResponsible === qualifiedLeadsPersonFilter)
-    .filter(matchesQualifiedLeadsDate);
-
-  const inProgressFormsAll = realForms.filter(f => f.status === 'scheduled');
-  // Intake section forms organized by status
-  const appointmentSentForms = realForms.filter(f => f.status === 'appointment_sent');
-  const scheduledForms = realForms.filter(f => f.status === 'scheduled');
-  const pendingIntakeForms = realForms.filter(f => f.status === 'pending_intake');
-  const completedIntakeForms = realForms.filter(f => f.status === 'completed_intake');
-
-  // Apply filters to pending intake forms (for Overview)
-  const filteredPendingIntakeForms = pendingIntakeForms
-    .filter(f => !qualifiedLeadsSearch || (f.client_name || '').toLowerCase().includes(qualifiedLeadsSearch.toLowerCase()))
-    .filter(f => !qualifiedLeadsPersonFilter || f.person_responsible === qualifiedLeadsPersonFilter)
-    .filter(matchesQualifiedLeadsDate);
-
-  // Keep legacy names for now
-  const inProgressForms = inProgressFormsAll
-    .filter(f => !qualifiedLeadsSearch || (f.client_name || '').toLowerCase().includes(qualifiedLeadsSearch.toLowerCase()))
-    .filter(f => !qualifiedLeadsPersonFilter || f.person_responsible === qualifiedLeadsPersonFilter)
-    .filter(matchesQualifiedLeadsDate);
-
-  const trulyCompletedFormsAll = pendingIntakeForms;
-  const trulyCompletedForms = trulyCompletedFormsAll
-    .filter(f => !completedSearch || (f.client_name || '').toLowerCase().includes(completedSearch.toLowerCase()))
-    .filter(f => !completedPersonFilter || f.person_responsible === completedPersonFilter);
-
-  const submittedForms = realForms
-    .filter(f => f.status === 'completed_intake')
-    .filter(f => !qualifiedLeadsSearch || (f.client_name || '').toLowerCase().includes(qualifiedLeadsSearch.toLowerCase()))
-    .filter(f => !qualifiedLeadsPersonFilter || f.person_responsible === qualifiedLeadsPersonFilter)
-    .filter(matchesQualifiedLeadsDate);
-  const overdueForms = realForms
-    .filter(f => f.status === 'overdue')
-    .filter(f => !qualifiedLeadsSearch || (f.name || '').toLowerCase().includes(qualifiedLeadsSearch.toLowerCase()))
-    .filter(f => !qualifiedLeadsPersonFilter || f.personResponsible === qualifiedLeadsPersonFilter)
-    .filter(matchesQualifiedLeadsDate)
-    .filter(f => {
-      if (overdueFilter === 'all') return true;
-      const createdDate = new Date(f.created_at);
-      const daysOverdue = Math.floor((new Date().getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-      return daysOverdue >= Number(overdueFilter);
-    });
-
-  const matchesCompletedPageDate = (form: any) => {
-    if (completedDateFilter === 'all') return true;
-    const dateStr = form.created_at || form.marked_complete_at || form.updated_at;
-    if (!dateStr) return false;
-    const formDate = new Date(dateStr);
-    if (isNaN(formDate.getTime())) return false;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const formDateOnly = new Date(formDate);
-    formDateOnly.setHours(0, 0, 0, 0);
-
-    const diffDays = Math.floor((today.getTime() - formDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-
-    switch (completedDateFilter) {
-      case 'today':
-        return diffDays === 0;
-      case 'week':
-        return diffDays >= 0 && diffDays <= 7;
-      case 'month':
-        return diffDays >= 0 && diffDays <= 30;
-      case 'custom': {
-        const startDate = completedDateStart ? new Date(completedDateStart) : null;
-        const endDate = completedDateEnd ? new Date(completedDateEnd) : null;
-        if (startDate && endDate) {
-          startDate.setHours(0, 0, 0, 0);
-          endDate.setHours(23, 59, 59, 999);
-          return formDate >= startDate && formDate <= endDate;
-        }
-        return true;
-      }
-      default:
-        return true;
-    }
-  };
-
-  const completedPageForms = trulyCompletedForms
-    .filter(f => !completedSearch || (f.name || '').toLowerCase().includes(completedSearch.toLowerCase()))
-    .filter(f => !completedPersonFilter || f.personResponsible === completedPersonFilter)
-    .filter(matchesCompletedPageDate);
-  const submittedPageForms = submittedForms
-    .filter(f => !completedSearch || (f.name || '').toLowerCase().includes(completedSearch.toLowerCase()))
-    .filter(f => !completedPersonFilter || f.personResponsible === completedPersonFilter)
-    .filter(matchesCompletedPageDate);
-
-  // Handle document generation completion
-  useEffect(() => {
-    const handleDocumentGenerated = (event: any) => {
-      setShowDocumentGenerator(false);
-      setShowDocumentEditor(true);
-    };
-
-    window.addEventListener('documentGenerated', handleDocumentGenerated);
-    return () => {
-      window.removeEventListener('documentGenerated', handleDocumentGenerated);
-    };
-  }, []);
-
-  const refreshData = async () => {
-    if (!lawyer?.id || !supabase) return;
+    // Only the newest request may update the screen, so a slow poll that
+    // started before an action cannot overwrite the refresh that follows it.
+    const request = ++loadSeq.current;
     try {
-      // Admins see every record; regular lawyers see only their own. This must
-      // match fetchData() — filtering an admin by lawyer_id returns nothing and
-      // blanks the whole dashboard after any action that calls refreshData().
-      let screeningQuery = supabase.from('screening_submissions').select('*');
-      if (!lawyer.is_admin) {
-        screeningQuery = screeningQuery.eq('lawyer_id', lawyer.id);
-      }
-      const { data: screenings } = await screeningQuery
-        .order('created_at', { ascending: false });
-      const processedScreenings = (screenings || []).map(s => ({
-        ...s,
-        name: s.client_name || s.contact_data?.name || s.contact_data?.contactName || 'Unknown',
-        email: s.client_email || s.contact_data?.email || s.contact_data?.contactEmail || '',
-        personResponsible: s.person_responsible || '',
-        region: s.region || '',
-        referralType: s.referral_type || '',
-        leadType: s.lead_type || '',
-      }));
-      setRealPendingLeads(processedScreenings);
-
+      let leadsQuery = supabase.from('screening_submissions').select('*');
       let formsQuery = supabase.from('forms').select('*');
       if (!lawyer.is_admin) {
+        leadsQuery = leadsQuery.eq('lawyer_id', lawyer.id);
         formsQuery = formsQuery.eq('lawyer_id', lawyer.id);
       }
-      const { data: forms } = await formsQuery
-        .order('created_at', { ascending: false });
-      const processedForms = (forms || []).map(f => {
-        // Calculate days overdue
-        const createdDate = new Date(f.created_at);
-        const today = new Date();
-        const daysOverdue = Math.floor((today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
 
-        return {
-          ...f,
-          name: f.client_name || 'Unknown',
-          progress: f.progress_pct || 0,
-          personResponsible: f.person_responsible || '',
-          daysOverdue: f.status === 'overdue' ? daysOverdue : 0,
-        };
-      });
-      setRealForms(processedForms);
+      const [leadsRes, formsRes] = await Promise.all([
+        leadsQuery.order('created_at', { ascending: false }),
+        formsQuery.order('created_at', { ascending: false }),
+      ]);
+      if (request !== loadSeq.current) return;
+      if (leadsRes.error) throw leadsRes.error;
+      if (formsRes.error) throw formsRes.error;
+
+      setLeads((leadsRes.data || []).map(mapLead));
+      setForms((formsRes.data || []).map(mapForm));
+      setLoadError('');
+      setHasLoaded(true);
     } catch (err) {
-      console.error('Error refreshing data:', err);
+      if (request !== loadSeq.current) return;
+      setLoadError(`Could not load the latest data: ${errorMessage(err)}`);
     }
-  };
+  }, [lawyer?.id, lawyer?.is_admin]);
 
-  const handleQualifyLead = async (leadId: string) => {
-    setLeadActionLoading(true);
-    const personResponsible = viewingLead?.personResponsible || viewingLead?.person_responsible;
-    if (personResponsible) {
-      const formId = await qualifyLead(leadId, personResponsible);
-      if (formId) {
-        await refreshData();
-        setViewingLead(null);
-        // Show link modal for manual sharing
-        const link = `${window.location.origin}/lead-inquiry?lead_id=${formId}`;
-        setGeneratedLink(link);
-        setShowLinkModal(true);
+  useEffect(() => {
+    if (!lawyer?.id || !supabase) return;
+    loadData();
+    const interval = setInterval(loadData, POLL_MS);
+    return () => clearInterval(interval);
+  }, [lawyer?.id, loadData]);
+
+  // Lawyer names for the "person responsible" filters.
+  const loadLawyerNames = useCallback(async () => {
+    if (!lawyer?.id || !supabase) return;
+    const { data, error } = await supabase.from('lawyers').select('full_name').order('full_name');
+    if (error) {
+      setLawyerListError(`Could not load the lawyer list: ${errorMessage(error)}`);
+      return;
+    }
+    setLawyerListError('');
+    setLawyerNames((data || []).map((l: { full_name: string }) => l.full_name).filter(Boolean));
+  }, [lawyer?.id]);
+
+  useEffect(() => {
+    loadLawyerNames();
+  }, [loadLawyerNames]);
+
+  /** Run one action at a time; report its result; refresh the data. */
+  const runAction = async <T,>(
+    key: string,
+    action: () => Promise<ActionResult<T>>,
+    onSuccess?: (data: T) => void,
+  ) => {
+    if (busy) return;
+    setBusy(key);
+    try {
+      const result = await action();
+      if (result.ok) {
+        onSuccess?.(result.data);
+        if (result.message) setNotice({ kind: 'success', text: result.message });
+      } else {
+        setNotice({ kind: 'error', text: result.error });
       }
-    } else {
-      console.error('No person_responsible assigned to this lead');
+    } catch (err) {
+      setNotice({ kind: 'error', text: errorMessage(err) });
+    } finally {
+      await loadData();
+      setBusy(null);
     }
-    setLeadActionLoading(false);
   };
 
-  const handleRejectLead = async (leadId: string) => {
-    setLeadActionLoading(true);
-    if (await rejectLead(leadId)) {
-      await refreshData();
-      setViewingLead(null);
+  // ── Derived data ───────────────────────────────────────────────────────────
+
+  const viewingLead = viewingLeadId ? leads.find(l => l.id === viewingLeadId) || null : null;
+  const viewingForm = viewingFormId ? forms.find(f => f.id === viewingFormId) || null : null;
+  const documentForm = documentFormId ? forms.find(f => f.id === documentFormId) || null : null;
+
+  // Close a modal whose record was removed or actioned elsewhere.
+  useEffect(() => {
+    if (!viewingLeadId || !hasLoaded || busy) return;
+    if (!viewingLead || viewingLead.status !== 'pending') {
+      setViewingLeadId(null);
+      setNotice({
+        kind: 'error',
+        text: viewingLead
+          ? `This lead was ${String(viewingLead.status).replace(/_/g, ' ')} by someone else.`
+          : 'This lead was removed by someone else.',
+      });
     }
-    setLeadActionLoading(false);
+  }, [viewingLeadId, viewingLead, hasLoaded, busy]);
+
+  useEffect(() => {
+    if (!viewingFormId || !hasLoaded || busy) return;
+    if (!viewingForm) {
+      setViewingFormId(null);
+      setNotice({ kind: 'error', text: 'This form was removed by someone else.' });
+    }
+  }, [viewingFormId, viewingForm, hasLoaded, busy]);
+
+  // Unfiltered status buckets — the Overview stat cards count these.
+  const pendingLeadsAll = leads.filter(l => l.status === 'pending');
+  const deprioritizedAll = [
+    ...leads.filter(l => l.status === 'rejected' || l.status === 'deprioritized'),
+    ...forms.filter(f => f.status === 'deprioritized'),
+  ];
+  const unknownLeads = leads.filter(l => !LEAD_STATUSES.includes(l.status));
+  const appointmentSentAll = forms.filter(f => f.status === 'appointment_sent');
+  const scheduledAll = forms.filter(f => f.status === 'scheduled');
+  const pendingIntakeAll = forms.filter(f => f.status === 'pending_intake');
+  const completedIntakeAll = forms.filter(f => f.status === 'completed_intake');
+  const needsAttentionAll = forms.filter(f => !INTAKE_STATUSES.includes(f.status) && f.status !== 'deprioritized');
+
+  // Overview panels: each has its own search box.
+  const overviewLeads = pendingLeadsAll.filter(l => matchesSearch(l, overviewSearch.leads));
+  const overviewIntake = pendingIntakeAll.filter(f => matchesSearch(f, overviewSearch.intake));
+  const overviewCompleted = completedIntakeAll.filter(f => matchesSearch(f, overviewSearch.completed));
+
+  // Leads page: one set of filters for both tabs.
+  const pendingLeads = applyFilters(pendingLeadsAll, leadsFilters);
+  const deprioritizedLeads = applyFilters(deprioritizedAll, leadsFilters)
+    .filter(item => deprioritizedTypeFilter === 'all' || item.status === 'rejected');
+
+  // Intake page: one set of filters for every column.
+  const appointmentSentForms = applyFilters(appointmentSentAll, intakeFilters);
+  const scheduledForms = applyFilters(scheduledAll, intakeFilters);
+  const pendingIntakeForms = applyFilters(pendingIntakeAll, intakeFilters);
+  const completedIntakeForms = applyFilters(completedIntakeAll, intakeFilters);
+  const needsAttentionForms = applyFilters(needsAttentionAll, intakeFilters);
+
+  // Everyone who can appear in "Person Responsible": the lawyer list plus any
+  // name already on a record (older records may name someone not in the list).
+  const personOptions = Array.from(
+    new Map(
+      [...lawyerNames, ...leads.map(l => l.personResponsible), ...forms.map(f => f.personResponsible)]
+        .filter(name => name && name.trim())
+        .map(name => [normalise(name), name.trim()] as [string, string]),
+    ).values(),
+  ).sort((a, b) => a.localeCompare(b));
+
+  const loadingText = hasLoaded ? null : (loadError ? 'Could not load' : 'Loading…');
+  const count = (n: number) => (hasLoaded ? n : '…');
+
+  // ── Actions ────────────────────────────────────────────────────────────────
+
+  const handleQualifyLead = (leadId: string) => runAction('qualify', () => qualifyLead(leadId), ({ formId, email }) => {
+    setViewingLeadId(null);
+    setShareLink(publicLink(`/lead-inquiry?lead_id=${formId}`));
+    setNotice(email.ok
+      ? { kind: 'success', text: `Lead qualified. ${email.detail}` }
+      : { kind: 'error', text: `Lead qualified, but the inquiry email was NOT sent: ${email.detail}\nShare the link with the client directly.` });
+  });
+
+  const handleRejectLead = (leadId: string) => runAction('reject', () => rejectLead(leadId), () => setViewingLeadId(null));
+
+  const handleDeleteLead = (lead: any) => {
+    if (!window.confirm(`Delete lead for ${lead.name}? This cannot be undone.`)) return;
+    runAction(`delete-lead-${lead.id}`, () => deleteLead(lead.id));
+  };
+
+  const handleDeleteForm = (form: any) => {
+    if (!window.confirm(`Delete form for ${form.name}? This cannot be undone.`)) return;
+    runAction(`delete-form-${form.id}`, () => deleteForm(form.id), () => {
+      if (viewingFormId === form.id) setViewingFormId(null);
+    });
+  };
+
+  const handleSendIntake = (form: any) => runAction('send-intake', () => sendIntakeForm(form.id), ({ email }) => {
+    setShareLink(publicLink(`/intake-form?lead_id=${form.id}`));
+    setNotice(email.ok
+      ? { kind: 'success', text: `Intake form sent. ${email.detail}` }
+      : { kind: 'error', text: `The form moved to Pending intake, but the email was NOT sent: ${email.detail}\nShare the link with the client directly, or use "Resend intake email".` });
+  });
+
+  const handleResendIntake = (form: any) => runAction('resend-intake', () => resendIntakeEmail(form.id));
+
+  const handleSendBack = (formId: string) => runAction('send-back', () => sendBackForm(formId), () => setSendBackFormId(null));
+
+  const handlePopulateClio = async (form: any) => {
+    if (busy) return;
+    if (!window.confirm('Send to Clio? This will create a matter with all form data.')) return;
+    setBusy('clio');
+    try {
+      let result = await populateMatterToClio(form.id);
+      if (!result.ok && result.code === 'ALREADY_SENT') {
+        const again = window.confirm('This form has already been sent to Clio. Sending again will create a SECOND matter. Send anyway?');
+        if (!again) return;
+        result = await populateMatterToClio(form.id, true);
+      }
+      setNotice(result.ok ? { kind: 'success', text: result.message || 'Sent to Clio.' } : { kind: 'error', text: result.error });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleScreeningFormSubmit = () => {
+    setShowScreeningModal(false);
+    setNotice({ kind: 'success', text: 'Lead added.' });
+    loadData();
   };
 
   const getLeadDisplay = (lead: any) => {
     const cd = lead.contact_data || {};
     return {
       isFirm: lead.contact_type === 'firm',
-      name: lead.client_name || cd.name || cd.contactName || lead.name || 'Unknown',
-      email: lead.client_email || cd.email || cd.contactEmail || lead.email || '',
-      phone: lead.client_phone || cd.mobile || cd.contactMobile || '',
+      name: lead.name || 'Unknown',
+      email: lead.email || '',
+      phone: cd.mobile || cd.contactMobile || '',
       title: cd.title || '',
       organisationName: cd.organisationName || '',
       organisationPhone: cd.organisationPhone || '',
       organisationEmail: cd.organisationEmail || '',
       contactName: cd.contactName || '',
       businessRole: cd.businessRole || '',
-      leadType: lead.lead_type || lead.leadType || '',
-      region: lead.region || '',
-      referralType: lead.referral_type || lead.referralType || '',
+      leadType: lead.leadType,
+      region: lead.region,
+      referralType: lead.referralType,
       billingType: lead.billing_type || '',
-      personResponsible: lead.person_responsible || lead.personResponsible || '',
-      createdAt: lead.created_at
-        ? new Date(lead.created_at).toLocaleString()
-        : '',
+      personResponsible: lead.personResponsible,
+      createdAt: formatDbTimestamp(lead.created_at),
       status: lead.status || 'pending',
     };
   };
 
-  const handleDeprioritizeLead = async (leadId: string) => {
-    if (await deprioritizeLead(leadId)) {
-      await refreshData();
-    }
-  };
+  // ── Render helpers ─────────────────────────────────────────────────────────
 
-  const handleCompleteForm = async (formId: string) => {
-    if (await markFormComplete(formId)) {
-      await refreshData();
-    }
-  };
+  const renderPersonSelect = (filters: PageFilters, setFilters: (f: PageFilters) => void) => (
+    <select
+      className='nv-select'
+      value={filters.person}
+      onChange={(e) => setFilters({ ...filters, person: e.target.value })}
+    >
+      <option value="">All Lawyers</option>
+      {personOptions.map(name => <option key={name} value={name}>{name}</option>)}
+      <option value={UNASSIGNED}>Unassigned</option>
+    </select>
+  );
 
-  const handleSubmitToClio = async (formId: string) => {
-    if (await submitFormToSmokeball(formId)) {
-      await refreshData();
-    }
-  };
+  const renderDateSelect = (filters: PageFilters, setFilters: (f: PageFilters) => void) => (
+    <>
+      <select
+        className='nv-select'
+        value={filters.date.preset}
+        onChange={(e) => setFilters({ ...filters, date: { ...filters.date, preset: e.target.value as DatePreset } })}
+      >
+        <option value="all">All Dates</option>
+        <option value="today">Today</option>
+        <option value="week">This Week (from Monday)</option>
+        <option value="month">This Month (from the 1st)</option>
+        <option value="custom">Custom Range</option>
+      </select>
+      {filters.date.preset === 'custom' && (
+        <>
+          <input
+            className='nv-date'
+            type='date'
+            aria-label='From date'
+            value={filters.date.start}
+            onChange={(e) => setFilters({ ...filters, date: { ...filters.date, start: e.target.value } })}
+          />
+          <input
+            className='nv-date'
+            type='date'
+            aria-label='To date'
+            value={filters.date.end}
+            onChange={(e) => setFilters({ ...filters, date: { ...filters.date, end: e.target.value } })}
+          />
+        </>
+      )}
+    </>
+  );
 
-  const handleScreeningFormSubmit = () => {
-    setShowScreeningModal(false);
-    refreshData();
-  };
+  const renderSearch = (filters: PageFilters, setFilters: (f: PageFilters) => void) => (
+    <input
+      className='nv-search'
+      type='text'
+      placeholder='Search by name or email...'
+      value={filters.search}
+      onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+    />
+  );
 
   const renderLeadDetailModal = () => {
     if (!viewingLead) return null;
 
     const d = getLeadDisplay(viewingLead);
+    const actionBusy = busy === 'qualify' || busy === 'reject';
     const detailRow = (label: string, value: string) => (
       value
         ? (
@@ -742,7 +520,7 @@ export default function DashboardV2() {
     return (
       <div
         className='nv-modal-overlay'
-        onClick={() => { if (!leadActionLoading) setViewingLead(null); }}
+        onClick={() => { if (!actionBusy) setViewingLeadId(null); }}
       >
         <div className='nv-modal' onClick={(e) => e.stopPropagation()}>
           <div className='nv-modal-head'>
@@ -754,20 +532,16 @@ export default function DashboardV2() {
                   <span className='nv-chip-dot' />
                   {d.isFirm ? 'Firm' : 'Person'}
                 </span>
-                {d.status
-                  ? (
-                    <span className={`nv-chip${d.status === 'rejected' ? ' danger' : d.status === 'qualified' ? ' warm' : ''}`}>
-                      <span className='nv-chip-dot' />
-                      {String(d.status).replace(/_/g, ' ')}
-                    </span>
-                  )
-                  : null}
+                <span className={`nv-chip${d.status === 'rejected' ? ' danger' : d.status === 'qualified' ? ' warm' : ''}`}>
+                  <span className='nv-chip-dot' />
+                  {String(d.status).replace(/_/g, ' ')}
+                </span>
               </div>
             </div>
             <button
               className='nv-modal-close'
-              onClick={() => { if (!leadActionLoading) setViewingLead(null); }}
-              disabled={leadActionLoading}
+              onClick={() => { if (!actionBusy) setViewingLeadId(null); }}
+              disabled={actionBusy}
               aria-label='Close'
             >
               ×
@@ -807,18 +581,18 @@ export default function DashboardV2() {
             <button
               className='nv-btn-reject'
               onClick={() => handleRejectLead(viewingLead.id)}
-              disabled={leadActionLoading}
+              disabled={!!busy}
               title='Disqualify this lead'
             >
-              Disqualify
+              {busy === 'reject' ? 'Disqualifying...' : 'Disqualify'}
             </button>
             <button
               className='nv-btn-qualify'
               onClick={() => handleQualifyLead(viewingLead.id)}
-              disabled={leadActionLoading}
+              disabled={!!busy}
               title='Send appointment and move to next stage'
             >
-              {leadActionLoading ? 'Sending...' : 'Send Appointment'}
+              {busy === 'qualify' ? 'Sending...' : 'Send Appointment'}
             </button>
           </div>
         </div>
@@ -827,12 +601,12 @@ export default function DashboardV2() {
   };
 
   const renderLinkModal = () => {
-    if (!showLinkModal) return null;
+    if (!shareLink) return null;
 
     return (
       <div
         className='nv-modal-overlay'
-        onClick={() => setShowLinkModal(false)}
+        onClick={() => setShareLink(null)}
       >
         <div className='nv-modal' onClick={(e) => e.stopPropagation()}>
           <div className='nv-modal-head'>
@@ -842,7 +616,7 @@ export default function DashboardV2() {
             </div>
             <button
               className='nv-modal-close'
-              onClick={() => setShowLinkModal(false)}
+              onClick={() => setShareLink(null)}
               title='Close'
             >
               ×
@@ -852,6 +626,7 @@ export default function DashboardV2() {
             <p style={{ marginBottom: '1rem', color: '#666', fontSize: '0.9rem' }}>
               Copy this link and send it to your client:
             </p>
+            {shareLink.warning && <p className='nv-link-warning'>{shareLink.warning}</p>}
             <div style={{
               display: 'flex',
               gap: '0.5rem',
@@ -860,7 +635,7 @@ export default function DashboardV2() {
               <input
                 type='text'
                 readOnly
-                value={generatedLink}
+                value={shareLink.url}
                 style={{
                   flex: 1,
                   padding: '0.75rem',
@@ -871,9 +646,13 @@ export default function DashboardV2() {
                 }}
               />
               <button
-                onClick={() => {
-                  navigator.clipboard.writeText(generatedLink);
-                  alert('Link copied to clipboard!');
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(shareLink.url);
+                    setNotice({ kind: 'success', text: 'Link copied to clipboard.' });
+                  } catch {
+                    setNotice({ kind: 'error', text: 'Could not copy automatically — select the link and copy it.' });
+                  }
                 }}
                 style={{
                   padding: '0.75rem 1.2rem',
@@ -893,7 +672,7 @@ export default function DashboardV2() {
               The form will be available at this link until they submit their responses.
             </p>
             <button
-              onClick={() => setShowLinkModal(false)}
+              onClick={() => setShareLink(null)}
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -913,10 +692,10 @@ export default function DashboardV2() {
   };
 
   const renderIntakeFormModal = () => {
-    if (!viewingIntakeForm) return null;
+    if (!viewingForm) return null;
 
     // Parse form_data if it's a string
-    let formData = viewingIntakeForm.form_data;
+    let formData = viewingForm.form_data;
 
     if (typeof formData === 'string') {
       try {
@@ -926,32 +705,31 @@ export default function DashboardV2() {
       }
     }
 
-
-    const isCompletedIntake = viewingIntakeForm.status === 'completed_intake';
-    const isPendingIntake = viewingIntakeForm.status === 'pending_intake';
+    const isCompletedIntake = viewingForm.status === 'completed_intake';
+    const isPendingIntake = viewingForm.status === 'pending_intake';
     const showBothForms = isPendingIntake || isCompletedIntake;
 
     return (
       <div
         className='nv-modal-overlay'
-        onClick={() => { if (!intakeActionLoading) setViewingIntakeForm(null); }}
+        onClick={() => { if (!busy) setViewingFormId(null); }}
       >
         <div className='nv-modal' onClick={(e) => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
           <div className='nv-modal-head'>
             <div className='nv-modal-head-main'>
               <p className='nv-modal-eyebrow'>Lead Information</p>
-              <h2 className='nv-modal-title'>{viewingIntakeForm.name || 'Untitled'}</h2>
+              <h2 className='nv-modal-title'>{viewingForm.name || 'Untitled'}</h2>
               <div className='nv-modal-meta'>
                 <span className='nv-chip'>
                   <span className='nv-chip-dot' />
-                  {viewingIntakeForm.status ? String(viewingIntakeForm.status).replace(/_/g, ' ') : 'Unknown'}
+                  {viewingForm.status ? String(viewingForm.status).replace(/_/g, ' ') : 'Unknown'}
                 </span>
               </div>
             </div>
             <button
               className='nv-modal-close'
-              onClick={() => { if (!intakeActionLoading) setViewingIntakeForm(null); }}
-              disabled={intakeActionLoading}
+              onClick={() => { if (!busy) setViewingFormId(null); }}
+              disabled={!!busy}
               aria-label='Close'
             >
               ×
@@ -962,9 +740,16 @@ export default function DashboardV2() {
             <div style={{ marginBottom: '24px' }}>
               <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>Lead Details</h3>
               <div style={{ fontSize: '12px', lineHeight: '1.8' }}>
-                <div><strong>Name:</strong> {viewingIntakeForm.name}</div>
-                <div><strong>Email:</strong> {viewingIntakeForm.client_email}</div>
-                <div><strong>Responsible:</strong> {viewingIntakeForm.personResponsible || 'Unassigned'}</div>
+                <div><strong>Name:</strong> {viewingForm.name}</div>
+                <div><strong>Email:</strong> {viewingForm.client_email || '—'}</div>
+                <div><strong>Responsible:</strong> {viewingForm.personResponsible || 'Unassigned'}</div>
+                <div><strong>Created:</strong> {formatDbTimestamp(viewingForm.created_at) || '—'}</div>
+                {viewingForm.intake_sent_at && (
+                  <div><strong>Intake sent:</strong> {formatDbTimestamp(viewingForm.intake_sent_at)}</div>
+                )}
+                {viewingForm.clio_populated_at && (
+                  <div><strong>Sent to Clio:</strong> {formatDbTimestamp(viewingForm.clio_populated_at)}</div>
+                )}
               </div>
             </div>
 
@@ -1009,57 +794,53 @@ export default function DashboardV2() {
                     borderRadius: '4px',
                     cursor: 'pointer',
                   }}
-                  onClick={() => window.open(`/lead-inquiry?lead_id=${viewingIntakeForm.id}`, '_blank')}
+                  onClick={() => window.open(`/lead-inquiry?lead_id=${viewingForm.id}`, '_blank')}
                 >
                   {formData?.inquiry ? 'View Details' : 'View Form'}
                 </button>
               </div>
 
               {showBothForms ? (
-                <>
-                  <div style={{ padding: '12px', border: '1px solid #e0e0e0', borderRadius: '4px', marginBottom: '12px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '12px' }}>
-                      Intake Form
-                      {viewingIntakeForm.progress_pct !== undefined && (
-                        <span style={{ float: 'right', color: '#666' }}>
-                          {viewingIntakeForm.progress_pct}% complete
-                        </span>
-                      )}
-                    </div>
-                    {/* Show intake data summary if available */}
-                    {formData?.intake && (
-                      <div style={{ marginBottom: '12px', padding: '12px', background: '#f9f9f9', borderRadius: '4px', fontSize: '12px', lineHeight: '1.6' }}>
-                        {formData.intake.client_name && (
-                          <div><strong>Client:</strong> {formData.intake.client_name}</div>
-                        )}
-                        {formData.intake.client_state && (
-                          <div><strong>State:</strong> {formData.intake.client_state}</div>
-                        )}
-                        {formData.intake.scenario && (
-                          <div><strong>Scenario:</strong> {formData.intake.scenario}</div>
-                        )}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {isCompletedIntake && (
-                        <button
-                          style={{
-                            padding: '6px 12px',
-                            fontSize: '12px',
-                            background: '#2f4858',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                          }}
-                          onClick={() => window.open(`/intake-form?lead_id=${viewingIntakeForm.id}&edit=true`, '_blank')}
-                        >
-                          ✏️ Edit Form
-                        </button>
-                      )}
-                    </div>
+                <div style={{ padding: '12px', border: '1px solid #e0e0e0', borderRadius: '4px', marginBottom: '12px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '12px' }}>
+                    Intake Form
+                    <span style={{ float: 'right', color: '#666' }}>
+                      {viewingForm.progress}% complete
+                    </span>
                   </div>
-                </>
+                  {/* Show intake data summary if available */}
+                  {formData?.intake && (
+                    <div style={{ marginBottom: '12px', padding: '12px', background: '#f9f9f9', borderRadius: '4px', fontSize: '12px', lineHeight: '1.6' }}>
+                      {formData.intake.client_name && (
+                        <div><strong>Client:</strong> {formData.intake.client_name}</div>
+                      )}
+                      {formData.intake.client_state && (
+                        <div><strong>State:</strong> {formData.intake.client_state}</div>
+                      )}
+                      {formData.intake.scenario && (
+                        <div><strong>Scenario:</strong> {formData.intake.scenario}</div>
+                      )}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {isCompletedIntake && (
+                      <button
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          background: '#2f4858',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => window.open(`/intake-form?lead_id=${viewingForm.id}&edit=true`, '_blank')}
+                      >
+                        ✏️ Edit Form
+                      </button>
+                    )}
+                  </div>
+                </div>
               ) : (
                 <div style={{ padding: '12px', border: '1px dashed #ddd', borderRadius: '4px', background: '#fafafa', color: '#999', fontSize: '12px' }}>
                   Intake form will be available after appointment is scheduled
@@ -1068,27 +849,33 @@ export default function DashboardV2() {
             </div>
           </div>
 
-          {viewingIntakeForm.status === 'scheduled' && (
+          {viewingForm.status === 'scheduled' && (
             <div className='nv-modal-actions'>
               <button
                 className='nv-btn-qualify'
-                onClick={async () => {
-                  const success = await sendIntakeForm(viewingIntakeForm.id);
-                  if (success) {
-                    const intakeLink = `${window.location.origin}/intake-form?lead_id=${viewingIntakeForm.id}`;
-                    // Update local state and refresh
-                    setRealForms(prev => prev.map(f =>
-                      f.id === viewingIntakeForm.id
-                        ? { ...f, status: 'pending_intake' }
-                        : f
-                    ));
-                    setViewingIntakeForm(prev => ({ ...prev, status: 'pending_intake' }));
-                    setGeneratedLink(intakeLink);
-                    setShowLinkModal(true);
-                  }
-                }}
+                disabled={!!busy}
+                onClick={() => handleSendIntake(viewingForm)}
               >
-                Send Intake Form
+                {busy === 'send-intake' ? 'Sending...' : 'Send Intake Form'}
+              </button>
+            </div>
+          )}
+
+          {isPendingIntake && (
+            <div className='nv-modal-actions'>
+              <button
+                className='nv-btn-view'
+                disabled={!!busy}
+                onClick={() => setShareLink(publicLink(`/intake-form?lead_id=${viewingForm.id}`))}
+              >
+                Show intake link
+              </button>
+              <button
+                className='nv-btn-qualify'
+                disabled={!!busy}
+                onClick={() => handleResendIntake(viewingForm)}
+              >
+                {busy === 'resend-intake' ? 'Sending...' : 'Resend intake email'}
               </button>
             </div>
           )}
@@ -1098,8 +885,9 @@ export default function DashboardV2() {
               <button
                 className='nv-btn-qualify'
                 style={{ background: '#2f7c94' }}
+                disabled={!!busy}
                 onClick={() => {
-                  setDocumentFormId(viewingIntakeForm.id);
+                  setDocumentFormId(viewingForm.id);
                   setShowDocumentGenerator(true);
                 }}
               >
@@ -1107,28 +895,20 @@ export default function DashboardV2() {
               </button>
               <button
                 className='nv-btn-view'
+                disabled={!!busy}
                 onClick={() => {
-                  setShowSendBackModal(true);
-                  setSendBackFormId(viewingIntakeForm.id);
-                  setViewingIntakeForm(null);
+                  setSendBackFormId(viewingForm.id);
+                  setViewingFormId(null);
                 }}
               >
                 Send Back Reminder
               </button>
               <button
                 className='nv-btn-qualify'
-                onClick={async () => {
-                  if (window.confirm('Send to Clio? This will create a matter with all form data and the generated will.')) {
-                    const success = await populateMatterToClio(viewingIntakeForm.id);
-                    if (success) {
-                      alert('✅ Matter created in Clio! Check your Clio account for the new matter and will document.');
-                    } else {
-                      alert('❌ Error sending to Clio. Please check the console for details.');
-                    }
-                  }
-                }}
+                disabled={!!busy}
+                onClick={() => handlePopulateClio(viewingForm)}
               >
-                Populate Matter → Clio
+                {busy === 'clio' ? 'Sending...' : 'Populate Matter → Clio'}
               </button>
             </div>
           )}
@@ -1136,6 +916,65 @@ export default function DashboardV2() {
       </div>
     );
   };
+
+  const renderPipeCard = (form: any, extraActions?: ReactNode) => (
+    <div key={form.id} className='nv-pipe-card'>
+      <h4 className='nv-pipe-name'>{form.name}</h4>
+      <p className='nv-pipe-email'>{form.client_email || '—'}</p>
+      <div className='nv-pipe-meta'>
+        <span className='nv-chip'>
+          <span className='nv-chip-dot' />
+          {form.personResponsible || 'Unassigned'}
+        </span>
+        {!INTAKE_STATUSES.includes(form.status) && (
+          <span className='nv-chip danger'>
+            <span className='nv-chip-dot' />
+            {String(form.status || 'no status').replace(/_/g, ' ')}
+          </span>
+        )}
+      </div>
+      <div className='nv-progress'>
+        <div className='nv-progress-track'>
+          <div className='nv-progress-fill' style={{ width: `${Math.min(100, form.progress)}%` }} />
+        </div>
+        <span className='nv-progress-pct'>{form.progress}%</span>
+      </div>
+      <div className='nv-pipe-actions'>
+        <button
+          type='button'
+          className='nv-btn-view'
+          onClick={() => setViewingFormId(form.id)}
+        >
+          View
+        </button>
+        {extraActions}
+        <button
+          type='button'
+          className='nv-btn-delete'
+          disabled={!!busy}
+          onClick={() => handleDeleteForm(form)}
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderKanbanColumn = (title: string, items: any[], empty: string, extraActions?: (form: any) => ReactNode) => (
+    <section className='nv-kanban-col'>
+      <div className='nv-kanban-col-head'>
+        <h3 className='nv-kanban-col-title'>{title}</h3>
+        <span className='nv-kanban-col-count'>{count(items.length)}</span>
+      </div>
+      <div className='nv-kanban-col-body'>
+        {loadingText
+          ? <div className='nv-kanban-empty'>{loadingText}</div>
+          : items.length === 0
+            ? <div className='nv-kanban-empty'>{empty}</div>
+            : items.map(form => renderPipeCard(form, extraActions?.(form)))}
+      </div>
+    </section>
+  );
 
   const pageTitle =
     activeNav === 'overview'
@@ -1154,8 +993,6 @@ export default function DashboardV2() {
           ? 'Every client in Clio. Pick a package or individual documents to draft.'
           : 'Your practice at a glance, what needs attention today.';
 
-  const overviewIntakeForms = filteredPendingIntakeForms;
-  const overviewCompletedForms = completedIntakeForms;
   const userInitials = (lawyer?.full_name || 'NL')
     .split(' ')
     .filter(Boolean)
@@ -1176,6 +1013,18 @@ export default function DashboardV2() {
 
   if (!user) {
     return null;
+  }
+
+  if (!lawyer) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: C.bg, padding: '20px' }}>
+        <div style={{ maxWidth: '440px', textAlign: 'center', color: C.charcoal }}>
+          <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '12px' }}>No lawyer profile</div>
+          <p style={{ marginBottom: '20px' }}>{lawyerError || 'Your account is not linked to a lawyer profile.'}</p>
+          <button type='button' className='auth-button' onClick={logout}>Sign out</button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -1225,9 +1074,7 @@ export default function DashboardV2() {
         </button>
 
         <div className='nv-sidebar-foot'>
-          {lawyer && (
-            <div className='nv-sidebar-user'>{lawyer.full_name}</div>
-          )}
+          <div className='nv-sidebar-user'>{lawyer.full_name}</div>
           <button type='button' className='nv-logout' onClick={logout}>
             Sign out
           </button>
@@ -1241,13 +1088,36 @@ export default function DashboardV2() {
             <h1 className='nv-topbar-title'>{pageTitle}</h1>
             <p className='nv-topbar-desc'>{pageDesc}</p>
           </div>
-          {lawyer && (
-            <div className='nv-user-chip'>
-              <div className='nv-user-avatar'>{userInitials}</div>
-              <span className='nv-user-name'>{lawyer.full_name}</span>
-            </div>
-          )}
+          <div className='nv-user-chip'>
+            <div className='nv-user-avatar'>{userInitials}</div>
+            <span className='nv-user-name'>{lawyer.full_name}</span>
+          </div>
         </header>
+
+        {(loadError || lawyerListError) && (
+          <div className='nv-banner error' role='alert'>
+            <span className='nv-banner-text'>
+              {[
+                loadError && `${loadError}${hasLoaded ? ' Showing the last data that loaded.' : ''}`,
+                lawyerListError,
+              ].filter(Boolean).join('\n')}
+            </span>
+            <button
+              type='button'
+              className='nv-banner-btn'
+              onClick={() => { loadData(); loadLawyerNames(); }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {notice && (
+          <div className={`nv-banner ${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>
+            <span className='nv-banner-text'>{notice.text}</span>
+            <button type='button' className='nv-banner-btn' onClick={() => setNotice(null)} aria-label='Dismiss'>×</button>
+          </div>
+        )}
 
         {/* Document generation, driven by the Clio client list */}
         {activeNav === 'documents' && <ClioDocumentGeneration />}
@@ -1258,19 +1128,19 @@ export default function DashboardV2() {
             <div className='nv-stats'>
               <div className='nv-stat-card'>
                 <p className='nv-stat-label'>Pending Leads</p>
-                <p className='nv-stat-value'>{pendingLeads.length}</p>
+                <p className='nv-stat-value'>{count(pendingLeadsAll.length)}</p>
                 <p className='nv-stat-hint'>Awaiting qualify or reject</p>
               </div>
 
               <div className='nv-stat-card warm'>
                 <p className='nv-stat-label'>Pending Intake Forms</p>
-                <p className='nv-stat-value'>{overviewIntakeForms.length}</p>
+                <p className='nv-stat-value'>{count(pendingIntakeAll.length)}</p>
                 <p className='nv-stat-hint'>Clients still completing forms</p>
               </div>
 
               <div className='nv-stat-card green'>
                 <p className='nv-stat-label'>Completed Forms</p>
-                <p className='nv-stat-value'>{overviewCompletedForms.length}</p>
+                <p className='nv-stat-value'>{count(completedIntakeAll.length)}</p>
                 <p className='nv-stat-hint'>Ready for lawyer review</p>
               </div>
             </div>
@@ -1279,197 +1149,151 @@ export default function DashboardV2() {
               <section className='nv-panel'>
                 <div className='nv-panel-head'>
                   <h2 className='nv-panel-title'>Pending Leads</h2>
-                  <span className='nv-panel-count'>{pendingLeads.length}</span>
+                  <span className='nv-panel-count'>{count(overviewLeads.length)}</span>
                 </div>
                 <input
                   className='nv-panel-search'
                   type='text'
-                  placeholder='Search by name...'
-                  value={pendingLeadsSearch}
-                  onChange={(e) => setPendingLeadsSearch(e.target.value)}
+                  placeholder='Search by name or email...'
+                  value={overviewSearch.leads}
+                  onChange={(e) => setOverviewSearch({ ...overviewSearch, leads: e.target.value })}
                 />
                 <div className='nv-panel-list'>
-                  {pendingLeads.length === 0
-                    ? <div className='nv-panel-empty'>No pending leads</div>
-                    : pendingLeads.map(lead => (
-                      <div key={lead.id} className='nv-panel-item' style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p className='nv-panel-item-name'>{lead.name}</p>
-                          <p className='nv-panel-item-meta'>{lead.email}</p>
-                          <p className='nv-panel-item-meta'>{lead.personResponsible || 'Unassigned'}</p>
+                  {loadingText
+                    ? <div className='nv-panel-empty'>{loadingText}</div>
+                    : overviewLeads.length === 0
+                      ? <div className='nv-panel-empty'>No pending leads</div>
+                      : overviewLeads.map(lead => (
+                        <div key={lead.id} className='nv-panel-item' style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p className='nv-panel-item-name'>{lead.name}</p>
+                              <p className='nv-panel-item-meta'>{lead.email}</p>
+                              <p className='nv-panel-item-meta'>{lead.personResponsible || 'Unassigned'}</p>
+                            </div>
+                            <div style={{ minWidth: '80px', textAlign: 'center' }}>
+                              {lead.region && <span className='nv-chip'><span className='nv-chip-dot' />{lead.region}</span>}
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                              <button
+                                type='button'
+                                className='nv-btn-view'
+                                onClick={() => setViewingLeadId(lead.id)}
+                                style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                              >
+                                View
+                              </button>
+                              <button
+                                type='button'
+                                className='nv-btn-delete'
+                                disabled={!!busy}
+                                onClick={() => handleDeleteLead(lead)}
+                                style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                        <div style={{ minWidth: '80px', textAlign: 'center' }}>
-                          {lead.region && <span className='nv-chip'><span className='nv-chip-dot' />{lead.region}</span>}
-                        </div>
-                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                          <button
-                            type='button'
-                            className='nv-btn-view'
-                            onClick={() => setViewingLead(lead)}
-                            style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
-                          >
-                            View
-                          </button>
-                          <button
-                            type='button'
-                            className='nv-btn-delete'
-                            onClick={async () => {
-                              if (!window.confirm(`Delete lead for ${lead.name}? This cannot be undone.`)) return;
-                              if (await deleteLead(lead.id)) {
-                                await refreshData();
-                              } else {
-                                alert('Could not delete this lead. Please try again.');
-                              }
-                            }}
-                            style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                      </div>
-                    ))}
+                      ))}
                 </div>
               </section>
 
               <section className='nv-panel'>
                 <div className='nv-panel-head'>
                   <h2 className='nv-panel-title'>Pending Intake</h2>
-                  <span className='nv-panel-count'>{overviewIntakeForms.length}</span>
+                  <span className='nv-panel-count'>{count(overviewIntake.length)}</span>
                 </div>
                 <input
                   className='nv-panel-search'
                   type='text'
-                  placeholder='Search by name...'
-                  value={intakeFormSearch}
-                  onChange={(e) => setIntakeFormSearch(e.target.value)}
+                  placeholder='Search by name or email...'
+                  value={overviewSearch.intake}
+                  onChange={(e) => setOverviewSearch({ ...overviewSearch, intake: e.target.value })}
                 />
                 <div className='nv-panel-list'>
-                  {overviewIntakeForms.length === 0
-                    ? <div className='nv-panel-empty'>No forms in progress</div>
-                    : overviewIntakeForms.map(form => (
-                      <div key={form.id} className='nv-panel-item'>
-                        <p className='nv-panel-item-name'>{form.name}</p>
-                        <p className='nv-panel-item-meta'>{form.client_email || form.personResponsible || '—'}</p>
-                        <div className='nv-panel-item-row'>
-                          <div className='nv-progress'>
-                            <div className='nv-progress-track'>
-                              <div className='nv-progress-fill' style={{ width: `${Math.min(100, form.progress || 0)}%` }} />
+                  {loadingText
+                    ? <div className='nv-panel-empty'>{loadingText}</div>
+                    : overviewIntake.length === 0
+                      ? <div className='nv-panel-empty'>No forms in progress</div>
+                      : overviewIntake.map(form => (
+                        <div key={form.id} className='nv-panel-item' onClick={() => setViewingFormId(form.id)} style={{ cursor: 'pointer' }}>
+                          <p className='nv-panel-item-name'>{form.name}</p>
+                          <p className='nv-panel-item-meta'>{form.client_email || form.personResponsible || '—'}</p>
+                          <div className='nv-panel-item-row'>
+                            <div className='nv-progress'>
+                              <div className='nv-progress-track'>
+                                <div className='nv-progress-fill' style={{ width: `${Math.min(100, form.progress)}%` }} />
+                              </div>
+                              <span className='nv-progress-pct'>{form.progress}%</span>
                             </div>
-                            <span className='nv-progress-pct'>{form.progress || 0}%</span>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                 </div>
               </section>
 
               <section className='nv-panel'>
                 <div className='nv-panel-head'>
                   <h2 className='nv-panel-title'>Completed Forms</h2>
-                  <span className='nv-panel-count'>{overviewCompletedForms.length}</span>
+                  <span className='nv-panel-count'>{count(overviewCompleted.length)}</span>
                 </div>
                 <input
                   className='nv-panel-search'
                   type='text'
-                  placeholder='Search by name...'
-                  value={completedSearch}
-                  onChange={(e) => setCompletedSearch(e.target.value)}
+                  placeholder='Search by name or email...'
+                  value={overviewSearch.completed}
+                  onChange={(e) => setOverviewSearch({ ...overviewSearch, completed: e.target.value })}
                 />
                 <div className='nv-panel-list'>
-                  {overviewCompletedForms.length === 0
-                    ? <div className='nv-panel-empty'>No completed forms yet</div>
-                    : overviewCompletedForms.map(form => (
-                      <div key={form.id} className='nv-panel-item' style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p className='nv-panel-item-name'>{form.client_name}</p>
-                          <p className='nv-panel-item-meta'>{form.client_email || '—'}</p>
-                          <div className='nv-panel-item-row'>
-                            <p className='nv-panel-item-meta'>{form.person_responsible || 'Unassigned'}</p>
+                  {loadingText
+                    ? <div className='nv-panel-empty'>{loadingText}</div>
+                    : overviewCompleted.length === 0
+                      ? <div className='nv-panel-empty'>No completed forms yet</div>
+                      : overviewCompleted.map(form => (
+                        <div key={form.id} className='nv-panel-item' style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p className='nv-panel-item-name'>{form.name}</p>
+                            <p className='nv-panel-item-meta'>{form.client_email || '—'}</p>
+                            <div className='nv-panel-item-row'>
+                              <p className='nv-panel-item-meta'>{form.personResponsible || 'Unassigned'}</p>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                            <button
+                              type='button'
+                              className='nv-btn-view'
+                              onClick={() => setViewingFormId(form.id)}
+                              style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                            >
+                              View
+                            </button>
+                            <button
+                              type='button'
+                              className='nv-btn-delete'
+                              disabled={!!busy}
+                              onClick={() => handleDeleteForm(form)}
+                              style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                            >
+                              Delete
+                            </button>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                          <button
-                            type='button'
-                            className='nv-btn-view'
-                            onClick={() => {
-                              setViewingIntakeForm(form);
-                              setViewMode('completed_intake');
-                            }}
-                            style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
-                          >
-                            View
-                          </button>
-                          <button
-                            type='button'
-                            className='nv-btn-delete'
-                            onClick={async () => {
-                              if (confirm('Delete this form?')) {
-                                const success = await deleteForm(form.id);
-                                if (success) {
-                                  alert('✅ Form deleted');
-                                  fetchData();
-                                } else {
-                                  alert('❌ Error deleting form');
-                                }
-                              }
-                            }}
-                            style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                 </div>
               </section>
             </div>
           </div>
         )}
 
-        {/* Pending Leads */}
+        {/* Leads */}
         {activeNav === 'pending-leads' && (
           <div>
             <div className='nv-toolbar'>
               <div className='nv-filters'>
-                <select
-                  className='nv-select'
-                  value={pendingLeadsPersonFilter}
-                  onChange={(e) => setPendingLeadsPersonFilter(e.target.value)}
-                >
-                  <option value="">All Lawyers</option>
-                  {LAWYERS.map(lawyer => <option key={lawyer} value={lawyer}>{lawyer}</option>)}
-                </select>
-
-                <select
-                  className='nv-select'
-                  value={pendingLeadsDateFilter}
-                  onChange={(e) => setPendingLeadsDateFilter(e.target.value)}
-                >
-                  <option value="all">All Dates</option>
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                  <option value="custom">Custom Range</option>
-                </select>
-
-                {pendingLeadsDateFilter === 'custom' && (
-                  <>
-                    <input
-                      className='nv-date'
-                      type="date"
-                      value={pendingLeadsDateStart}
-                      onChange={(e) => setPendingLeadsDateStart(e.target.value)}
-                    />
-                    <input
-                      className='nv-date'
-                      type="date"
-                      value={pendingLeadsDateEnd}
-                      onChange={(e) => setPendingLeadsDateEnd(e.target.value)}
-                    />
-                  </>
-                )}
+                {renderSearch(leadsFilters, setLeadsFilters)}
+                {renderPersonSelect(leadsFilters, setLeadsFilters)}
+                {renderDateSelect(leadsFilters, setLeadsFilters)}
               </div>
 
               <div className='nv-tabs'>
@@ -1479,7 +1303,7 @@ export default function DashboardV2() {
                   onClick={() => setPendingLeadsTab('pending')}
                 >
                   Pending
-                  <span className='nv-tab-count'>{pendingLeads.length}</span>
+                  <span className='nv-tab-count'>{count(pendingLeads.length)}</span>
                 </button>
                 <button
                   type='button'
@@ -1487,618 +1311,180 @@ export default function DashboardV2() {
                   onClick={() => setPendingLeadsTab('deprioritized')}
                 >
                   Deprioritized
-                  <span className='nv-tab-count'>{deprioritizedLeads.length}</span>
+                  <span className='nv-tab-count'>{count(deprioritizedLeads.length)}</span>
                 </button>
               </div>
             </div>
 
+            {unknownLeads.length > 0 && (
+              <div className='nv-banner error'>
+                <span className='nv-banner-text'>
+                  {unknownLeads.length} lead(s) have an unrecognised status and are not shown in either tab:
+                  {' '}{unknownLeads.map(l => `${l.name} (${l.status || 'no status'})`).join(', ')}
+                </span>
+              </div>
+            )}
+
             {pendingLeadsTab === 'pending' && (
               <div className='nv-lead-list'>
-                {pendingLeads.length === 0
-                  ? <div className='nv-empty'>No pending leads at the moment.</div>
-                  : pendingLeads.map(lead => (
-                    <div key={lead.id} className='nv-lead-card'>
-                      <div className='nv-lead-main'>
-                        <h3 className='nv-lead-name'>{lead.name}</h3>
-                        <p className='nv-lead-email'>{lead.email}</p>
-                        <div className='nv-lead-meta'>
-                          {lead.region && (
+                {loadingText
+                  ? <div className='nv-empty'>{loadingText}</div>
+                  : pendingLeads.length === 0
+                    ? <div className='nv-empty'>No pending leads match these filters.</div>
+                    : pendingLeads.map(lead => (
+                      <div key={lead.id} className='nv-lead-card'>
+                        <div className='nv-lead-main'>
+                          <h3 className='nv-lead-name'>{lead.name}</h3>
+                          <p className='nv-lead-email'>{lead.email}</p>
+                          <div className='nv-lead-meta'>
+                            {lead.region && (
+                              <span className='nv-chip'>
+                                <span className='nv-chip-dot' />
+                                {lead.region}
+                              </span>
+                            )}
                             <span className='nv-chip'>
                               <span className='nv-chip-dot' />
-                              {lead.region}
+                              {lead.personResponsible || 'Unassigned'}
                             </span>
-                          )}
-                          {lead.personResponsible && (
+                            {lead.referralType && (
+                              <span className='nv-chip warm'>
+                                <span className='nv-chip-dot' />
+                                {lead.referralType}
+                              </span>
+                            )}
                             <span className='nv-chip'>
                               <span className='nv-chip-dot' />
-                              {lead.personResponsible}
+                              {formatDbTimestamp(lead.created_at)}
                             </span>
-                          )}
-                          {lead.referralType && (
-                            <span className='nv-chip warm'>
-                              <span className='nv-chip-dot' />
-                              {lead.referralType}
-                            </span>
-                          )}
+                          </div>
+                        </div>
+                        <div className='nv-pipe-actions'>
+                          <button
+                            type='button'
+                            className='nv-btn-view'
+                            onClick={() => setViewingLeadId(lead.id)}
+                          >
+                            View
+                          </button>
+                          <button
+                            type='button'
+                            className='nv-btn-delete'
+                            disabled={!!busy}
+                            onClick={() => handleDeleteLead(lead)}
+                          >
+                            Delete
+                          </button>
                         </div>
                       </div>
-                      <div className='nv-pipe-actions'>
-                        <button
-                          type='button'
-                          className='nv-btn-view'
-                          onClick={() => setViewingLead(lead)}
-                        >
-                          View
-                        </button>
-                        <button
-                          type='button'
-                          className='nv-btn-delete'
-                          onClick={async () => {
-                            if (!window.confirm(`Delete lead for ${lead.name}? This cannot be undone.`)) return;
-                            if (await deleteLead(lead.id)) {
-                              await refreshData();
-                            } else {
-                              alert('Could not delete this lead. Please try again.');
-                            }
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
               </div>
             )}
 
             {pendingLeadsTab === 'deprioritized' && (
               <div>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-                  <button
-                    type='button'
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: '8px',
-                      border: '1px solid #ddd',
-                      background: deprioritizedTypeFilter === 'all' ? '#f0f0f0' : 'transparent',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                    }}
-                    onClick={() => setDeprioritizedTypeFilter('all')}
-                  >
-                    All
-                  </button>
-                  <button
-                    type='button'
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: '8px',
-                      border: '1px solid #ddd',
-                      background: deprioritizedTypeFilter === 'rejected' ? '#f0f0f0' : 'transparent',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                    }}
-                    onClick={() => setDeprioritizedTypeFilter('rejected')}
-                  >
-                    Rejected
-                  </button>
-                  <button
-                    type='button'
-                    style={{
-                      display: 'none',
-                      padding: '8px 16px',
-                      borderRadius: '8px',
-                      border: '1px solid #ddd',
-                      background: deprioritizedTypeFilter === 'no-response' ? '#f0f0f0' : 'transparent',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                    }}
-                    onClick={() => setDeprioritizedTypeFilter('no-response')}
-                  >
-                    No Response
-                  </button>
+                  {[
+                    { id: 'all', label: 'All' },
+                    { id: 'rejected', label: 'Rejected' },
+                  ].map(option => (
+                    <button
+                      key={option.id}
+                      type='button'
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        border: '1px solid #ddd',
+                        background: deprioritizedTypeFilter === option.id ? '#f0f0f0' : 'transparent',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                      }}
+                      onClick={() => setDeprioritizedTypeFilter(option.id)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
                 <div className='nv-lead-list'>
-                  {deprioritizedLeads.length === 0
-                    ? <div className='nv-empty'>No deprioritized or rejected leads</div>
-                    : deprioritizedLeads.map(lead => (
-                    <div key={lead.id} className='nv-lead-card'>
-                      <div className='nv-lead-main'>
-                        <h3 className='nv-lead-name'>{lead.name}</h3>
-                        <p className='nv-lead-email'>{lead.email}</p>
-                        <div className='nv-lead-meta'>
-                          {lead.region && (
-                            <span className='nv-chip'>
-                              <span className='nv-chip-dot' />
-                              {lead.region}
-                            </span>
-                          )}
-                          {lead.personResponsible && (
-                            <span className='nv-chip'>
-                              <span className='nv-chip-dot' />
-                              {lead.personResponsible}
-                            </span>
-                          )}
-                          {lead.referralType && (
-                            <span className='nv-chip warm'>
-                              <span className='nv-chip-dot' />
-                              {lead.referralType}
-                            </span>
-                          )}
-                          <span className={`nv-chip${lead.status === 'rejected' ? ' danger' : ''}`}>
-                            <span className='nv-chip-dot' />
-                            {lead.status === 'rejected' ? 'Rejected' : 'No Response'}
-                          </span>
+                  {loadingText
+                    ? <div className='nv-empty'>{loadingText}</div>
+                    : deprioritizedLeads.length === 0
+                      ? <div className='nv-empty'>No deprioritized or rejected leads match these filters.</div>
+                      : deprioritizedLeads.map(lead => (
+                        <div key={lead.id} className='nv-lead-card'>
+                          <div className='nv-lead-main'>
+                            <h3 className='nv-lead-name'>{lead.name}</h3>
+                            <p className='nv-lead-email'>{lead.email}</p>
+                            <div className='nv-lead-meta'>
+                              {lead.region && (
+                                <span className='nv-chip'>
+                                  <span className='nv-chip-dot' />
+                                  {lead.region}
+                                </span>
+                              )}
+                              <span className='nv-chip'>
+                                <span className='nv-chip-dot' />
+                                {lead.personResponsible || 'Unassigned'}
+                              </span>
+                              {lead.referralType && (
+                                <span className='nv-chip warm'>
+                                  <span className='nv-chip-dot' />
+                                  {lead.referralType}
+                                </span>
+                              )}
+                              <span className={`nv-chip${lead.status === 'rejected' ? ' danger' : ''}`}>
+                                <span className='nv-chip-dot' />
+                                {lead.status === 'rejected' ? 'Rejected' : 'Deprioritized'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      ))}
                 </div>
               </div>
             )}
           </div>
         )}
 
-        {/* Completed Forms */}
-        {activeNav === 'completed-forms' && (
-          <div>
-            <div className='nv-toolbar'>
-              <div className='nv-filters'>
-                <select
-                  className='nv-select'
-                  value={completedPersonFilter}
-                  onChange={(e) => setCompletedPersonFilter(e.target.value)}
-                >
-                  <option value="">All Lawyers</option>
-                  {LAWYERS.map(lawyer => <option key={lawyer} value={lawyer}>{lawyer}</option>)}
-                </select>
-
-                <select
-                  className='nv-select'
-                  value={completedDateFilter}
-                  onChange={(e) => setCompletedDateFilter(e.target.value)}
-                >
-                  <option value="all">All Dates</option>
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                  <option value="custom">Custom Range</option>
-                </select>
-
-                {completedDateFilter === 'custom' && (
-                  <>
-                    <input
-                      className='nv-date'
-                      type="date"
-                      value={completedDateStart}
-                      onChange={(e) => setCompletedDateStart(e.target.value)}
-                    />
-                    <input
-                      className='nv-date'
-                      type="date"
-                      value={completedDateEnd}
-                      onChange={(e) => setCompletedDateEnd(e.target.value)}
-                    />
-                  </>
-                )}
-              </div>
-
-              <div className='nv-tabs'>
-                <button
-                  type='button'
-                  className={`nv-tab${completedFormsTab === 'completed' ? ' active' : ''}`}
-                  onClick={() => setCompletedFormsTab('completed')}
-                >
-                  Completed
-                  <span className='nv-tab-count'>{completedPageForms.length}</span>
-                </button>
-                <button
-                  type='button'
-                  className={`nv-tab${completedFormsTab === 'submitted' ? ' active' : ''}`}
-                  onClick={() => setCompletedFormsTab('submitted')}
-                >
-                  Submitted
-                  <span className='nv-tab-count'>{submittedPageForms.length}</span>
-                </button>
-              </div>
-            </div>
-
-            {completedFormsTab === 'completed' && (
-              <div className='nv-lead-list'>
-                {completedPageForms.length === 0
-                  ? <div className='nv-empty'>No completed forms at the moment.</div>
-                  : completedPageForms.map(form => (
-                    <div key={form.id} className='nv-lead-card'>
-                      <div className='nv-lead-main'>
-                        <h3 className='nv-lead-name'>{form.name}</h3>
-                        <p className='nv-lead-email'>{form.client_email || '—'}</p>
-                        <div className='nv-lead-meta'>
-                          {form.region && (
-                            <span className='nv-chip'>
-                              <span className='nv-chip-dot' />
-                              {form.region}
-                            </span>
-                          )}
-                          {form.personResponsible && (
-                            <span className='nv-chip'>
-                              <span className='nv-chip-dot' />
-                              {form.personResponsible}
-                            </span>
-                          )}
-                          {form.referral_type && (
-                            <span className='nv-chip warm'>
-                              <span className='nv-chip-dot' />
-                              {form.referral_type}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className='nv-pipe-actions'>
-                        <button
-                          type='button'
-                          className='nv-btn-view'
-                          onClick={() => { window.location.href = `/?formId=${form.id}&summary=true`; }}
-                        >
-                          Review
-                        </button>
-                        <button
-                          type='button'
-                          className='nv-btn-edit'
-                          onClick={() => handleSubmitToClio(form.id)}
-                        >
-                          Send
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            )}
-
-            {completedFormsTab === 'submitted' && (
-              <div className='nv-lead-list'>
-                {submittedPageForms.length === 0
-                  ? <div className='nv-empty'>No forms submitted to Clio yet.</div>
-                  : submittedPageForms.map(form => (
-                    <div key={form.id} className='nv-lead-card'>
-                      <div className='nv-lead-main'>
-                        <h3 className='nv-lead-name'>{form.name}</h3>
-                        <p className='nv-lead-email'>{form.client_email || '—'}</p>
-                        <div className='nv-lead-meta'>
-                          {form.region && (
-                            <span className='nv-chip'>
-                              <span className='nv-chip-dot' />
-                              {form.region}
-                            </span>
-                          )}
-                          {form.personResponsible && (
-                            <span className='nv-chip'>
-                              <span className='nv-chip-dot' />
-                              {form.personResponsible}
-                            </span>
-                          )}
-                          <span className='nv-chip warm'>
-                            <span className='nv-chip-dot' />
-                            Clio
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        type='button'
-                        className='nv-btn-view'
-                        onClick={() => { window.location.href = `/?formId=${form.id}&summary=true`; }}
-                      >
-                        Review
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Qualified Leads / Intake */}
+        {/* Intake */}
         {activeNav === 'qualified-leads' && (
           <div className='nv-qualified'>
             <div className='nv-toolbar'>
               <div className='nv-filters'>
-                <input
-                  className='nv-search'
-                  type='text'
-                  placeholder='Search by name...'
-                  value={qualifiedLeadsSearch}
-                  onChange={(e) => setQualifiedLeadsSearch(e.target.value)}
-                />
-                <select
-                  className='nv-select'
-                  value={qualifiedLeadsPersonFilter}
-                  onChange={(e) => setQualifiedLeadsPersonFilter(e.target.value)}
-                >
-                  <option value="">All Lawyers</option>
-                  {LAWYERS.map(lawyer => <option key={lawyer} value={lawyer}>{lawyer}</option>)}
-                </select>
-                <select
-                  className='nv-select'
-                  value={qualifiedLeadsDateFilter}
-                  onChange={(e) => setQualifiedLeadsDateFilter(e.target.value)}
-                >
-                  <option value="all">All Dates</option>
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                  <option value="custom">Custom Range</option>
-                </select>
-                {qualifiedLeadsDateFilter === 'custom' && (
-                  <>
-                    <input
-                      className='nv-date'
-                      type='date'
-                      value={qualifiedLeadsDateStart}
-                      onChange={(e) => setQualifiedLeadsDateStart(e.target.value)}
-                    />
-                    <input
-                      className='nv-date'
-                      type='date'
-                      value={qualifiedLeadsDateEnd}
-                      onChange={(e) => setQualifiedLeadsDateEnd(e.target.value)}
-                    />
-                  </>
-                )}
+                {renderSearch(intakeFilters, setIntakeFilters)}
+                {renderPersonSelect(intakeFilters, setIntakeFilters)}
+                {renderDateSelect(intakeFilters, setIntakeFilters)}
               </div>
             </div>
 
             <div className='nv-kanban'>
               <div className='nv-kanban-track'>
-                <section className='nv-kanban-col'>
-                  <div className='nv-kanban-col-head'>
-                    <h3 className='nv-kanban-col-title'>Appointment Sent</h3>
-                    <span className='nv-kanban-col-count'>{openedForms.length}</span>
-                  </div>
-                  <div className='nv-kanban-col-body'>
-                    {openedForms.length === 0
-                      ? <div className='nv-kanban-empty'>No opened forms</div>
-                      : openedForms.map(form => (
-                        <div key={form.id} className='nv-pipe-card'>
-                          <h4 className='nv-pipe-name'>{form.name}</h4>
-                          <p className='nv-pipe-email'>{form.client_email || '—'}</p>
-                          <div className='nv-pipe-meta'>
-                            <span className='nv-chip'>
-                              <span className='nv-chip-dot' />
-                              {form.personResponsible || 'Unassigned'}
-                            </span>
-                          </div>
-                          <div className='nv-progress'>
-                            <div className='nv-progress-track'>
-                              <div className='nv-progress-fill' style={{ width: `${Math.min(100, form.progress || 0)}%` }} />
-                            </div>
-                            <span className='nv-progress-pct'>{form.progress || 0}%</span>
-                          </div>
-                          <div className='nv-pipe-actions'>
-                            <button
-                              type='button'
-                              className='nv-btn-view'
-                              onClick={() => setViewingIntakeForm(form)}
-                            >
-                              View
-                            </button>
-                            <button
-                              type='button'
-                              className='nv-btn-delete'
-                              onClick={async () => {
-                                if (confirm(`Delete form for ${form.name}?`)) {
-                                  const success = await deleteForm(form.id);
-                                  if (success) {
-                                    setRealForms(prev => prev.filter(f => f.id !== form.id));
-                                  } else {
-                                    alert('Failed to delete form');
-                                  }
-                                }
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </section>
-
-                <section className='nv-kanban-col'>
-                  <div className='nv-kanban-col-head'>
-                    <h3 className='nv-kanban-col-title'>Scheduled</h3>
-                    <span className='nv-kanban-col-count'>{inProgressForms.length}</span>
-                  </div>
-                  <div className='nv-kanban-col-body'>
-                    {inProgressForms.length === 0
-                      ? <div className='nv-kanban-empty'>Nothing in progress</div>
-                      : inProgressForms.map(form => (
-                        <div key={form.id} className='nv-pipe-card'>
-                          <h4 className='nv-pipe-name'>{form.name}</h4>
-                          <p className='nv-pipe-email'>{form.client_email || '—'}</p>
-                          <div className='nv-pipe-meta'>
-                            <span className='nv-chip'>
-                              <span className='nv-chip-dot' />
-                              {form.personResponsible || 'Unassigned'}
-                            </span>
-                          </div>
-                          <div className='nv-progress'>
-                            <div className='nv-progress-track'>
-                              <div className='nv-progress-fill' style={{ width: `${Math.min(100, form.progress || 0)}%` }} />
-                            </div>
-                            <span className='nv-progress-pct'>{form.progress || 0}%</span>
-                          </div>
-                          <div className='nv-pipe-actions'>
-                            <button
-                              type='button'
-                              className='nv-btn-view'
-                              onClick={() => setViewingIntakeForm(form)}
-                            >
-                              View
-                            </button>
-                            <button
-                              type='button'
-                              className='nv-btn-delete'
-                              onClick={async () => {
-                                if (confirm(`Delete form for ${form.name}?`)) {
-                                  const success = await deleteForm(form.id);
-                                  if (success) {
-                                    setRealForms(prev => prev.filter(f => f.id !== form.id));
-                                  } else {
-                                    alert('Failed to delete form');
-                                  }
-                                }
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </section>
-
-                <section className='nv-kanban-col'>
-                  <div className='nv-kanban-col-head'>
-                    <h3 className='nv-kanban-col-title'>Pending intake</h3>
-                    <span className='nv-kanban-col-count'>{trulyCompletedForms.length}</span>
-                  </div>
-                  <div className='nv-kanban-col-body'>
-                    {trulyCompletedForms.length === 0
-                      ? <div className='nv-kanban-empty'>No pending forms</div>
-                      : trulyCompletedForms.map(form => (
-                        <div key={form.id} className='nv-pipe-card'>
-                          <h4 className='nv-pipe-name'>{form.name}</h4>
-                          <p className='nv-pipe-email'>{form.client_email || '—'}</p>
-                          <div className='nv-pipe-meta'>
-                            <span className='nv-chip'>
-                              <span className='nv-chip-dot' />
-                              {form.personResponsible || 'Unassigned'}
-                            </span>
-                          </div>
-                          <div className='nv-pipe-actions'>
-                            <button
-                              type='button'
-                              className='nv-btn-view'
-                              onClick={() => setViewingIntakeForm(form)}
-                            >
-                              View
-                            </button>
-                            <button
-                              type='button'
-                              className='nv-btn-delete'
-                              onClick={async () => {
-                                if (confirm(`Delete form for ${form.name}?`)) {
-                                  const success = await deleteForm(form.id);
-                                  if (success) {
-                                    setRealForms(prev => prev.filter(f => f.id !== form.id));
-                                  } else {
-                                    alert('Failed to delete form');
-                                  }
-                                }
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </section>
-
-                <section className='nv-kanban-col'>
-                  <div className='nv-kanban-col-head'>
-                    <h3 className='nv-kanban-col-title'>Completed Intake</h3>
-                    <span className='nv-kanban-col-count'>{submittedForms.length}</span>
-                  </div>
-                  <div className='nv-kanban-col-body'>
-                    {submittedForms.length === 0
-                      ? <div className='nv-kanban-empty'>None completed yet</div>
-                      : submittedForms.map(form => (
-                        <div key={form.id} className='nv-pipe-card' style={{ position: 'relative' }}>
-                          <button
-                            type='button'
-                            onClick={async () => {
-                              if (window.confirm('Delete this form? This cannot be undone.')) {
-                                const success = await deleteForm(form.id);
-                                if (success) {
-                                  setRealForms(prev => prev.filter(f => f.id !== form.id));
-                                }
-                              }
-                            }}
-                            style={{
-                              position: 'absolute',
-                              top: '8px',
-                              right: '8px',
-                              background: 'none',
-                              border: 'none',
-                              fontSize: '1.2rem',
-                              cursor: 'pointer',
-                              color: '#999',
-                              padding: '0',
-                              width: '24px',
-                              height: '24px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                            title='Delete form'
-                          >
-                            ×
-                          </button>
-                          <h4 className='nv-pipe-name'>{form.name}</h4>
-                          <p className='nv-pipe-email'>{form.client_email || '—'}</p>
-                          <div className='nv-pipe-meta'>
-                            <span className='nv-chip'>
-                              <span className='nv-chip-dot' />
-                              {form.personResponsible || 'Unassigned'}
-                            </span>
-                          </div>
-                          <div className='nv-pipe-actions'>
-                            <button
-                              type='button'
-                              className='nv-btn-view'
-                              onClick={() => {
-                                setViewingIntakeForm(form);
-                                setViewMode('completed_intake');
-                              }}
-                            >
-                              View
-                            </button>
-                            <button
-                              type='button'
-                              className='nv-btn-view'
-                              onClick={() => {
-                                setShowSendBackModal(true);
-                                setSendBackFormId(form.id);
-                              }}
-                            >
-                              Send Back
-                            </button>
-                            <button
-                              type='button'
-                              className='nv-btn-qualify'
-                              onClick={async () => {
-                                const confirmed = confirm('Send to Clio and populate matter?');
-                                if (confirmed) {
-                                  const success = await populateMatterToClio(form.id);
-                                  if (success) {
-                                    alert('✅ Matter created in Clio successfully!');
-                                  } else {
-                                    alert('❌ Error populating matter. Check console for details.');
-                                  }
-                                }
-                              }}
-                            >
-                              Populate
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </section>
-
-                {/* Overdue column hidden for now */}
+                {renderKanbanColumn('Appointment Sent', appointmentSentForms, 'No appointments sent')}
+                {renderKanbanColumn('Scheduled', scheduledForms, 'Nothing scheduled')}
+                {renderKanbanColumn('Pending intake', pendingIntakeForms, 'No pending forms')}
+                {renderKanbanColumn('Completed Intake', completedIntakeForms, 'None completed yet', (form) => (
+                  <>
+                    <button
+                      type='button'
+                      className='nv-btn-view'
+                      disabled={!!busy}
+                      onClick={() => setSendBackFormId(form.id)}
+                    >
+                      Send Back
+                    </button>
+                    <button
+                      type='button'
+                      className='nv-btn-qualify'
+                      disabled={!!busy}
+                      onClick={() => handlePopulateClio(form)}
+                    >
+                      {form.clio_populated_at ? 'Re-send to Clio' : 'Populate'}
+                    </button>
+                  </>
+                ))}
+                {needsAttentionForms.length > 0
+                  && renderKanbanColumn('Needs attention', needsAttentionForms, '')}
               </div>
             </div>
           </div>
@@ -2110,7 +1496,7 @@ export default function DashboardV2() {
         {/* Intake Form Modal */}
         {renderIntakeFormModal()}
 
-        {/* Form Link Modal (temporary - until webhook automation) */}
+        {/* Form Link Modal */}
         {renderLinkModal()}
 
         {/* Document Generator */}
@@ -2138,7 +1524,7 @@ export default function DashboardV2() {
               <div className='nv-modal-body' style={{ maxHeight: '80vh', overflowY: 'auto' }}>
                 <DocumentSelection
                   formId={documentFormId}
-                  intakeData={viewingIntakeForm?.form_data?.intake || {}}
+                  intakeData={documentForm?.form_data?.intake || {}}
                   onClose={() => setShowDocumentGenerator(false)}
                 />
               </div>
@@ -2179,10 +1565,10 @@ export default function DashboardV2() {
         )}
 
         {/* Send Back Modal */}
-        {showSendBackModal && (
+        {sendBackFormId && (
           <div
             className='nv-modal-overlay'
-            onClick={() => setShowSendBackModal(false)}>
+            onClick={() => { if (!busy) setSendBackFormId(null); }}>
             <div
               className='nv-modal'
               onClick={(e) => e.stopPropagation()}>
@@ -2194,7 +1580,8 @@ export default function DashboardV2() {
                 <button
                   type='button'
                   className='nv-modal-close'
-                  onClick={() => setShowSendBackModal(false)}
+                  onClick={() => setSendBackFormId(null)}
+                  disabled={!!busy}
                   aria-label='Close'>
                   ×
                 </button>
@@ -2206,7 +1593,8 @@ export default function DashboardV2() {
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
                   <button
                     type='button'
-                    onClick={() => setShowSendBackModal(false)}
+                    onClick={() => setSendBackFormId(null)}
+                    disabled={!!busy}
                     style={{
                       padding: '8px 16px',
                       background: '#f0f0f0',
@@ -2218,17 +1606,8 @@ export default function DashboardV2() {
                   </button>
                   <button
                     type='button'
-                    onClick={async () => {
-                      if (sendBackFormId) {
-                        const success = await sendBackForm(sendBackFormId);
-                        if (success) {
-                          alert('✅ Send-back notification sent successfully!');
-                        } else {
-                          alert('❌ Error sending notification. Check console for details.');
-                        }
-                        setShowSendBackModal(false);
-                      }
-                    }}
+                    onClick={() => handleSendBack(sendBackFormId)}
+                    disabled={!!busy}
                     style={{
                       padding: '8px 16px',
                       background: '#d97706',
@@ -2237,7 +1616,7 @@ export default function DashboardV2() {
                       borderRadius: '4px',
                       cursor: 'pointer',
                     }}>
-                    Send Back
+                    {busy === 'send-back' ? 'Sending...' : 'Send Back'}
                   </button>
                 </div>
               </div>
@@ -2270,7 +1649,7 @@ export default function DashboardV2() {
                 <div className='nv-modal-body'>
                   <Suspense fallback={<div className='nv-empty'>Loading form...</div>}>
                     <ScreeningFormV2
-                      lawyerId={lawyer?.id || ''}
+                      lawyerId={lawyer.id}
                       onSubmit={handleScreeningFormSubmit}
                       onClose={() => setShowScreeningModal(false)}/>
                   </Suspense>

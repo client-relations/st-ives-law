@@ -1,9 +1,16 @@
 /// <reference types="node" />
 import { generateWillFromTemplate } from './document-processor';
+import { requireLawyer, sendError } from './_lib/server.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    await requireLawyer(req);
+  } catch (err) {
+    return sendError(res, err);
   }
 
   try {

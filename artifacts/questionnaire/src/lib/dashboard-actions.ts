@@ -1,1277 +1,265 @@
 import { supabase } from './supabase';
 
-// Webhook URLs (Make integration).
-// Prefer environment configuration. The literals are transitional fallbacks so
-// existing deployments keep working — set the VITE_* vars in Vercel and then
-// delete the fallbacks, since anything committed here is public in the bundle.
-const MAKE_CLIO_WEBHOOK = import.meta.env.VITE_CLIO_MATTER_WEBHOOK || 'https://hook.eu2.make.com/7kdud7kq1fjfb4d83f5h4o9o0qou1lgr';
-const SMOKEBALL_WEBHOOK = import.meta.env.VITE_WEBHOOK_URL || 'https://hook.eu2.make.com/fou12e2mjy2wgv2h0e3jgqor7fu81rec';
-const SEND_FORM_EMAIL_WEBHOOK = import.meta.env.VITE_SEND_FORM_EMAIL_WEBHOOK || 'https://hook.eu2.make.com/f6lbcoppzzdjl7r5dh7i0uqpo3yx68y2';
-const SEND_INQUIRY_FORM_WEBHOOK = import.meta.env.VITE_SEND_INQUIRY_FORM_WEBHOOK || 'https://hook.eu2.make.com/x9outby9rqyxbwaf4g86jht5vic11dl2';
-const SEND_INTAKE_FORM_WEBHOOK = import.meta.env.VITE_SEND_INTAKE_FORM_WEBHOOK || 'https://hook.eu2.make.com/uqjnkwsk8kx3ujsrancfkesdybyufw17';
-const REMINDER_WEBHOOK = import.meta.env.VITE_REMINDER_WEBHOOK || 'https://hook.eu2.make.com/mjiv8gg69a3dn5ktex4tqlj5j1oji5fk';
-const EMAIL_CONFIRMATION_WEBHOOK = import.meta.env.VITE_EMAIL_CONFIRMATION_WEBHOOK || 'https://hook.eu2.make.com/6xtuj8hqbt68f90v8y4iy3u3lylrs2hw';
-const SEND_BACK_WEBHOOK = import.meta.env.VITE_SEND_BACK_WEBHOOK || 'https://hook.eu2.make.com/b5iv2ah5zkkoacib1cq1v2w7rs9qqsuj';
+// Every dashboard mutation returns an ActionResult so the UI can always tell
+// the lawyer what happened — never a bare boolean, never a console-only error.
+export type ActionResult<T = undefined> =
+  | { ok: true; message?: string; data: T }
+  | { ok: false; error: string; code?: string };
 
-export type EmailDispatchResult = {
-  ok: boolean;
-  /** Human-readable reason, suitable for showing to the lawyer. */
-  detail: string;
-};
+const ok = <T>(data: T, message?: string): ActionResult<T> => ({ ok: true, data, message });
+const fail = (error: string, code?: string): ActionResult<never> => ({ ok: false, error, code });
 
-/** Domains reserved by RFC 2606 / RFC 6761 — mail to these always bounces. */
-const UNDELIVERABLE_DOMAINS = ['example.com', 'example.org', 'example.net', 'test', 'invalid', 'localhost'];
-
-function validateRecipient(email: string): string | null {
-  const address = (email || '').trim();
-  if (!address) return 'No email address on file for this client.';
-  // Deliberately simple: one @, a dot in the domain, no whitespace.
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
-    return `"${address}" is not a valid email address.`;
+/** Turn any thrown value or PostgREST/network error into something readable. */
+export function errorMessage(err: unknown): string {
+  if (err && typeof err === 'object' && 'message' in err && typeof (err as any).message === 'string') {
+    const message = (err as any).message as string;
+    // supabase-js returns network failures as an error object, not a throw.
+    if (/failed to fetch|networkerror|fetch failed|load failed/i.test(message)) {
+      return 'Could not reach the server — check your internet connection and try again.';
+    }
+    if (/JWT|expired/i.test(message)) return 'Your session has expired — please sign in again.';
+    if (/row-level security|permission denied/i.test(message)) return 'You do not have permission to do that.';
+    return message;
   }
-  const domain = address.split('@')[1].toLowerCase();
-  if (UNDELIVERABLE_DOMAINS.some(d => domain === d || domain.endsWith('.' + d))) {
-    return `"${address}" uses a reserved test domain and cannot receive mail.`;
-  }
-  return null;
+  return 'Something went wrong. Please try again.';
 }
+
+const STALE = 'This record was changed by someone else — the list has been refreshed.';
 
 /**
- * POST a payload to a Make.com email webhook.
- *
- * Make acknowledges instantly with the plain string "Accepted" and sends the
- * mail afterwards, so a 2xx here means "queued", NOT "delivered". Anything that
- * fails later (bad address, mailbox connection expired, scenario switched off)
- * is invisible to us. We therefore validate the recipient up front — which
- * catches the common real-world cause — and never report delivery as confirmed.
+ * Link shown to the lawyer to copy and send to a client. Built from the
+ * configured public origin; a localhost or preview-deploy origin would give
+ * the client a link only this browser can open.
  */
-async function dispatchEmailWebhook(
-  webhookUrl: string,
-  payload: Record<string, unknown>,
-  label: string,
-): Promise<EmailDispatchResult> {
-  const recipient = typeof payload.client_email === 'string' ? payload.client_email : '';
-  const invalid = validateRecipient(recipient);
-  if (invalid) {
-    console.warn(`[EMAIL] ${label} not sent: ${invalid}`);
-    return { ok: false, detail: invalid };
-  }
+export function publicLink(path: string): { url: string; warning?: string } {
+  const base = import.meta.env.VITE_PUBLIC_APP_URL as string | undefined;
+  if (base) return { url: new URL(path, base.endsWith('/') ? base : `${base}/`).toString() };
+  return {
+    url: new URL(path, window.location.origin).toString(),
+    warning: 'VITE_PUBLIC_APP_URL is not set, so this link uses the address in your browser. Check the client can open it.',
+  };
+}
 
+/** JSON headers carrying the signed-in lawyer's token, for our /api endpoints. */
+export async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token;
+  if (!token) throw new Error('Your session has expired — please sign in again.');
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+}
+
+/** Call one of our /api endpoints as the signed-in lawyer. */
+async function callApi<T = any>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify(body),
+  });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(json.error || `Request failed (${response.status}).`);
+  return json as T;
+}
+
+type EmailResult = { ok: boolean; detail: string };
+
+async function sendClientEmail(kind: 'inquiry' | 'intake' | 'send_back', formId: string): Promise<EmailResult> {
   try {
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    const body = (await response.text().catch(() => '')).trim();
-
-    if (!response.ok) {
-      const detail = `${label} could not be queued (webhook returned ${response.status}).`;
-      console.warn(`[EMAIL] ${detail} Body: ${body}`);
-      return { ok: false, detail };
-    }
-
-    // Make replies "Accepted" on success. Anything else means the scenario
-    // rejected the payload or is misconfigured.
-    if (body && !/^accepted$/i.test(body)) {
-      const detail = `${label} was rejected by the automation: ${body.slice(0, 200)}`;
-      console.warn(`[EMAIL] ${detail}`);
-      return { ok: false, detail };
-    }
-
-    console.log(`[EMAIL] ${label} queued for delivery to ${recipient} (delivery not confirmed).`);
-    return { ok: true, detail: `${label} queued for delivery to ${recipient}.` };
+    return await callApi<EmailResult>('/api/send-email', { kind, form_id: formId });
   } catch (err) {
-    const detail = `${label} failed to reach the automation service.`;
-    console.error(`[EMAIL] ${detail}`, err);
-    return { ok: false, detail };
+    return { ok: false, detail: errorMessage(err) };
   }
 }
 
-export async function qualifyLead(screeningId: string, personResponsible: string) {
+// ── Leads ──────────────────────────────────────────────────────────────────
+
+const QUALIFY_ERRORS: Record<string, string> = {
+  LEAD_ALREADY_ACTIONED: 'This lead has already been qualified or rejected by someone else.',
+  LEAD_NOT_FOUND: 'This lead no longer exists.',
+  LAWYER_AMBIGUOUS: 'More than one lawyer has the name in "Person Responsible". Ask an admin to fix the lawyer list.',
+  LAWYER_NOT_FOUND: 'The lawyer this lead belongs to no longer exists.',
+  NOT_AUTHORISED: 'You do not have permission to qualify this lead.',
+};
+
+export type QualifyResult = { formId: string; email: EmailResult };
+
+/**
+ * Qualify a pending lead: creates the form and marks the lead qualified in
+ * one database transaction (qualify_lead), then emails the inquiry form.
+ * If the email fails the lead is still qualified; the result says so.
+ */
+export async function qualifyLead(screeningId: string): Promise<ActionResult<QualifyResult>> {
   try {
+    const { data, error } = await supabase.rpc('qualify_lead', { p_screening_id: screeningId });
+    if (error) {
+      const known = Object.keys(QUALIFY_ERRORS).find((code) => error.message?.includes(code));
+      return known ? fail(QUALIFY_ERRORS[known], known) : fail(errorMessage(error));
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row?.form_id) return fail('The lead was not qualified. Please try again.');
 
-    if (!supabase) throw new Error('Database connection error');
+    const email = await sendClientEmail('inquiry', row.form_id);
+    return ok({ formId: row.form_id, email });
+  } catch (err) {
+    return fail(errorMessage(err));
+  }
+}
 
-    // Create a form from the screening submission
-    const { data: screening } = await supabase
+/** Reject a lead — only if it is still pending. */
+export async function rejectLead(screeningId: string): Promise<ActionResult> {
+  try {
+    const { data, error } = await supabase
       .from('screening_submissions')
-      .select('*')
+      .update({ status: 'rejected', updated_at: new Date().toISOString() })
       .eq('id', screeningId)
-      .single();
-
-    if (!screening) throw new Error('Screening not found');
-
-    // Look up lawyer ID by person_responsible name
-    const { data: lawyer, error: lawyerError } = await supabase
-      .from('lawyers')
-      .select('id')
-      .eq('full_name', personResponsible)
-      .single();
-
-
-    if (lawyerError) throw lawyerError;
-    if (!lawyer) throw new Error(`Lawyer "${personResponsible}" not found`);
-
-    // Insert new form (extract name/email from contact_data)
-    const uniqueLink = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    const { data: formData, error: formError } = await supabase
-      .from('forms')
-      .insert({
-        lawyer_id: lawyer.id,
-        client_name: screening.contact_data?.name || 'Unknown',
-        client_email: screening.contact_data?.email || '',
-        lead_type: screening.lead_type,
-        region: screening.region,
-        referral_type: screening.referral_type,
-        billing_type: screening.billing_type,
-        person_responsible: screening.person_responsible || '',
-        status: 'appointment_sent',
-        progress_pct: 0,
-        unique_link: uniqueLink,
-        created_at: new Date().toISOString(),
-      })
-      .select();
-
-    if (formError) throw formError;
-
-    const formRecord = formData?.[0];
-    if (!formRecord) throw new Error('Failed to create form record');
-
-    // WEBHOOK DISABLED - will re-enable with new Supabase
-    // Trigger webhook to send form to client
-    if (formRecord) {
-      try {
-        // const response = await fetch(SEND_FORM_EMAIL_WEBHOOK, {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify({
-        //     form_id: formRecord.id,
-        //     client_name: formRecord.client_name,
-        //     client_email: formRecord.client_email,
-        //     lead_type: formRecord.lead_type,
-        //     form_link: `${window.location.origin}/lead-inquiry?lead_id=${formRecord.id}`,
-        //   }),
-        // });
-        // if (!response.ok) {
-        //   console.warn('Webhook send failed but form was created');
-        // }
-      } catch (webhookErr) {
-        // console.error('Error triggering form send webhook:', webhookErr);
-      }
-    }
-
-    // Update screening status to qualified
-    const { error: updateError } = await supabase
-      .from('screening_submissions')
-      .update({ status: 'qualified' })
-      .eq('id', screeningId);
-
-    if (updateError) throw updateError;
-
-    // Send inquiry form email. A failure here must not be silent: the lead is
-    // already created, so the lawyer needs to know to share the link manually.
-    const emailResult = formRecord.client_email
-      ? await sendInquiryFormEmail(formRecord.id, formRecord.client_name, formRecord.client_email)
-      : { ok: false, detail: 'No email address on file for this client.' };
-
-    if (!emailResult.ok) {
-      alert(`Lead qualified, but the inquiry email was NOT sent.\n\n${emailResult.detail}\n\nShare the link on the next screen with the client directly.`);
-    }
-
-    return formRecord.id;
+      .eq('status', 'pending')
+      .select('id');
+    if (error) return fail(errorMessage(error));
+    if (!data || data.length === 0) return fail(STALE, 'STALE');
+    return ok(undefined, 'Lead rejected.');
   } catch (err) {
-    console.error('Error qualifying lead:', err);
-    return null;
+    return fail(errorMessage(err));
   }
 }
 
-export async function rejectLead(screeningId: string) {
+export async function deleteLead(screeningId: string): Promise<ActionResult> {
   try {
-    if (!supabase) throw new Error('Database connection error');
-
-    const { error } = await supabase
-      .from('screening_submissions')
-      .update({ status: 'rejected' })
-      .eq('id', screeningId);
-
-    if (error) throw error;
-    return true;
+    const { data, error } = await supabase.from('screening_submissions').delete().eq('id', screeningId).select('id');
+    if (error) return fail(errorMessage(error));
+    if (!data || data.length === 0) return fail('Nothing was deleted — it may already have been removed, or you lack permission.');
+    return ok(undefined, 'Lead deleted.');
   } catch (err) {
-    console.error('Error rejecting lead:', err);
-    return false;
+    return fail(errorMessage(err));
   }
 }
 
-export async function deprioritizeLead(screeningId: string) {
+export type NewPersonLead = {
+  title: string;
+  name: string;
+  mobile: string;
+  email: string;
+  leadType: string;
+  region: string;
+  billingType: string;
+  /** lawyers.id of the person responsible. */
+  lawyerId: string;
+  /** lawyers.full_name of the person responsible. */
+  lawyerName: string;
+};
+
+/**
+ * Create a pending lead, refusing duplicates: an email that is already a
+ * pending lead, or that has a form still in the pipeline.
+ * Emails are compared case-insensitively and stored lower-cased.
+ */
+export async function createPersonLead(input: NewPersonLead): Promise<ActionResult> {
   try {
-    if (!supabase) throw new Error('Database connection error');
+    const email = input.email.trim().toLowerCase();
 
-    const { error } = await supabase
-      .from('screening_submissions')
-      .update({ status: 'deprioritized' })
-      .eq('id', screeningId);
+    // Checked across every lawyer's records by the database.
+    const { data: inUse, error: checkError } = await supabase.rpc('lead_email_in_use', { p_email: email });
+    if (checkError) return fail(errorMessage(checkError));
+    if (inUse === 'PENDING_LEAD') return fail('This email is already a pending lead.');
+    if (inUse === 'ACTIVE_FORM') return fail('This email already has a form in progress.');
 
-    if (error) throw error;
-    return true;
-  } catch (err) {
-    console.error('Error deprioritizing lead:', err);
-    return false;
-  }
-}
-
-export async function deleteLead(screeningId: string) {
-  try {
-    if (!supabase) throw new Error('Database connection error');
-
-    const { error } = await supabase
-      .from('screening_submissions')
-      .delete()
-      .eq('id', screeningId);
-
-    if (error) throw error;
-    return true;
-  } catch (err) {
-    console.error('Error deleting lead:', err);
-    return false;
-  }
-}
-
-export async function updateFormProgress(formId: string, progressPct: number) {
-  try {
-    if (!supabase) throw new Error('Database connection error');
-
-    const { error } = await supabase
-      .from('forms')
-      .update({ progress_pct: progressPct })
-      .eq('id', formId);
-
-    if (error) throw error;
-    return true;
-  } catch (err) {
-    console.error('Error updating form progress:', err);
-    return false;
-  }
-}
-
-export async function markFormComplete(formId: string) {
-  try {
-    if (!supabase) throw new Error('Database connection error');
-
-    // Fetch form data before updating
-    const { data: form } = await supabase
-      .from('forms')
-      .select('*')
-      .eq('id', formId)
-      .single();
-
-    if (!form) throw new Error('Form not found');
-
-    // Update form status
-    const { error } = await supabase
-      .from('forms')
-      .update({
-        status: 'completed',
-        progress_pct: 100,
-        marked_complete_at: new Date().toISOString(),
-      })
-      .eq('id', formId);
-
-    if (error) throw error;
-
-    // Send completion confirmation webhook
-    try {
-      await fetch(EMAIL_CONFIRMATION_WEBHOOK, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          form_id: formId,
-          client_name: form.client_name,
-          client_email: form.client_email,
-          completed_at: new Date().toISOString(),
-        }),
-      });
-    } catch (webhookErr) {
-      console.warn('Webhook send failed but form was marked complete:', webhookErr);
-    }
-
-    return true;
-  } catch (err) {
-    console.error('Error marking form complete:', err);
-    return false;
-  }
-}
-
-export async function submitFormToSmokeball(formId: string) {
-  try {
-    if (!supabase) throw new Error('Database connection error');
-
-    // Fetch form data
-    const { data: form } = await supabase
-      .from('forms')
-      .select('*')
-      .eq('id', formId)
-      .single();
-
-    if (!form) throw new Error('Form not found');
-
-    // Update status in database
-    const { error } = await supabase
-      .from('forms')
-      .update({
-        status: 'submitted',
-        submitted_at: new Date().toISOString(),
-      })
-      .eq('id', formId);
-
-    if (error) throw error;
-
-    // Parse form data and build proper Smokeball webhook payload
-    let formData = form.form_data;
-    if (typeof formData === 'string') {
-      formData = JSON.parse(formData);
-    }
-
-    const aData = formData?.aData || {};
-    const bData = formData?.bData || {};
-    const cData = formData?.cData || {};
-    const dData = formData?.dData || {};
-
-    // Dynamic import to avoid circular dependency
-    const { buildFinalPayload } = await import('../utils/webhookBuilder');
-    const payload = buildFinalPayload(aData, bData, cData, dData, formId);
-
-    // WEBHOOK DISABLED - will re-enable with new Supabase
-    // Send webhook to Make for Smokeball submission
-    // await fetch(SMOKEBALL_WEBHOOK, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(payload),
-    // });
-
-    return true;
-  } catch (err) {
-    console.error('Error submitting to Smokeball:', err);
-    return false;
-  }
-}
-
-export async function markFormOverdue(formId: string, daysOverdue: number) {
-  try {
-    if (!supabase) throw new Error('Database connection error');
-
-    // Fetch form to get client details for webhook
-    const { data: form } = await supabase
-      .from('forms')
-      .select('*')
-      .eq('id', formId)
-      .single();
-
-    if (!form) throw new Error('Form not found');
-
-    const { error } = await supabase
-      .from('forms')
-      .update({
-        status: 'overdue',
-        days_overdue: daysOverdue,
-      })
-      .eq('id', formId);
-
-    if (error) throw error;
-
-    // Send overdue reminder webhook
-    try {
-      await fetch(REMINDER_WEBHOOK, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          form_id: formId,
-          client_name: form.client_name,
-          client_email: form.client_email,
-          reminder_type: 'overdue',
-          days_overdue: daysOverdue,
-          sent_at: new Date().toISOString(),
-        }),
-      });
-    } catch (webhookErr) {
-      console.warn('Overdue webhook send failed:', webhookErr);
-    }
-
-    return true;
-  } catch (err) {
-    console.error('Error marking form overdue:', err);
-    return false;
-  }
-}
-
-export async function sendFormToClient(formId: string, clientEmail: string, clientName: string, formLink: string) {
-  try {
-    if (!supabase) throw new Error('Database connection error');
-
-    const payload = {
-      form_id: formId,
-      client_name: clientName,
-      client_email: clientEmail,
-      form_link: formLink,
-      sent_at: new Date().toISOString(),
-    };
-
-    await fetch(SEND_FORM_EMAIL_WEBHOOK, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+    const { error: insertError } = await supabase.from('screening_submissions').insert({
+      lawyer_id: input.lawyerId,
+      contact_type: 'person',
+      contact_data: {
+        title: input.title,
+        name: input.name.trim(),
+        mobile: input.mobile.trim(),
+        email,
+      },
+      lead_type: input.leadType,
+      region: input.region,
+      person_responsible: input.lawyerName,
+      billing_type: input.billingType,
+      status: 'pending',
+      created_at: new Date().toISOString(),
     });
-
-    return true;
+    if (insertError) {
+      // 23505: the unique index on pending lead emails caught a race.
+      if ((insertError as any).code === '23505') return fail('This email is already a pending lead.');
+      return fail(errorMessage(insertError));
+    }
+    return ok(undefined, 'Lead added.');
   } catch (err) {
-    console.error('Error sending form to client:', err);
-    return false;
+    return fail(errorMessage(err));
   }
 }
 
-export async function sendReminder(formId: string, clientEmail: string, clientName: string, reminderType: '3d' | '1w' | '2w') {
+// ── Forms ──────────────────────────────────────────────────────────────────
+
+export type IntakeSentResult = { email: EmailResult };
+
+/**
+ * Move a scheduled form to pending_intake and email the intake form. The
+ * status change is conditional on the form still being 'scheduled', so a
+ * stale modal or a double-click cannot reset a client's progress.
+ */
+export async function sendIntakeForm(formId: string): Promise<ActionResult<IntakeSentResult>> {
   try {
-    if (!supabase) throw new Error('Database connection error');
-
-    const payload = {
-      form_id: formId,
-      client_name: clientName,
-      client_email: clientEmail,
-      reminder_type: reminderType,
-      sent_at: new Date().toISOString(),
-    };
-
-    await fetch(REMINDER_WEBHOOK, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    return true;
-  } catch (err) {
-    console.error('Error sending reminder:', err);
-    return false;
-  }
-}
-
-export async function deprioritizeForm(formId: string) {
-  try {
-    if (!supabase) throw new Error('Database connection error');
-
-    const { error } = await supabase
-      .from('forms')
-      .update({ status: 'deprioritized' })
-      .eq('id', formId);
-
-    if (error) throw error;
-    return true;
-  } catch (err) {
-    console.error('Error deprioritizing form:', err);
-    return false;
-  }
-}
-
-export async function sendIntakeForm(formId: string) {
-  try {
-    if (!supabase) throw new Error('Database connection error');
-
-    const { data: form } = await supabase
-      .from('forms')
-      .select('*')
-      .eq('id', formId)
-      .single();
-
-    if (!form) throw new Error('Form not found');
-
-    // Update status: scheduled → pending_intake, reset progress to 0
-    const { error } = await supabase
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
       .from('forms')
       .update({
         status: 'pending_intake',
         progress_pct: 0,
-        last_accessed: new Date().toISOString(),
+        last_accessed: now,
+        intake_sent_at: now,
+        reminder_3d_sent: null,
+        reminder_1w_sent: null,
+        reminder_2w_sent: null,
       })
-      .eq('id', formId);
-
-    if (error) throw error;
-
-    // Send intake form email. Surface failures — the status has already moved
-    // to pending_intake, so silent failure leaves the client waiting forever.
-    const emailResult = form.client_email
-      ? await sendIntakeFormEmail(form.id, form.client_name, form.client_email)
-      : { ok: false, detail: 'No email address on file for this client.' };
-
-    if (!emailResult.ok) {
-      alert(`Intake form status updated, but the email was NOT sent.\n\n${emailResult.detail}\n\nShare the link on the next screen with the client directly.`);
-    }
-
-    console.log('Intake form status updated to pending_intake');
-    return true;
-  } catch (err) {
-    console.error('Error sending intake form:', err);
-    return false;
-  }
-}
-
-export async function deleteForm(formId: string) {
-  try {
-    if (!supabase) throw new Error('Database connection error');
-
-    const { error } = await supabase
-      .from('forms')
-      .delete()
-      .eq('id', formId);
-
-    if (error) throw error;
-    return true;
-  } catch (err) {
-    console.error('Error deleting form:', err);
-    return false;
-  }
-}
-
-// Field name mapping for user-friendly messages (matching actual form field names)
-const FIELD_LABELS: Record<string, string> = {
-  'scenario': 'Planning Scenario (Single/Couple)',
-  'client_name': 'Client Name',
-  'client_address': 'Client Address',
-  'client_state': 'State/Territory',
-  'client_marital_status': 'Marital Status',
-  'client_occupation': 'Occupation',
-  'client_former_names': 'Former Names',
-  'spouse_name': 'Spouse Name',
-  'spouse_occupation': 'Spouse Occupation',
-  'mirror_or_independent': 'Mirror or Independent Wills',
-  'financial_adviser': 'Financial Adviser Name',
-  'governing_jurisdiction': 'Governing Jurisdiction',
-  'realestate': 'Real Estate Assets',
-  'bank': 'Bank/Financial Accounts',
-  'super': 'Superannuation Details',
-  'other_assets': 'Other Assets',
-  'doc_will': 'Document: Will',
-  'doc_epa': 'Document: Enduring Power of Attorney',
-  'exec_initial_name': 'Initial Executor Name',
-  'exec_initial_address': 'Initial Executor Address',
-  'exec_initial_relationship': 'Initial Executor Relationship',
-  'exec_backup': 'Backup Executor Name',
-  'exec_further_backup': 'Further Backup Executor Name',
-  'exec_joint': 'Executor Acting Arrangement',
-  'exec_power_of_sale': 'Executor Power of Sale',
-  'exclusion': 'Exclusions from Estate',
-  'no_contest_clause': 'No-Contest Clause',
-  'gift': 'Specific Gifts',
-  'company_name': 'Company Name',
-  'company_acn': 'Company ACN',
-  'company_on_death': 'Company Treatment on Death',
-  'company_share_treatment': 'Company Share Treatment',
-  'life_tenant': 'Life Tenant Name',
-  'life_tenancy_property': 'Life Tenancy Property',
-  'life_tenancy_outgoings': 'Life Tenancy Outgoings',
-  'life_tenancy_balance': 'Life Tenancy Balance',
-  'beneficiary1': 'Beneficiary 1 Name',
-  'beneficiary1_pct': 'Beneficiary 1 Percentage',
-  'beneficiary2': 'Beneficiary 2 Name',
-  'beneficiary2_pct': 'Beneficiary 2 Percentage',
-  'beneficiary3': 'Beneficiary 3 Name',
-  'beneficiary3_pct': 'Beneficiary 3 Percentage',
-  'calamity1': 'Calamity Beneficiary 1',
-  'calamity1_pct': 'Calamity Beneficiary 1 Percentage',
-  'sdt_mechanism': 'Special Disability Trust Mechanism',
-  'sdt_principal_beneficiary': 'Special Disability Trust Principal',
-  'guardian_initial': 'Primary Guardian',
-  'guardian_backup': 'Backup Guardian',
-  'organ_donation': 'Organ Donation Preferences',
-  'burial_or_cremation': 'Burial or Cremation Preference',
-  'funeral_other': 'Other Funeral Wishes',
-  'epa_jointly': 'EPA Acting Arrangement',
-  'epa_effective': 'EPA Effectiveness',
-  'signing_date': 'Document Signing Date',
-  'will_custody': 'Will Storage Location',
-  'low_wishes': 'Letter of Wishes Content'
-};
-
-function generateMissingFieldsMessage(missingFields: string[]): string {
-  if (missingFields.length === 0) {
-    return 'All required fields are complete.';
-  }
-
-  const missingLabels = missingFields.map(field => FIELD_LABELS[field] || field);
-  const groupedByCategory = missingLabels.reduce((acc: Record<string, string[]>, label) => {
-    const category = label.split(':')[0].trim();
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(label);
-    return acc;
-  }, {});
-
-  let message = `The following ${missingFields.length} field(s) need to be completed:\n\n`;
-  Object.entries(groupedByCategory).forEach(([category, fields]) => {
-    message += `${category}:\n`;
-    fields.forEach(field => {
-      message += `  • ${field}\n`;
-    });
-    message += '\n';
-  });
-
-  return message;
-}
-
-function validateIntakeForm(intakeData: any): { missingFields: string[]; hasData: boolean } {
-  const missingFields: string[] = [];
-
-  // Always check these core fields (matching actual form field names)
-  const alwaysCheck = [
-    'scenario', 'client_name', 'client_address', 'client_state', 'client_marital_status',
-    'client_occupation', 'financial_adviser', 'governing_jurisdiction',
-    'doc_will', 'doc_epa',
-    'exec_initial_name', 'exec_initial_address', 'exec_initial_relationship',
-    'exec_backup', 'exec_further_backup', 'exec_joint',
-    'exec_power_of_sale', 'no_contest_clause',
-    'beneficiary1', 'beneficiary1_pct',
-    'organ_donation', 'burial_or_cremation',
-    'epa_jointly', 'epa_effective',
-    'signing_date', 'will_custody'
-  ];
-
-  // Conditional fields based on scenario/responses
-  const conditionalFields: Record<string, string[]> = {
-    'Couple': ['spouse_name', 'spouse_occupation', 'mirror_or_independent'],
-    'has_company_yes': ['company_name', 'company_acn', 'company_on_death', 'company_share_treatment'],
-    'has_life_tenancy_yes': ['life_tenant', 'life_tenancy_property', 'life_tenancy_outgoings', 'life_tenancy_balance'],
-    'has_sdt_yes': ['sdt_mechanism', 'sdt_principal_beneficiary'],
-    'has_minors_yes': ['guardian_initial', 'guardian_backup'],
-    'has_low_yes': ['low_wishes'],
-  };
-
-  // Build the fields to check based on actual data
-  let fieldsToCheck = [...alwaysCheck];
-
-  // If scenario is Couple, add spouse fields
-  if (intakeData.scenario === 'Couple') {
-    fieldsToCheck.push(...conditionalFields['Couple']);
-  }
-
-  // Add conditional fields based on yes/no answers
-  if (intakeData.has_company === true || intakeData.has_company === 'Yes') {
-    fieldsToCheck.push(...conditionalFields['has_company_yes']);
-  }
-  if (intakeData.has_life_tenancy === true || intakeData.has_life_tenancy === 'Yes') {
-    fieldsToCheck.push(...conditionalFields['has_life_tenancy_yes']);
-  }
-  if (intakeData.has_sdt === true || intakeData.has_sdt === 'Yes') {
-    fieldsToCheck.push(...conditionalFields['has_sdt_yes']);
-  }
-  if (intakeData.has_minors === true || intakeData.has_minors === 'Yes') {
-    fieldsToCheck.push(...conditionalFields['has_minors_yes']);
-  }
-  if (intakeData.has_low === true || intakeData.has_low === 'Yes') {
-    fieldsToCheck.push(...conditionalFields['has_low_yes']);
-  }
-
-  // Check all collected fields
-  fieldsToCheck.forEach(field => {
-    const value = intakeData[field];
-    // Consider field empty if: null, undefined, empty string, empty array, false (for checkboxes)
-    if (value === null || value === undefined || value === '' ||
-        (Array.isArray(value) && value.length === 0) ||
-        (typeof value === 'boolean' && !value)) {
-      missingFields.push(field);
-    }
-  });
-
-  return {
-    missingFields,
-    hasData: missingFields.length < fieldsToCheck.length
-  };
-}
-
-export async function sendBackForm(formId: string) {
-  try {
-    if (!supabase) throw new Error('Database connection error');
-
-    // Fetch form data
-    const { data: form } = await supabase
-      .from('forms')
-      .select('*')
       .eq('id', formId)
-      .single();
+      .eq('status', 'scheduled')
+      .select('id');
+    if (error) return fail(errorMessage(error));
+    if (!data || data.length === 0) return fail(STALE, 'STALE');
 
-    if (!form) throw new Error('Form not found');
-
-    // Parse form data
-    let formData = form.form_data;
-    if (typeof formData === 'string') {
-      formData = JSON.parse(formData);
-    }
-
-    const intakeData = formData.intake || {};
-    const inquiryData = formData.inquiry || {};
-
-    // Validate form and get missing fields
-    const validation = validateIntakeForm({ ...intakeData, ...inquiryData });
-
-    // Generate user-friendly message about missing fields
-    const missingFieldsMessage = generateMissingFieldsMessage(validation.missingFields);
-
-    // Send webhook with missing fields and message
-    const formLink = `${window.location.origin}/intake-form?lead_id=${formId}`;
-
-    const response = await fetch(SEND_BACK_WEBHOOK, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        form_id: formId,
-        client_name: form.client_name,
-        client_email: form.client_email,
-        form_link: formLink,
-        missing_fields: validation.missingFields,
-        missing_count: validation.missingFields.length,
-        missing_fields_message: missingFieldsMessage,
-        sent_at: new Date().toISOString(),
-      }),
-    });
-
-    if (!response.ok) {
-      console.warn('Send-back webhook failed:', response.status);
-      return false;
-    }
-
-    console.log('Form send-back initiated successfully');
-    return true;
+    const email = await sendClientEmail('intake', formId);
+    return ok({ email });
   } catch (err) {
-    console.error('Error sending back form:', err);
-    return false;
+    return fail(errorMessage(err));
   }
 }
 
-export async function sendInquiryFormEmail(formId: string, clientName: string, clientEmail: string) {
+/** Re-send the intake email for a form already waiting on the client. */
+export async function resendIntakeEmail(formId: string): Promise<ActionResult> {
+  const email = await sendClientEmail('intake', formId);
+  return email.ok ? ok(undefined, email.detail) : fail(email.detail);
+}
+
+/** Email the client a list of the intake fields still missing. */
+export async function sendBackForm(formId: string): Promise<ActionResult> {
+  const email = await sendClientEmail('send_back', formId);
+  return email.ok ? ok(undefined, email.detail) : fail(email.detail);
+}
+
+export async function deleteForm(formId: string): Promise<ActionResult> {
   try {
-    const formLink = `${window.location.origin}/lead-inquiry?lead_id=${formId}`;
-
-    return await dispatchEmailWebhook(
-      SEND_INQUIRY_FORM_WEBHOOK,
-      {
-        form_id: formId,
-        client_name: clientName,
-        client_email: clientEmail,
-        form_link: formLink,
-        sent_at: new Date().toISOString(),
-      },
-      'Inquiry form email',
-    );
+    const { data, error } = await supabase.from('forms').delete().eq('id', formId).select('id');
+    if (error) return fail(errorMessage(error));
+    if (!data || data.length === 0) return fail('Nothing was deleted — it may already have been removed, or you lack permission.');
+    return ok(undefined, 'Form deleted.');
   } catch (err) {
-    console.error('Error sending inquiry form email:', err);
-    return { ok: false, detail: 'Inquiry form email failed unexpectedly.' };
+    return fail(errorMessage(err));
   }
-}
-
-export async function sendIntakeFormEmail(formId: string, clientName: string, clientEmail: string) {
-  try {
-    const formLink = `${window.location.origin}/intake-form?lead_id=${formId}`;
-
-    return await dispatchEmailWebhook(
-      SEND_INTAKE_FORM_WEBHOOK,
-      {
-        form_id: formId,
-        client_name: clientName,
-        client_email: clientEmail,
-        form_link: formLink,
-        sent_at: new Date().toISOString(),
-      },
-      'Intake form email',
-    );
-  } catch (err) {
-    console.error('Error sending intake form email:', err);
-    return { ok: false, detail: 'Intake form email failed unexpectedly.' };
-  }
-}
-
-export async function duplicateForm(formId: string) {
-  try {
-    if (!supabase) throw new Error('Database connection error');
-
-    // Fetch original form
-    const { data: originalForm } = await supabase
-      .from('forms')
-      .select('*')
-      .eq('id', formId)
-      .single();
-
-    if (!originalForm) throw new Error('Form not found');
-
-    // Create new form with same data
-    const { data: newForm, error } = await supabase
-      .from('forms')
-      .insert({
-        lawyer_id: originalForm.lawyer_id,
-        client_name: originalForm.client_name,
-        client_email: originalForm.client_email,
-        lead_type: originalForm.lead_type,
-        region: originalForm.region,
-        referral_type: originalForm.referral_type,
-        billing_type: originalForm.billing_type,
-        person_responsible: originalForm.person_responsible,
-        status: originalForm.status,
-        progress_pct: originalForm.progress_pct,
-        unique_link: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
-        form_data: originalForm.form_data,
-        created_at: new Date().toISOString(),
-      })
-      .select();
-
-    if (error) throw error;
-
-    const duplicatedForm = newForm?.[0];
-    console.log('Form duplicated:', duplicatedForm?.id);
-    return duplicatedForm?.id || null;
-  } catch (err) {
-    console.error('Error duplicating form:', err);
-    return null;
-  }
-}
-
-export async function populateMatterToClio(formId: string) {
-  try {
-    if (!supabase) throw new Error('Database connection error');
-
-    // Fetch complete form data
-    const { data: form } = await supabase
-      .from('forms')
-      .select('*')
-      .eq('id', formId)
-      .single();
-
-    if (!form) throw new Error('Form not found');
-
-    // Parse form data
-    let formData = form.form_data;
-    if (typeof formData === 'string') {
-      formData = JSON.parse(formData);
-    }
-
-    const intakeData = formData.intake || {};
-    const inquiryData = formData.inquiry || {};
-    const metadata = formData.metadata || {};
-
-    // Merge inquiry and intake data. The intake form is the later, more
-    // detailed source and must win on any field both collect (name, email,
-    // phone, state) — spreading inquiry last would overwrite corrected intake
-    // answers with the older inquiry ones. Inquiry only fills genuine gaps,
-    // so empty intake values do not clobber a populated inquiry value.
-    const completeFormData: Record<string, any> = { ...inquiryData };
-    for (const [key, value] of Object.entries(intakeData as Record<string, any>)) {
-      const isEmpty = value === undefined || value === null || value === '';
-      if (!isEmpty || !(key in completeFormData)) {
-        completeFormData[key] = value;
-      }
-    }
-
-    // Build Clio payload
-    const payload = buildClioPayload(completeFormData, form, metadata);
-
-
-    const response = await fetch(MAKE_CLIO_WEBHOOK, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(`Make webhook failed: ${error.message}`);
-    }
-
-    const text = await response.text();
-    console.log('[CLIO] Matter created successfully. Response:', text);
-    return true;
-  } catch (err) {
-    console.error('[CLIO] Error populating matter:', err);
-    return false;
-  }
-}
-
-// Picklist field mapping: converts text values to Clio option IDs
-const PICKLIST_OPTIONS = {
-  will_custody: {
-    'Firm': 60694,
-    'Client': 60697,
-    'Executor': 60700,
-  },
-  funeral_burial_cremation: {
-    'Burial': 60703,
-    'Cremation': 60706,
-    'Not Specified': 60709,
-  },
-  executor_acting_arrangement: {
-    'Jointly': 60712,
-    'Joint': 60712,
-    'Sole': 60715,
-  },
-  mirror_or_independent: {
-    'Mirror Wills': 60718,
-    'Mirror wills': 60718,
-    'Independent Wills': 60721,
-    'Independent wills': 60721,
-  },
-};
-
-function mapPicklistValue(fieldName: string, textValue: string): string {
-  // Since picklist fields are now text-only in Clio (checkboxes removed),
-  // just return the text value as-is
-  if (!textValue) return '';
-  return textValue;
-}
-
-// Formatter functions for clean, readable Clio custom field display
-function formatBeneficiaries(beneficiaries: any[]): string {
-  if (!beneficiaries || beneficiaries.length === 0) return 'No beneficiaries defined';
-  return 'Beneficiaries:\n' + beneficiaries
-    .map(b => `• ${b.name} - ${b.percent || 'Equal'}%`)
-    .join('\n');
-}
-
-function formatSpecificGifts(gifts: any[]): string {
-  if (!gifts || gifts.length === 0) return 'No specific gifts defined';
-  return 'Specific Gifts:\n' + gifts
-    .map(g => `• ${g.item} → ${g.recipient}${g.fallback ? ` (Fallback: ${g.fallback})` : ''}`)
-    .join('\n');
-}
-
-function formatAssets(assets: any[], type: 'real_estate' | 'bank' | 'super'): string {
-  if (!assets || assets.length === 0) return `No ${type.replace('_', ' ')} assets defined`;
-
-  if (type === 'real_estate') {
-    return 'Real Estate:\n' + assets
-      .map(a => `• ${a.address} (${a.type}) - $${a.value}`)
-      .join('\n');
-  }
-  if (type === 'bank') {
-    return 'Bank Accounts:\n' + assets
-      .map(a => `• ${a.institution} (${a.type}) - $${a.balance}`)
-      .join('\n');
-  }
-  if (type === 'super') {
-    return 'Superannuation:\n' + assets
-      .map(a => `• ${a.fund_name} - $${a.balance}`)
-      .join('\n');
-  }
-  return '';
-}
-
-function formatEpaAttorneys(attorneys: any[]): string {
-  if (!attorneys || attorneys.length === 0) return 'No EPA attorneys appointed';
-  return 'EPA Attorneys:\n' + attorneys
-    .map(a => `• ${a.name} (${a.relationship || 'Relationship not specified'})`)
-    .join('\n');
-}
-
-function formatDocumentsRequired(docs: any): string {
-  const items = [
-    docs.will && '• Will',
-    docs.epa && '• Enduring Power of Attorney (Financial)',
-    docs.acd && '• Advance Care Directive',
-    docs.sdt && '• Special Disability Trust',
-  ].filter(Boolean);
-
-  return items.length === 0 ? 'No documents selected' : 'Documents Required:\n' + items.join('\n');
-}
-
-function formatExclusions(exclusions: any[]): string {
-  if (!exclusions || exclusions.length === 0) return 'No exclusions';
-  return 'Exclusions:\n' + exclusions
-    .map(e => `• ${e.name}${e.reason ? ` - Reason: ${e.reason}` : ''}`)
-    .join('\n');
-}
-
-function formatCalamityBeneficiaries(calamities: any[]): string {
-  if (!calamities || calamities.length === 0) return 'No calamity beneficiaries';
-  return 'Calamity Beneficiaries:\n' + calamities
-    .map(c => `• ${c.name} - ${c.percent || 'Equal'}%`)
-    .join('\n');
 }
 
 /**
- * Clio's one-line text custom fields reject anything over 255 characters with
- * a 422, which fails the ENTIRE matter creation - no matter, no contact, and
- * the UI still reports success. Every value written to a custom field must be
- * clamped. 255 is Clio's documented limit; the ellipsis marks truncation so a
- * lawyer can tell the value is incomplete rather than trusting it.
+ * Queue the Clio matter for a completed intake. The server refuses a second
+ * send unless `force` is set, and reports that as code ALREADY_SENT.
  */
-const CLIO_TEXT_FIELD_MAX = 255;
-
-function clampForClio(value: string): string {
-  if (typeof value !== 'string' || value.length <= CLIO_TEXT_FIELD_MAX) return value;
-  return value.slice(0, CLIO_TEXT_FIELD_MAX - 1) + '…';
-}
-
-function formatTrustFund(fundNum: number, fundData: any): string {
-  if (!fundData?.beneficiary) return '';
-  // Labels deliberately terse: the verbose version reached 261 characters with
-  // even short placeholder names, which exceeded Clio's limit and broke the
-  // whole sync for any client with a testamentary trust.
-  return [
-    `Trust Fund ${fundNum}:`,
-    `Benef: ${fundData.beneficiary}`,
-    `Class: ${fundData.class || 'N/A'}`,
-    `Trustee 1: ${fundData.trustee_initial || 'N/A'}`,
-    `Trustee 2: ${fundData.trustee_backup || 'N/A'}`,
-    `Trustee 3: ${fundData.trustee_further || 'N/A'}`,
-    `Appointor 1: ${fundData.appointor_initial || 'N/A'}`,
-    `Appointor 2: ${fundData.appointor_backup || 'N/A'}`,
-    `Appointor 3: ${fundData.appointor_further || 'N/A'}`,
-  ].join('\n');
-}
-
-function buildClioPayload(intakeData: any, form: any, metadata: any) {
-  // Parse full name into first and last name
-  const fullName = intakeData.client_name || form.client_name || 'Unknown Client';
-  const nameParts = fullName.trim().split(/\s+/);
-  const firstName = nameParts[0] || 'Unknown';
-  const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : nameParts[0];
-
-  // Parse contact email and phone
-  const clientEmail = intakeData.client_email || form.client_email || '';
-  const clientPhone = intakeData.client_phone || '';
-
-  // ===== SCENARIO: Fund Count =====
-  const fundCount = parseInt(intakeData.fund_count) || 0;
-
-  // Direct beneficiaries (when fund_count = 0)
-  const beneficiaries = fundCount === 0 ? [
-    intakeData.beneficiary1 && { name: intakeData.beneficiary1, percent: intakeData.beneficiary1_pct || 0 },
-    intakeData.beneficiary2 && { name: intakeData.beneficiary2, percent: intakeData.beneficiary2_pct || 0 },
-    intakeData.beneficiary3 && { name: intakeData.beneficiary3, percent: intakeData.beneficiary3_pct || 0 },
-  ].filter(Boolean) : [];
-
-  // Trust funds (when fund_count = 1 or 2)
-  const trustFund1 = fundCount >= 1 ? {
-    beneficiary: intakeData.fund1_beneficiary,
-    class: intakeData.fund1_class,
-    trustee_initial: intakeData.fund1_trustee_initial,
-    trustee_backup: intakeData.fund1_trustee_backup,
-    trustee_further: intakeData.fund1_trustee_further,
-    appointor_initial: intakeData.fund1_appointor_initial,
-    appointor_backup: intakeData.fund1_appointor_backup,
-    appointor_further: intakeData.fund1_appointor_further,
-  } : null;
-
-  const trustFund2 = fundCount >= 2 ? {
-    beneficiary: intakeData.fund2_beneficiary,
-    class: intakeData.fund2_class,
-    trustee_initial: intakeData.fund2_trustee_initial,
-    trustee_backup: intakeData.fund2_trustee_backup,
-    trustee_further: intakeData.fund2_trustee_further,
-    appointor_initial: intakeData.fund2_appointor_initial,
-    appointor_backup: intakeData.fund2_appointor_backup,
-    appointor_further: intakeData.fund2_appointor_further,
-  } : null;
-
-  // Calamity beneficiaries
-  const calamityBeneficiaries = [
-    intakeData.calamity1 && { name: intakeData.calamity1, percent: intakeData.calamity1_pct || 0 },
-    intakeData.calamity2 && { name: intakeData.calamity2, percent: intakeData.calamity2_pct || 0 },
-    intakeData.calamity3 && { name: intakeData.calamity3, percent: intakeData.calamity3_pct || 0 },
-  ].filter(Boolean);
-
-  // ===== ARRAYS: Repeatable Items =====
-  const specificGifts = (intakeData.gift || []).map((g: any) => ({
-    item: g['Item description'],
-    recipient: g['Recipient'],
-    fallback: g['Fallback if recipient predeceases'],
-  }));
-
-  const realEstate = (intakeData.realestate || []).map((r: any) => ({
-    address: r['Address'] || r.address,
-    type: r['Tenancy type'] || r.type,
-    value: r['Estimated value'] || r.value,
-    mortgage: r['Mortgage details'],
-  }));
-
-  const bankAccounts = (intakeData.bank || []).map((b: any) => ({
-    institution: b['Bank'],
-    type: b['Account type'],
-    holder: b['Held jointly or individually'],
-    balance: b['Value'],
-  }));
-
-  const superAccounts = (intakeData.super || []).map((s: any) => ({
-    fund_name: s['Fund name'],
-    member_number: s['Member number'],
-    balance: s['Value'],
-    nominated_beneficiary: s['Nominated beneficiary'],
-  }));
-
-  const exclusions = (intakeData.exclusion || []).map((e: any) => ({
-    name: e['Name'] || e.name,
-    reason: e['Reason'] || e.reason,
-  }));
-
-  const epaAttorneys = (intakeData.attorney || []).map((a: any) => ({
-    name: a['Full name'],
-    address: a['Address'],
-  }));
-
-  // ===== DOCUMENTS =====
-  const docsRequired = {
-    will: !!intakeData.doc_will,
-    epa: !!intakeData.doc_epa,
-    acd: !!intakeData.doc_acd,
-    sdt: !!intakeData.doc_sdt,
-  };
-
-  // ===== CONDITIONAL BLOCKS =====
-  const hasCompany = intakeData.has_company === 'Yes';
-  const hasLifeTenancy = intakeData.has_life_tenancy === 'Yes';
-  const hasSdt = intakeData.has_sdt === 'Yes';
-  const hasMinors = intakeData.has_minors === 'Yes';
-  const hasLetterOfWishes = intakeData.has_low === 'Yes';
-
-  // Build company info
-  const companyInfo = hasCompany ? `Company: ${intakeData.company_name}\nACN: ${intakeData.company_acn}\nOn Death: ${intakeData.company_on_death}\nShare Treatment: ${intakeData.company_share_treatment}` : '';
-
-  // Build life tenancy info
-  const lifeTenancyInfo = hasLifeTenancy ? `Life Tenant: ${intakeData.life_tenant}\nProperty: ${intakeData.life_tenancy_property}\nOutgoings Bearer: ${intakeData.life_tenancy_outgoings}\nBalance Recipient: ${intakeData.life_tenancy_balance}\nSale Power: ${intakeData.life_tenancy_sale_power ? 'Yes' : 'No'}` : '';
-
-  // Build SDT info
-  const sdtInfo = hasSdt ? `Mechanism: ${intakeData.sdt_mechanism}\nPrincipal Beneficiary: ${intakeData.sdt_principal_beneficiary}` : '';
-
-  // Build will PDF filename
-  const willPdfName = `Will_${form.client_name}_${new Date().toISOString().split('T')[0]}.pdf`;
-
-  // ===== BUILD PAYLOAD =====
-  const payload: any = {
-    // Client Info (for Clio Contact)
-    client_first_name: firstName,
-    client_last_name: lastName,
-    client_email: clientEmail,
-    client_phone: clientPhone,
-    client_address: intakeData.client_address,
-    client_city: intakeData.client_city || '',
-    client_state: intakeData.client_state,
-    client_postcode: intakeData.client_postcode || '',
-    client_occupation: intakeData.client_occupation || '',
-    client_marital_status: intakeData.client_marital_status || '',
-    client_former_names: intakeData.client_former_names || '',
-
-    // Scenario & Spouse Info
-    scenario: intakeData.scenario,
-    spouse_name: intakeData.scenario === 'Couple' ? intakeData.spouse_name : '',
-    spouse_occupation: intakeData.scenario === 'Couple' ? intakeData.spouse_occupation : '',
-    mirror_or_independent: intakeData.scenario === 'Couple' ? mapPicklistValue('mirror_or_independent', intakeData.mirror_or_independent) : '',
-
-    // Matter Info
-    person_responsible: form.person_responsible,
-    inquiry_reason: intakeData.inquiry_reason,
-    lead_type: form.lead_type,
-    region: form.region,
-
-    // Documents
-    documents_required: formatDocumentsRequired(docsRequired),
-
-    // BENEFICIARIES: Scenario 1 (Direct) or Scenario 2 (Trust Funds)
-    trust_fund_structure: fundCount === 0 ? 'Direct Beneficiaries' : `${fundCount} Trust Fund${fundCount > 1 ? 's' : ''}`,
-    beneficiaries: fundCount === 0 ? formatBeneficiaries(beneficiaries) : 'N/A (Using Trust Funds)',
-    trust_fund_1: fundCount >= 1 ? formatTrustFund(1, trustFund1) : '',
-    trust_fund_2: fundCount >= 2 ? formatTrustFund(2, trustFund2) : '',
-    foreign_persons_excluded: fundCount > 0 ? (intakeData.fpe_trust ? 'Yes' : 'No') : 'N/A',
-
-    // Whether personal belongings follow the named beneficiaries or pass to
-    // the client's children. Collected on the intake form (step 9) and a real
-    // testamentary instruction — previously dropped before reaching Clio.
-    personal_belongings_to: intakeData.personal_belongings_to || 'Not specified',
-
-    // Calamity Beneficiaries
-    calamity_beneficiaries: formatCalamityBeneficiaries(calamityBeneficiaries),
-
-    // Assets
-    specific_gifts: formatSpecificGifts(specificGifts),
-    assets_real_estate: formatAssets(realEstate, 'real_estate'),
-    assets_bank: formatAssets(bankAccounts, 'bank'),
-    assets_super: formatAssets(superAccounts, 'super'),
-    other_assets: intakeData.other_assets || 'None listed',
-
-    // Exclusions
-    exclusions: formatExclusions(exclusions),
-    no_contest_clause: intakeData.no_contest_clause ? 'Yes' : 'No',
-
-    // Executors
-    executor_primary_name: intakeData.exec_initial_name,
-    executor_primary_address: intakeData.exec_initial_address || '',
-    executor_primary_relationship: intakeData.exec_initial_relationship || '',
-    executor_backup_name: intakeData.exec_backup || '',
-    executor_tertiary_name: intakeData.exec_further_backup || '',
-    executor_acting_arrangement: mapPicklistValue('executor_acting_arrangement', intakeData.exec_joint?.includes('jointly') ? 'Jointly' : 'Sole'),
-    executor_power_of_sale: intakeData.exec_power_of_sale ? 'Yes' : 'No',
-
-    // Conditional: Company
-    has_company: hasCompany ? 'Yes' : 'No',
-    company_info: companyInfo,
-
-    // Conditional: Life Tenancy
-    has_life_tenancy: hasLifeTenancy ? 'Yes' : 'No',
-    life_tenancy_info: lifeTenancyInfo,
-
-    // Conditional: SDT
-    has_special_disability_trust: hasSdt ? 'Yes' : 'No',
-    sdt_info: sdtInfo,
-
-    // Conditional: Guardianship
-    has_minors: hasMinors ? 'Yes' : 'No',
-    guardian_primary: hasMinors ? (intakeData.guardian_initial || '') : '',
-    guardian_backup: hasMinors ? (intakeData.guardian_backup || '') : '',
-
-    // EPA
-    epa_attorneys: formatEpaAttorneys(epaAttorneys),
-    epa_acting_arrangement: intakeData.epa_jointly || '',
-    epa_effective: intakeData.epa_effective || '',
-    epa_power_conflict: intakeData.epa_power_conflict ? 'Yes' : 'No',
-    epa_power_charge: intakeData.epa_power_charge ? 'Yes' : 'No',
-    epa_power_gifts: intakeData.epa_power_gifts ? 'Yes' : 'No',
-    epa_power_will: intakeData.epa_power_will ? 'Yes' : 'No',
-    epa_power_spouse: intakeData.epa_power_spouse ? 'Yes' : 'No',
-    epa_power_digital: intakeData.epa_power_digital ? 'Yes' : 'No',
-
-    // Funeral Wishes
-    funeral_organ_donation: intakeData.organ_donation || '',
-    funeral_burial_cremation: mapPicklistValue('funeral_burial_cremation', intakeData.burial_or_cremation || ''),
-    funeral_other: intakeData.funeral_other || '',
-
-    // Conditional: Letter of Wishes
-    has_letter_of_wishes: hasLetterOfWishes ? 'Yes' : 'No',
-    letter_of_wishes: hasLetterOfWishes ? (intakeData.low_wishes || '') : '',
-
-    // Will Custody & Admin
-    signing_date: intakeData.signing_date || '',
-    will_custody: mapPicklistValue('will_custody', intakeData.will_custody || ''),
-    add_to_wills_register: intakeData.add_to_wills_register ? 'Yes' : 'No',
-
-    // Administrative
-    financial_adviser: intakeData.financial_adviser || '',
-    governing_jurisdiction: intakeData.governing_jurisdiction || intakeData.client_state || '',
-    former_partner_exclude: intakeData.former_partner_exclude || '',
-
-    // Will Document Info
-    will_pdf_path: metadata.will_pdf_path,
-    will_pdf_name: willPdfName,
-
-    // Meta
-    form_id: form.id,
-    submission_date: form.created_at,
-  };
-
-  // Final safety net: clamp every string to Clio's 255-character limit. One
-  // oversized value 422s the whole request, so no matter is created at all -
-  // losing one field's tail is far better than losing the entire client record.
-  for (const key of Object.keys(payload)) {
-    const original = payload[key];
-    if (typeof original === 'string') {
-      const clamped = clampForClio(original);
-      if (clamped !== original) {
-        console.warn(`[CLIO] "${key}" exceeded ${CLIO_TEXT_FIELD_MAX} chars (${original.length}) and was truncated.`);
-        payload[key] = clamped;
-      }
-    }
+export async function populateMatterToClio(formId: string, force = false): Promise<ActionResult> {
+  try {
+    const result = await callApi<{ ok: boolean; detail: string; already_populated_at?: unknown }>(
+      '/api/populate-clio',
+      { form_id: formId, force },
+    );
+    if (result.ok) return ok(undefined, result.detail);
+    return fail(result.detail, result.already_populated_at ? 'ALREADY_SENT' : undefined);
+  } catch (err) {
+    return fail(errorMessage(err));
   }
-
-  return payload;
 }

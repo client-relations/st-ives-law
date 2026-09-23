@@ -1660,6 +1660,64 @@
   }
 }
 
+/* ── Status banners (action results, load errors) ───────────────────────── */
+
+.nv-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--nv-border);
+  background: var(--nv-white);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.nv-banner.success {
+  border-color: rgba(42, 107, 74, 0.3);
+  background: #eef7f1;
+  color: var(--nv-green);
+}
+
+.nv-banner.error {
+  border-color: rgba(196, 30, 58, 0.3);
+  background: var(--nv-warm-pale);
+  color: var(--nv-teal-deep);
+}
+
+.nv-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.nv-banner-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.nv-link-warning {
+  margin: 0 0 1rem;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: #fff3cd;
+  color: #664d03;
+  font-size: 0.8rem;
+}
+
+.nv-app button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 /* Document generation lives at the foot of the sidebar, separated from the
    intake nav because it works off Clio's client list, not the form pipeline. */
 .nv-nav-docs {

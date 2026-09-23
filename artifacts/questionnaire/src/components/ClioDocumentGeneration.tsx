@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { authHeaders } from '../lib/dashboard-actions';
 import {
   DOCUMENTS,
   PACKAGES,
@@ -172,8 +173,7 @@ function ClioClientTable({ onSelect }: { onSelect: (matter: ClioMatterRow) => vo
     try {
       // The sync endpoint accepts the scheduler's shared secret or a signed-in
       // lawyer's session. The secret stays server-side, so we send the session.
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
+      const headers = await authHeaders();
 
       // The sync is resumable: the firm has enough matters that one pass would
       // exceed the platform's function timeout, so the endpoint hands back a
@@ -185,10 +185,7 @@ function ClioClientTable({ onSelect }: { onSelect: (matter: ClioMatterRow) => vo
       for (let pass = 0; pass < 50; pass++) {
         const response = await fetch('/api/sync-clio-matters', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-          },
+          headers,
           body: JSON.stringify({ cursor, run_started_at: runStartedAt }),
         });
 
@@ -374,7 +371,10 @@ function DocumentPackageSelector({
     try {
       // The table is a day-old mirror; the values that go into a will are read
       // live so nobody signs a document built from stale data.
-      const matterResponse = await fetch(`/api/clio-matter?matter_id=${matter.clio_id}`);
+      const authed = await authHeaders();
+      const matterResponse = await fetch(`/api/clio-matter?matter_id=${matter.clio_id}`, {
+        headers: authed,
+      });
       const matterResult = await readJsonResponse(matterResponse, 'Reading the matter from Clio');
 
       const variables: Record<string, string> = matterResult.variables || {};
@@ -404,7 +404,7 @@ function DocumentPackageSelector({
           requests.push(
             fetch('/api/generate-document', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: authed,
               body: JSON.stringify({
                 templateType: definition.templateType,
                 scenario,
@@ -582,10 +582,12 @@ function GeneratedDocumentsDialog({
       // Every document goes up in one press. A couple produces two mirror
       // wills, and making the lawyer send them one at a time invites sending
       // one and forgetting the other.
+      const headers = await authHeaders();
+
       for (const doc of documents) {
         const response = await fetch('/api/send-to-clio-multipart', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
             docxBase64: doc.documentBase64,
             matter_id: matter.clio_id,

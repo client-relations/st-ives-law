@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { getAdminClient, loadForm, parseFormData, requireFormId, sendError } from './_lib/server.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -6,39 +6,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { lead_id } = req.query;
-
-    if (!lead_id) {
-      return res.status(400).json({ error: 'Missing lead_id' });
-    }
-
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      return res.status(500).json({ error: 'Supabase not configured' });
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data: form, error } = await supabase
-      .from('forms')
-      .select('form_data, status, client_name, client_email')
-      .eq('id', lead_id)
-      .single();
-
-    if (error || !form) {
-      return res.status(404).json({ error: 'Form not found' });
-    }
-
-    // Parse form_data if it's a string
-    const formData = typeof form.form_data === 'string'
-      ? JSON.parse(form.form_data || '{}')
-      : (form.form_data || {});
+    const formId = requireFormId(req.query.lead_id);
+    const supabase = getAdminClient();
+    const form = await loadForm(supabase, formId, 'form_data, status, client_name, client_email');
 
     return res.status(200).json({
       success: true,
-      data: formData,
+      data: parseFormData(form.form_data),
       status: form.status,
       // Returned so the client-facing forms can prefill the details the firm
       // already captured at screening, instead of asking for them again.
@@ -47,7 +21,7 @@ export default async function handler(req, res) {
         email: form.client_email || '',
       },
     });
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
+  } catch (err) {
+    return sendError(res, err);
   }
 }
