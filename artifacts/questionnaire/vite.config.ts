@@ -34,6 +34,18 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    // The /api routes are Vercel serverless functions, which `vite dev` does
+    // not run — without this, anything touching them 404s locally and the only
+    // way to test document generation is to deploy. Point this at whatever is
+    // serving them (`vercel dev`, or the local runner) and the whole app works
+    // from one origin, which also keeps the Supabase session intact.
+    // Dev only: `vite build` never reads server.proxy.
+    proxy: {
+      "/api": {
+        target: process.env.API_ORIGIN || "http://localhost:3100",
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port,

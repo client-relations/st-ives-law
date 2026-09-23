@@ -132,9 +132,14 @@ export async function convertDocxToPdf(docxPath: string): Promise<Buffer> {
     const pdfBuffer = readFileSync(tempPdfPath);
     return pdfBuffer;
   } catch (error) {
-    // Fallback: return DOCX as binary if PDF conversion fails
-    console.warn('PDF conversion failed, returning DOCX as fallback:', error);
-    return readFileSync(docxPath);
+    // Fail loudly rather than returning DOCX bytes that the caller will label
+    // as a PDF. That fallback shipped a file named .pdf which was really a
+    // zipped DOCX — it opens in nothing, and the lawyer only finds out after
+    // sending it. Callers treat a throw here as "no PDF available", which is
+    // the truth: Vercel has no LibreOffice, and two concurrent headless
+    // conversions clash over the same user profile even where it is installed.
+    console.warn('PDF conversion failed; no PDF will be returned:', error);
+    throw error instanceof Error ? error : new Error(String(error));
   } finally {
     // Clean up temp PDF
     try {

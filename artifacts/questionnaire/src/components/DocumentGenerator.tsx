@@ -250,40 +250,15 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
         return;
       }
 
-      // Otherwise, convert DOCX to PDF on server
-      const response = await fetch('/api/convert-docx', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'docx-to-pdf',
-          docxBase64: doc.documentBase64,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('PDF conversion failed');
-      }
-
-      const result = await response.json();
-      if (!result.pdfBase64) {
-        alert('PDF conversion failed. LibreOffice may not be installed on server.');
-        return;
-      }
-
-      const binaryStr = atob(result.pdfBase64);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-      const blob = new Blob([bytes.buffer], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${doc.documentName}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // No PDF came back, which means LibreOffice was unavailable on the
+      // server. There is no second chance at it here — offering a broken file
+      // would be worse than saying so.
+      alert(
+        'A PDF could not be produced for this document (the server has no PDF ' +
+        'converter available). Download the DOCX instead — it contains the same ' +
+        'content and can be saved as PDF from Word.',
+      );
+      return;
     } catch (error) {
       console.error('Error downloading PDF:', error);
       alert('Failed to download PDF. Please download DOCX and convert to PDF manually.');
