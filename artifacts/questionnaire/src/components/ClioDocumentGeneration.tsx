@@ -37,6 +37,38 @@ export type ClioMatterRow = {
 
 const PAGE_SIZE = 25;
 
+/**
+ * Read a JSON response, or explain why it wasn't one.
+ *
+ * These endpoints are Vercel serverless functions. Anything that doesn't reach
+ * them — a plain `vite dev` with no function runtime, a 404, an upstream HTML
+ * error page — comes back as non-JSON, and parsing it blind surfaces
+ * "Unexpected end of JSON input" to a lawyer, which tells them nothing.
+ */
+async function readJsonResponse(response: Response, label: string): Promise<any> {
+  const text = await response.text();
+
+  let payload: any = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      throw new Error(
+        `${label} returned ${response.status} ${response.statusText || ''}`.trim() +
+          '. The API route did not respond with JSON — if you are running the dev ' +
+          'server directly, serverless functions need `vercel dev`.',
+      );
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(payload?.details || payload?.error || `${label} failed (${response.status})`);
+  }
+
+  if (payload === null) throw new Error(`${label} returned an empty response`);
+  return payload;
+}
+
 export function ClioDocumentGeneration({ onGenerated }: { onGenerated: (matterId: string) => void }) {
   const [selectedMatter, setSelectedMatter] = useState<ClioMatterRow | null>(null);
 
@@ -127,8 +159,7 @@ function ClioClientTable({ onSelect }: { onSelect: (matter: ClioMatterRow) => vo
         method: 'POST',
         headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result?.details || result?.error || 'Sync failed');
+      await readJsonResponse(response, 'Clio sync');
       await load();
     } catch (err: any) {
       setError(`Sync failed: ${err.message}`);
@@ -301,10 +332,7 @@ function DocumentPackageSelector({
       // The table is a day-old mirror; the values that go into a will are read
       // live so nobody signs a document built from stale data.
       const matterResponse = await fetch(`/api/clio-matter?matter_id=${matter.clio_id}`);
-      const matterResult = await matterResponse.json();
-      if (!matterResponse.ok) {
-        throw new Error(matterResult?.details || matterResult?.error || 'Could not read the matter from Clio');
-      }
+      const matterResult = await readJsonResponse(matterResponse, 'Reading the matter from Clio');
 
       const variables: Record<string, string> = matterResult.variables || {};
       const scenario = isCouple ? 'couple' : 'individual';
