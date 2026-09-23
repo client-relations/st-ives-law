@@ -340,7 +340,7 @@ export function DocumentEditor({ formId, onClose }: { formId: string; onClose: (
         );
       }
 
-      alert('✓ Document sent for upload to Clio.');
+      alert('✓ Document uploaded to Clio successfully!');
     } catch (error) {
       console.error('Error sending to Clio:', error);
       alert(`Failed to send to Clio: ${error instanceof Error ? error.message : 'Unknown error'}`);
