@@ -1250,14 +1250,7 @@ export default function DashboardV2() {
         </header>
 
         {/* Document generation, driven by the Clio client list */}
-        {activeNav === 'documents' && (
-          <ClioDocumentGeneration
-            onGenerated={(matterId) => {
-              setDocumentFormId(matterId);
-              setShowDocumentEditor(true);
-            }}
-          />
-        )}
+        {activeNav === 'documents' && <ClioDocumentGeneration />}
 
         {/* Overview */}
         {activeNav === 'overview' && (

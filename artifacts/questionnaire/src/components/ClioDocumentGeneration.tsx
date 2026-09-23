@@ -69,15 +69,35 @@ async function readJsonResponse(response: Response, label: string): Promise<any>
   return payload;
 }
 
-export function ClioDocumentGeneration({ onGenerated }: { onGenerated: (matterId: string) => void }) {
+/** What a finished generation hands to the confirmation dialog. */
+export type GenerationResult = {
+  matter: ClioMatterRow;
+  documents: Array<{ documentName: string; documentBase64: string }>;
+  missingFields: string[];
+};
+
+export function ClioDocumentGeneration() {
   const [selectedMatter, setSelectedMatter] = useState<ClioMatterRow | null>(null);
+  const [result, setResult] = useState<GenerationResult | null>(null);
+
+  if (result) {
+    return (
+      <GeneratedDocumentsDialog
+        result={result}
+        onDone={() => {
+          setResult(null);
+          setSelectedMatter(null);
+        }}
+      />
+    );
+  }
 
   if (selectedMatter) {
     return (
       <DocumentPackageSelector
         matter={selectedMatter}
         onBack={() => setSelectedMatter(null)}
-        onGenerated={onGenerated}
+        onGenerated={setResult}
       />
     );
   }
@@ -305,7 +325,7 @@ function DocumentPackageSelector({
 }: {
   matter: ClioMatterRow;
   onBack: () => void;
-  onGenerated: (matterId: string) => void;
+  onGenerated: (result: GenerationResult) => void;
 }) {
   const [selected, setSelected] = useState<DocumentId[]>([]);
   const [activePackage, setActivePackage] = useState<string | null>(null);
@@ -410,20 +430,7 @@ function DocumentPackageSelector({
       const failed = documents.find((doc) => doc?.success === false || doc?.error);
       if (failed) throw new Error(failed.error || 'A document failed to generate');
 
-      // The editor reads its documents back out of localStorage, keyed by id.
-      localStorage.setItem(
-        `generated_docs_${matter.clio_id}`,
-        JSON.stringify({
-          documents,
-          scenario,
-          matterId: matter.clio_id,
-          clientName: matter.client_name,
-          missingFields,
-          timestamp: new Date().toISOString(),
-        }),
-      );
-
-      onGenerated(String(matter.clio_id));
+      onGenerated({ matter, documents, missingFields });
     } catch (err: any) {
       setError(err.message || 'Failed to generate documents');
     } finally {
@@ -550,6 +557,104 @@ function DocumentPackageSelector({
         >
           {generating ? 'Generating…' : 'Generate Documents'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Screen 3: generated — confirm and send                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Deliberately minimal. The full editor — form summary, DOCX and PDF
+ * downloads — still exists as DocumentEditor in DocumentGenerator.tsx and is
+ * still wired to the intake path; this flow just doesn't route through it.
+ * Restoring it here is a one-line change.
+ */
+function GeneratedDocumentsDialog({
+  result,
+  onDone,
+}: {
+  result: GenerationResult;
+  onDone: () => void;
+}) {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const { matter, documents, missingFields } = result;
+
+  const handleSend = async () => {
+    setSending(true);
+    setError(null);
+
+    try {
+      // Every document goes up in one press. A couple produces two mirror
+      // wills, and making the lawyer send them one at a time invites sending
+      // one and forgetting the other.
+      for (const doc of documents) {
+        const response = await fetch('/api/send-to-clio-multipart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            docxBase64: doc.documentBase64,
+            matter_id: matter.clio_id,
+            documentName: doc.documentName,
+          }),
+        });
+        await readJsonResponse(response, `Sending "${doc.documentName}" to Clio`);
+      }
+      setSent(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send to Clio');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className='nv-docgen'>
+      <div className='nv-docgen-done'>
+        <h3 className='nv-docgen-done-title'>
+          {sent ? 'Sent to Clio' : 'Documents generated'}
+        </h3>
+        <p className='nv-docgen-sub'>
+          {sent
+            ? `Filed on ${matter.client_name}. They are on the matter in Clio now.`
+            : `${documents.length} document${documents.length === 1 ? '' : 's'} for ${matter.client_name}.`}
+        </p>
+
+        <ul className='nv-docgen-done-list'>
+          {documents.map((doc) => (
+            <li key={doc.documentName}>{doc.documentName}</li>
+          ))}
+        </ul>
+
+        {!sent && missingFields.length > 0 && (
+          <p className='nv-docgen-missing'>
+            {missingFields.length} field{missingFields.length === 1 ? '' : 's'} empty in Clio
+            ({missingFields.join(', ')}) — left as <code>&lt;&lt; … &gt;&gt;</code> to fill in Word.
+          </p>
+        )}
+
+        {error && <div className='nv-docgen-error'>{error}</div>}
+
+        <div className='nv-docgen-done-actions'>
+          {!sent && (
+            <button
+              type='button'
+              className='nv-btn-qualify'
+              onClick={handleSend}
+              disabled={sending}
+            >
+              {sending ? 'Sending…' : 'Send to Clio'}
+            </button>
+          )}
+          <button type='button' className='nv-btn-view' onClick={onDone}>
+            {sent ? 'Done' : 'Close'}
+          </button>
+        </div>
       </div>
     </div>
   );

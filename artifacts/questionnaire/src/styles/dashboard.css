@@ -1928,3 +1928,48 @@
   font-size: 12px;
   color: var(--nv-teal-d);
 }
+
+/* Post-generation confirmation. Deliberately plain: the lawyer's next action
+   is to send to Clio, so nothing else competes for attention. */
+.nv-docgen-done {
+  max-width: 560px;
+  padding: 28px 32px;
+  background: var(--nv-white);
+  border: 1px solid var(--nv-border);
+  border-radius: var(--nv-radius);
+  box-shadow: var(--nv-shadow);
+}
+
+.nv-docgen-done-title {
+  margin: 0 0 6px;
+  font-family: var(--nv-font-h);
+  font-size: 20px;
+  color: var(--nv-charcoal);
+}
+
+.nv-docgen-done-list {
+  margin: 16px 0;
+  padding-left: 20px;
+  font-size: 14px;
+  color: var(--nv-text);
+}
+
+.nv-docgen-done-list li {
+  padding: 3px 0;
+}
+
+/* Not .nv-modal-actions: that is a sticky footer for scrolling modals and
+   collapses when used inside a plain card. */
+.nv-docgen-done-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.nv-docgen-done-actions button {
+  /* .nv-btn-view is full-width in its usual sidebar context; these two sit
+     side by side, so size them to their label. */
+  width: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
