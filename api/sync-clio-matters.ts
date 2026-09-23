@@ -12,7 +12,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { fetchAllMatters, getClioAccessToken } from './clio-client';
+import { fetchMatters, getClioAccessToken } from './clio-client';
 
 export const config = {
   // A full pull is one request per 200 matters, plus any rate-limit backoff.
@@ -81,11 +81,16 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: 'Clio authentication unavailable', details: auth.error });
   }
 
-  const startedAt = new Date();
+  // A resumable run carries the cursor it stopped on and the timestamp the
+  // whole run began, so the final call knows which rows predate it and can
+  // safely prune them.
+  const cursor = String(req.query?.cursor || req.body?.cursor || '') || undefined;
+  const runStartedAt = String(req.query?.run_started_at || req.body?.run_started_at || '');
+  const startedAt = runStartedAt ? new Date(runStartedAt) : new Date();
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    const matters = await fetchAllMatters(auth.token);
+    const { matters, nextCursor } = await fetchMatters(auth.token, { cursor });
     console.log(`Fetched ${matters.length} matters from Clio`);
 
     if (matters.length === 0) {
@@ -94,6 +99,7 @@ export default async function handler(req: any, res: any) {
       // entire mirror. Stop instead.
       return res.status(200).json({
         success: true,
+        done: true,
         synced: 0,
         removed: 0,
         warning: 'Clio returned no matters; the mirror was left untouched.',
@@ -123,8 +129,21 @@ export default async function handler(req: any, res: any) {
       if (error) throw new Error(`Supabase upsert failed: ${error.message}`);
     }
 
-    // Anything the full pull didn't touch no longer exists in Clio. Safe to do
-    // only because we reached here, meaning every page came back cleanly.
+    // More pages to go: hand the caller the cursor and stop short of the
+    // platform's function timeout. Pruning waits until the run finishes,
+    // otherwise a mid-run prune would delete matters not yet re-synced.
+    if (nextCursor) {
+      return res.status(200).json({
+        success: true,
+        done: false,
+        synced: rows.length,
+        cursor: nextCursor,
+        run_started_at: startedAt.toISOString(),
+      });
+    }
+
+    // Anything this run never touched no longer exists in Clio. Safe only here,
+    // at the end of a run where every page came back cleanly.
     const { data: removed, error: deleteError } = await supabase
       .from('clio_matters')
       .delete()
@@ -135,14 +154,13 @@ export default async function handler(req: any, res: any) {
       console.warn('Could not prune removed matters:', deleteError.message);
     }
 
-    const durationMs = Date.now() - startedAt.getTime();
-    console.log(`Clio sync complete: ${rows.length} matters in ${durationMs}ms`);
+    console.log(`Clio sync complete: ${rows.length} matters in this pass`);
 
     return res.status(200).json({
       success: true,
+      done: true,
       synced: rows.length,
       removed: removed?.length ?? 0,
-      durationMs,
       syncedAt: startedAt.toISOString(),
     });
   } catch (error: any) {

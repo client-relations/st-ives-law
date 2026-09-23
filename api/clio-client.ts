@@ -117,10 +117,17 @@ async function clioGet(url: string, token: string, attempt = 0): Promise<any> {
 /**
  * The fields we need off a matter.
  *
- * `relationships` is how a couple is represented: the instructions docx has the
- * firm create a Company contact named "<Mr> and <Mrs>", then attach both people
- * as related contacts labelled "Mr" and "Mrs". That labelling is what produces
- * << Matter.Relationships.Mr.Name >> in the templates.
+ * `relationships` is NOT among them: Clio rejects it as a matter field
+ * ("relationships} is not a valid field"), and the standalone
+ * /relationships.json endpoint answers 403 for this app. That matters because
+ * relationships are how the firm's instructions represent a couple — a Company
+ * contact named "<Mr> and <Mrs>" with both people attached as related contacts
+ * labelled "Mr" and "Mrs". Without that access, couples are inferred from the
+ * matter's display number instead. See deriveCoupleNames below.
+ *
+ * custom_field_values is requested even though this app currently gets every
+ * value back redacted, so that the sync starts populating the moment the Clio
+ * app is granted the scope.
  */
 const MATTER_FIELDS = [
   'id',
@@ -128,9 +135,56 @@ const MATTER_FIELDS = [
   'description',
   'status',
   'client{id,name,type}',
-  'relationships{id,description,contact{id,name}}',
   'custom_field_values{id,field_name,field_type,value}',
 ].join(',');
+
+/** Clio blanks out fields an app cannot read rather than refusing the request. */
+function isRedacted(value: unknown): boolean {
+  return typeof value === 'string' && /^\*+$/.test(value.trim());
+}
+
+/**
+ * Recover the client name, and whether it's a couple, from the display number.
+ *
+ * Contact names come back as "******" for this app, but the matter's display
+ * number is readable and the firm embeds the client in it:
+ *
+ *   "230129-Mrs Juliette Anne Topham,"                     -> single
+ *   "230127-Dr Bala Sunderm Goyal & Dr Anjalee Goyal,"     -> couple
+ *
+ * The "&" is also a far better couple signal than client.type, which this
+ * firm's data sets to "Company" on plainly individual clients.
+ */
+export function deriveFromDisplayNumber(displayNumber: string): {
+  name: string;
+  isCouple: boolean;
+  mr: string;
+  mrs: string;
+} {
+  const withoutFileNumber = displayNumber.replace(/^\s*\d+\s*-\s*/, '');
+  const name = withoutFileNumber.replace(/[,\s]+$/, '').trim();
+
+  const parts = name.split(/\s+&\s+|\s+and\s+/i).map((part) => part.trim()).filter(Boolean);
+
+  // "&" alone is not enough: this firm has clients like "A & A Khodarahmi Pty
+  // Ltd", which is one company, not two spouses. Two extra tests separate them
+  // — a company suffix anywhere in the name, and each side of the "&" having to
+  // look like a person's name rather than an initial.
+  const looksLikeCompany =
+    /\b(pty|ltd|limited|inc|incorporated|llc|corp|corporation|co|services|enterprises|holdings|group|trust|superannuation|smsf|fund|nominees|investments|partners|associates)\b/i.test(
+      name,
+    );
+  const bothSidesArePeople = parts.every((part) => part.split(/\s+/).length >= 2);
+
+  const isCouple = parts.length === 2 && !looksLikeCompany && bothSidesArePeople;
+
+  return {
+    name,
+    isCouple,
+    mr: isCouple ? parts[0] : '',
+    mrs: isCouple ? parts[1] : '',
+  };
+}
 
 export type ClioMatter = {
   clio_id: number;
@@ -154,6 +208,11 @@ export type ClioMatter = {
 export function normaliseMatter(raw: any): ClioMatter {
   const custom_fields: Record<string, string> = {};
   for (const cfv of raw?.custom_field_values || []) {
+    // A redacted value arrives as {id: null, redacted: true} with no field_name.
+    // Storing those would fill the mirror with nothing; skip them so the
+    // completeness badge honestly reports zero until the scope is granted.
+    if (cfv?.redacted) continue;
+
     // field_name is the custom field's name — "InitialExecutor", "Beneficiary1".
     // It doubles as the template variable name, so store it verbatim.
     const name = cfv?.field_name;
@@ -163,58 +222,64 @@ export function normaliseMatter(raw: any): ClioMatter {
     custom_fields[name] = String(value);
   }
 
-  const relationships: any[] = raw?.relationships || [];
-  const named = (label: string) =>
-    relationships.find(
-      (r) => String(r?.description || '').trim().toLowerCase() === label,
-    )?.contact?.name || '';
+  const displayNumber = String(raw?.display_number || '');
+  const derived = deriveFromDisplayNumber(displayNumber);
 
-  const mr_name = named('mr');
-  const mrs_name = named('mrs');
-
-  // Prefer the explicit Mr/Mrs relationship pair. Fall back to the client being
-  // a Company, which is how the instructions have couples set up — a matter
-  // whose client is a Person is always a single.
-  const is_couple = Boolean(mr_name && mrs_name) || raw?.client?.type === 'Company';
+  // Use the real contact name when this app is allowed to see it, and fall back
+  // to the name embedded in the display number when Clio redacts it.
+  const rawClientName = raw?.client?.name;
+  const client_name =
+    rawClientName && !isRedacted(rawClientName) ? String(rawClientName) : derived.name;
 
   return {
     clio_id: Number(raw?.id),
-    display_number: String(raw?.display_number || ''),
+    display_number: displayNumber,
     description: String(raw?.description || ''),
     status: String(raw?.status || ''),
-    client_name: String(raw?.client?.name || ''),
+    client_name,
     client_type: String(raw?.client?.type || ''),
-    is_couple,
-    mr_name,
-    mrs_name,
+    is_couple: derived.isCouple,
+    mr_name: derived.mr,
+    mrs_name: derived.mrs,
     custom_fields,
   };
 }
 
 /**
- * Pull every matter, following Clio's paging cursor.
+ * Pull matters, following Clio's paging cursor until a time budget runs out.
  *
- * This is the call that cannot run on page load: it is one request per 200
- * matters, and the count only ever grows. It belongs in the scheduled sync.
+ * This is the call that cannot run on page load: one request per 200 matters,
+ * and the count only ever grows. The firm is already at 2037 matters, which is
+ * eleven pages and about 80 seconds — past Vercel's 60s ceiling. So the sync is
+ * resumable: when the budget is spent it returns the cursor it stopped on, and
+ * the caller invokes again until nextCursor comes back null.
  */
-export async function fetchAllMatters(
+export async function fetchMatters(
   token: string,
-  options: { pageLimit?: number } = {},
-): Promise<ClioMatter[]> {
-  const maxPages = options.pageLimit ?? 100;
-  let url = `${CLIO_API}/matters.json?fields=${encodeURIComponent(MATTER_FIELDS)}&limit=200&order=id(asc)`;
+  options: { cursor?: string; budgetMs?: number } = {},
+): Promise<{ matters: ClioMatter[]; nextCursor: string | null }> {
+  const budgetMs = options.budgetMs ?? 40_000;
+  const startedAt = Date.now();
+
+  let url =
+    options.cursor ||
+    `${CLIO_API}/matters.json?fields=${encodeURIComponent(MATTER_FIELDS)}&limit=200&order=id(asc)`;
   const matters: ClioMatter[] = [];
 
-  for (let page = 0; page < maxPages && url; page++) {
+  while (url) {
     const json = await clioGet(url, token);
     for (const raw of json?.data || []) matters.push(normaliseMatter(raw));
 
     // Clio hands back the next page as a full URL; absent means we're done.
     url = json?.meta?.paging?.next || '';
-    if (url) console.log(`Synced ${matters.length} matters so far, fetching next page`);
+
+    if (url && Date.now() - startedAt >= budgetMs) {
+      console.log(`Budget spent after ${matters.length} matters; handing back a cursor`);
+      return { matters, nextCursor: url };
+    }
   }
 
-  return matters;
+  return { matters, nextCursor: null };
 }
 
 /** Fetch a single matter fresh, for the moment a document is generated. */

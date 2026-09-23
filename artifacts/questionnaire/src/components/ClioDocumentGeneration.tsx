@@ -97,6 +97,7 @@ function ClioClientTable({ onSelect }: { onSelect: (matter: ClioMatterRow) => vo
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   // Debounce so typing doesn't fire a query per keystroke.
@@ -148,6 +149,7 @@ function ClioClientTable({ onSelect }: { onSelect: (matter: ClioMatterRow) => vo
 
   const handleSync = async () => {
     setSyncing(true);
+    setSyncProgress(0);
     setError(null);
     try {
       // The sync endpoint accepts the scheduler's shared secret or a signed-in
@@ -155,11 +157,34 @@ function ClioClientTable({ onSelect }: { onSelect: (matter: ClioMatterRow) => vo
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
 
-      const response = await fetch('/api/sync-clio-matters', {
-        method: 'POST',
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-      });
-      await readJsonResponse(response, 'Clio sync');
+      // The sync is resumable: the firm has enough matters that one pass would
+      // exceed the platform's function timeout, so the endpoint hands back a
+      // cursor and we keep calling until it reports done.
+      let cursor: string | undefined;
+      let runStartedAt: string | undefined;
+      let syncedSoFar = 0;
+
+      for (let pass = 0; pass < 50; pass++) {
+        const response = await fetch('/api/sync-clio-matters', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify({ cursor, run_started_at: runStartedAt }),
+        });
+
+        const result = await readJsonResponse(response, 'Clio sync');
+        syncedSoFar += result.synced || 0;
+        setSyncProgress(syncedSoFar);
+
+        if (result.done) break;
+
+        cursor = result.cursor;
+        runStartedAt = result.run_started_at;
+        if (!cursor) break;
+      }
+
       await load();
     } catch (err: any) {
       setError(`Sync failed: ${err.message}`);
@@ -185,7 +210,7 @@ function ClioClientTable({ onSelect }: { onSelect: (matter: ClioMatterRow) => vo
           onChange={(e) => setSearch(e.target.value)}
         />
         <button type='button' className='nv-btn-view' onClick={handleSync} disabled={syncing}>
-          {syncing ? 'Syncing…' : 'Sync now'}
+          {syncing ? (syncProgress ? `Synced ${syncProgress}…` : 'Syncing…') : 'Sync now'}
         </button>
       </div>
 
