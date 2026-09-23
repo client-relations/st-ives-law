@@ -17,6 +17,7 @@ import {
   sendBackForm,
 } from '../lib/dashboard-actions';
 import { DocumentSelection, DocumentEditor } from '../components/DocumentGenerator';
+import { ClioDocumentGeneration } from '../components/ClioDocumentGeneration';
 import '../styles/dashboard.css';
 
 const ScreeningFormV2 = lazy(() => import('./ScreeningFormV2'));
@@ -1141,13 +1142,17 @@ export default function DashboardV2() {
       ? 'Overview'
       : activeNav === 'pending-leads'
         ? 'Leads'
-        : 'Intake';
+        : activeNav === 'documents'
+          ? 'Generate Documents'
+          : 'Intake';
   const pageDesc =
     activeNav === 'pending-leads'
       ? 'Review inbound enquiries before qualifying or declining.'
       : activeNav === 'qualified-leads'
         ? 'Track intake progress for qualified clients.'
-        : 'Your practice at a glance, what needs attention today.';
+        : activeNav === 'documents'
+          ? 'Every client in Clio. Pick a package or individual documents to draft.'
+          : 'Your practice at a glance, what needs attention today.';
 
   const overviewIntakeForms = filteredPendingIntakeForms;
   const overviewCompletedForms = completedIntakeForms;
@@ -1208,6 +1213,17 @@ export default function DashboardV2() {
           New Lead
         </button>
 
+        {/* Document generation sits at the foot of the sidebar, apart from the
+            intake nav above it: it works off Clio's client list rather than off
+            a form's progress through the pipeline. */}
+        <button
+          type='button'
+          className={`nv-nav-btn nv-nav-docs${activeNav === 'documents' ? ' active' : ''}`}
+          onClick={() => setActiveNav('documents')}
+        >
+          Generate Documents
+        </button>
+
         <div className='nv-sidebar-foot'>
           {lawyer && (
             <div className='nv-sidebar-user'>{lawyer.full_name}</div>
@@ -1232,6 +1248,16 @@ export default function DashboardV2() {
             </div>
           )}
         </header>
+
+        {/* Document generation, driven by the Clio client list */}
+        {activeNav === 'documents' && (
+          <ClioDocumentGeneration
+            onGenerated={(matterId) => {
+              setDocumentFormId(matterId);
+              setShowDocumentEditor(true);
+            }}
+          />
+        )}
 
         {/* Overview */}
         {activeNav === 'overview' && (

@@ -113,16 +113,22 @@ export default async function handler(req: any, res: any) {
       'Matter.CustomField.InitialGuardian': guardian_initial || '',
       'Matter.CustomField.BackupGuardian': guardian_backup || '',
 
-      // Matter details (both templates)
-      'Matter.CustomField.Jurisdiction': governing_jurisdiction || 'VIC',
+      // Matter details (both templates).
+      // The firm practises in South Australia (Norwood), so a will it drafts
+      // is governed by South Australian law unless the matter says otherwise.
+      // This previously defaulted to VIC, which is the wrong jurisdiction to
+      // name in the governing-law clause of an SA will.
+      'Matter.CustomField.Jurisdiction': governing_jurisdiction || 'South Australia',
       'Matter.ClientReferenceNumber': form_id || '',
       'Matter.OriginatingAttorney.Initials': lawyer_initials || 'SA',
 
-      // Firm details (both templates)
+      // Firm details (both templates), taken from the firm's own letterhead on
+      // the 2026 Estate Planning fee schedules. These were placeholder strings
+      // and were being printed onto the front page of generated wills.
       'Firm.Name': 'St Ives Law',
-      'Firm.Address': 'St Ives Law Address',
-      'Firm.Phone': '(02) 1234 5678',
-      'Firm.Email': 'info@stiveslaw.com.au',
+      'Firm.Address': '3/136 The Parade, Norwood, South Australia 5067',
+      'Firm.Phone': '+61 403 007 534',
+      'Firm.Email': 'sarah@stiveslaw.com.au',
     };
 
     // Add any extra variables passed in (for expansion to TT2, TT3, etc in future)

@@ -58,6 +58,13 @@ export async function processDocxTemplate(
         const sortedVariables = Object.entries(variables).sort((a, b) => b[0].length - a[0].length);
 
         sortedVariables.forEach(([key, value]) => {
+          // Leave the placeholder alone when we have nothing to put in it.
+          // A matter created straight in Clio has empty custom fields, and a
+          // blank line in a will is easy to miss in a way that a visible
+          // << Matter.CustomField.InitialExecutor >> is not — the lawyer can
+          // see exactly what still needs filling before the document is signed.
+          if (value === undefined || value === null || value === '') return;
+
           const escapedKey = key.replace(/\./g, '\\.');
 
           // Replace HTML-encoded format: &lt;&lt; Variable &gt;&gt; (most common in templates)

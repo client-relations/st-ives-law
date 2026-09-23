@@ -14,81 +14,12 @@
  * The Make "Sending Document" scenario only ever did step 1 with the file
  * inline, which is why Clio answered "Bad Request" on 28 of its 32 runs.
  *
- * AUTH: prefers a refresh-token exchange (what Make does internally) so the
- * credential never expires. Falls back to a static CLIO_API_TOKEN, which does
- * expire — fine for a demo, not for production.
+ * AUTH is shared with the rest of the Clio integration — see clio-client.ts.
  */
 
-const CLIO_BASE = process.env.CLIO_API_BASE || 'https://au.app.clio.com';
-const CLIO_API = `${CLIO_BASE}/api/v4`;
+import { CLIO_API, getClioAccessToken } from './clio-client';
 
 type PutHeader = { name: string; value: string };
-
-/** Cached across warm invocations so we don't re-exchange on every request. */
-let cachedToken: { value: string; expiresAt: number } | null = null;
-
-/**
- * Obtain a usable Clio access token.
- *
- * With CLIO_CLIENT_ID + CLIO_CLIENT_SECRET + CLIO_REFRESH_TOKEN set, this
- * mints a fresh access token on demand and nobody ever pastes a token again.
- * Refresh tokens do not expire unless revoked.
- */
-async function getClioAccessToken(): Promise<{ token?: string; error?: string }> {
-  const clientId = process.env.CLIO_CLIENT_ID;
-  const clientSecret = process.env.CLIO_CLIENT_SECRET;
-  const refreshToken = process.env.CLIO_REFRESH_TOKEN;
-
-  if (clientId && clientSecret && refreshToken) {
-    // Reuse a cached token until a minute before it lapses.
-    if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) {
-      return { token: cachedToken.value };
-    }
-
-    const body = new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-    });
-
-    const response = await fetch(`${CLIO_BASE}/oauth/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    });
-
-    const text = await response.text();
-    if (!response.ok) {
-      console.error('Clio token refresh failed:', response.status, text);
-      return { error: `Clio refused the refresh token (${response.status}): ${text.slice(0, 300)}` };
-    }
-
-    try {
-      const json = JSON.parse(text);
-      if (!json.access_token) return { error: 'Clio returned no access_token' };
-      cachedToken = {
-        value: json.access_token,
-        // expires_in is seconds; default to 1h if Clio omits it.
-        expiresAt: Date.now() + (Number(json.expires_in) || 3600) * 1000,
-      };
-      console.log('Clio access token refreshed');
-      return { token: cachedToken.value };
-    } catch {
-      return { error: 'Clio token response was not valid JSON' };
-    }
-  }
-
-  // Fallback: a manually pasted access token. Expires in days.
-  const staticToken = process.env.CLIO_API_TOKEN;
-  if (staticToken) return { token: staticToken };
-
-  return {
-    error:
-      'No Clio credentials configured. Set CLIO_CLIENT_ID + CLIO_CLIENT_SECRET + ' +
-      'CLIO_REFRESH_TOKEN (self-renewing), or CLIO_API_TOKEN (expires).',
-  };
-}
 
 function fail(res: any, status: number, error: string, details?: unknown) {
   return res.status(status).json({ error, details });
