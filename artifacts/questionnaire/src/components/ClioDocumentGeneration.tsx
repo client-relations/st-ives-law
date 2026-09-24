@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { authHeaders } from '../lib/dashboard-actions';
 import {
@@ -292,6 +292,14 @@ function DocumentPackageSelector({
   const [phase, setPhase] = useState<'idle' | 'generating' | 'sending'>('idle');
   // What the last press filed, shown in place rather than on its own screen.
   const [sent, setSent] = useState<{ names: string[]; missingFields: string[] } | null>(null);
+  const sentRef = useRef<HTMLDivElement>(null);
+
+  // It sits below the action button, which is off-screen on a tall selection
+  // screen — measured at 1616px on a 1050px viewport. Filing two documents to
+  // Clio and showing nothing is worse than a scroll.
+  useEffect(() => {
+    if (sent) sentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [sent]);
   const [error, setError] = useState<string | null>(null);
 
   const isCouple = matter.is_couple;
@@ -441,28 +449,6 @@ function DocumentPackageSelector({
         </div>
       </div>
 
-      {sent && (
-        <div className='nv-docgen-summary nv-docgen-sent'>
-          <div>
-            <strong>
-              Sent to Clio — {sent.names.length} document{sent.names.length === 1 ? '' : 's'} filed
-            </strong>
-          </div>
-          <ul className='nv-docgen-done-list'>
-            {sent.names.map((name) => (
-              <li key={name}>{name}</li>
-            ))}
-          </ul>
-          {sent.missingFields.length > 0 && (
-            <p className='nv-docgen-missing'>
-              {sent.missingFields.length} field
-              {sent.missingFields.length === 1 ? ' was' : 's were'} empty in Clio (
-              {sent.missingFields.join(', ')}) — left as <code>&lt;&lt; … &gt;&gt;</code> to fill
-              in Word.
-            </p>
-          )}
-        </div>
-      )}
 
       <div className='nv-docgen-split'>
         <section className='nv-docgen-pane'>
@@ -562,6 +548,29 @@ function DocumentPackageSelector({
               : 'Generate & Send to Clio'}
         </button>
       </div>
+
+      {sent && (
+        <div className='nv-docgen-summary nv-docgen-sent' ref={sentRef}>
+          <div>
+            <strong>
+              Sent to Clio — {sent.names.length} document{sent.names.length === 1 ? '' : 's'} filed
+            </strong>
+          </div>
+          <ul className='nv-docgen-done-list'>
+            {sent.names.map((name) => (
+              <li key={name}>{name}</li>
+            ))}
+          </ul>
+          {sent.missingFields.length > 0 && (
+            <p className='nv-docgen-missing'>
+              {sent.missingFields.length} field
+              {sent.missingFields.length === 1 ? ' was' : 's were'} empty in Clio (
+              {sent.missingFields.join(', ')}) — left as <code>&lt;&lt; … &gt;&gt;</code> to fill
+              in Word.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
