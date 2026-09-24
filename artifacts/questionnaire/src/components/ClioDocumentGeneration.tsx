@@ -315,7 +315,7 @@ function DocumentPackageSelector({
 }) {
   const [selected, setSelected] = useState<DocumentId[]>([]);
   const [activePackage, setActivePackage] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
+  const [phase, setPhase] = useState<'idle' | 'generating' | 'sending'>('idle');
   const [error, setError] = useState<string | null>(null);
 
   const isCouple = matter.is_couple;
@@ -356,7 +356,7 @@ function DocumentPackageSelector({
 
   const handleGenerate = async () => {
     if (generatable.length === 0) return;
-    setGenerating(true);
+    setPhase('generating');
     setError(null);
 
     try {
@@ -419,11 +419,28 @@ function DocumentPackageSelector({
       const failed = documents.find((doc) => doc?.success === false || doc?.error);
       if (failed) throw new Error(failed.error || 'A document failed to generate');
 
+      // Straight on to Clio. There is nothing to review in between — the
+      // documents are a merge of Clio's own data, and filing them is the only
+      // thing the lawyer was going to do next.
+      setPhase('sending');
+      for (const doc of documents) {
+        const response = await fetch('/api/send-to-clio-multipart', {
+          method: 'POST',
+          headers: authed,
+          body: JSON.stringify({
+            docxBase64: doc.documentBase64,
+            matter_id: matter.clio_id,
+            documentName: doc.documentName,
+          }),
+        });
+        await readJsonResponse(response, `Sending "${doc.documentName}" to Clio`);
+      }
+
       onGenerated({ matter, documents, missingFields });
     } catch (err: any) {
       setError(err.message || 'Failed to generate documents');
     } finally {
-      setGenerating(false);
+      setPhase('idle');
     }
   };
 
@@ -533,9 +550,13 @@ function DocumentPackageSelector({
           type='button'
           className='nv-btn-qualify'
           onClick={handleGenerate}
-          disabled={generating || generatable.length === 0}
+          disabled={phase !== 'idle' || generatable.length === 0}
         >
-          {generating ? 'Generating…' : 'Generate Documents'}
+          {phase === 'generating'
+            ? 'Generating…'
+            : phase === 'sending'
+              ? 'Sending to Clio…'
+              : 'Generate & Send to Clio'}
         </button>
       </div>
     </div>
@@ -543,14 +564,13 @@ function DocumentPackageSelector({
 }
 
 /* ------------------------------------------------------------------ */
-/* Screen 3: generated — confirm and send                              */
+/* Screen 3: what was filed                                            */
 /* ------------------------------------------------------------------ */
 
 /**
- * Deliberately minimal. The full editor — form summary, DOCX and PDF
- * downloads — still exists as DocumentEditor in DocumentGenerator.tsx and is
- * still wired to the intake path; this flow just doesn't route through it.
- * Restoring it here is a one-line change.
+ * Confirmation only. Generating and filing happen together on one press, so
+ * by the time this renders the documents are already on the matter in Clio —
+ * there is no decision left to make here.
  */
 function GeneratedDocumentsDialog({
   result,
@@ -559,52 +579,15 @@ function GeneratedDocumentsDialog({
   result: GenerationResult;
   onDone: () => void;
 }) {
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   const { matter, documents, missingFields } = result;
-
-  const handleSend = async () => {
-    setSending(true);
-    setError(null);
-
-    try {
-      // Every document goes up in one press. A couple produces two mirror
-      // wills, and making the lawyer send them one at a time invites sending
-      // one and forgetting the other.
-      const headers = await authHeaders();
-
-      for (const doc of documents) {
-        const response = await fetch('/api/send-to-clio-multipart', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            docxBase64: doc.documentBase64,
-            matter_id: matter.clio_id,
-            documentName: doc.documentName,
-          }),
-        });
-        await readJsonResponse(response, `Sending "${doc.documentName}" to Clio`);
-      }
-      setSent(true);
-    } catch (err: any) {
-      setError(err.message || 'Failed to send to Clio');
-    } finally {
-      setSending(false);
-    }
-  };
 
   return (
     <div className='nv-docgen'>
       <div className='nv-docgen-done'>
-        <h3 className='nv-docgen-done-title'>
-          {sent ? 'Sent to Clio' : 'Documents generated'}
-        </h3>
+        <h3 className='nv-docgen-done-title'>Sent to Clio</h3>
         <p className='nv-docgen-sub'>
-          {sent
-            ? `Filed on ${matter.client_name}. They are on the matter in Clio now.`
-            : `${documents.length} document${documents.length === 1 ? '' : 's'} for ${matter.client_name}.`}
+          {documents.length} document{documents.length === 1 ? '' : 's'} filed on{' '}
+          {matter.client_name}.
         </p>
 
         <ul className='nv-docgen-done-list'>
@@ -613,28 +596,17 @@ function GeneratedDocumentsDialog({
           ))}
         </ul>
 
-        {!sent && missingFields.length > 0 && (
+        {missingFields.length > 0 && (
           <p className='nv-docgen-missing'>
-            {missingFields.length} field{missingFields.length === 1 ? '' : 's'} empty in Clio
-            ({missingFields.join(', ')}) — left as <code>&lt;&lt; … &gt;&gt;</code> to fill in Word.
+            {missingFields.length} field{missingFields.length === 1 ? '' : 's'} were empty in
+            Clio ({missingFields.join(', ')}) — left as <code>&lt;&lt; … &gt;&gt;</code> to fill
+            in Word.
           </p>
         )}
 
-        {error && <div className='nv-docgen-error'>{error}</div>}
-
         <div className='nv-docgen-done-actions'>
-          {!sent && (
-            <button
-              type='button'
-              className='nv-btn-qualify'
-              onClick={handleSend}
-              disabled={sending}
-            >
-              {sending ? 'Sending…' : 'Send to Clio'}
-            </button>
-          )}
-          <button type='button' className='nv-btn-view' onClick={onDone}>
-            {sent ? 'Done' : 'Close'}
+          <button type='button' className='nv-btn-qualify' onClick={onDone}>
+            Done
           </button>
         </div>
       </div>
