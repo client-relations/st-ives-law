@@ -67,36 +67,12 @@ async function readJsonResponse(response: Response, label: string): Promise<any>
   return payload;
 }
 
-/** What a finished generation hands to the confirmation dialog. */
-export type GenerationResult = {
-  matter: ClioMatterRow;
-  documents: Array<{ documentName: string; documentBase64: string }>;
-  missingFields: string[];
-};
-
 export function ClioDocumentGeneration() {
   const [selectedMatter, setSelectedMatter] = useState<ClioMatterRow | null>(null);
-  const [result, setResult] = useState<GenerationResult | null>(null);
-
-  if (result) {
-    return (
-      <GeneratedDocumentsDialog
-        result={result}
-        onDone={() => {
-          setResult(null);
-          setSelectedMatter(null);
-        }}
-      />
-    );
-  }
 
   if (selectedMatter) {
     return (
-      <DocumentPackageSelector
-        matter={selectedMatter}
-        onBack={() => setSelectedMatter(null)}
-        onGenerated={setResult}
-      />
+      <DocumentPackageSelector matter={selectedMatter} onBack={() => setSelectedMatter(null)} />
     );
   }
 
@@ -307,20 +283,21 @@ function ClioClientTable({ onSelect }: { onSelect: (matter: ClioMatterRow) => vo
 function DocumentPackageSelector({
   matter,
   onBack,
-  onGenerated,
 }: {
   matter: ClioMatterRow;
   onBack: () => void;
-  onGenerated: (result: GenerationResult) => void;
 }) {
   const [selected, setSelected] = useState<DocumentId[]>([]);
   const [activePackage, setActivePackage] = useState<string | null>(null);
   const [phase, setPhase] = useState<'idle' | 'generating' | 'sending'>('idle');
+  // What the last press filed, shown in place rather than on its own screen.
+  const [sent, setSent] = useState<{ names: string[]; missingFields: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const isCouple = matter.is_couple;
 
   const choosePackage = (packageId: string) => {
+    setSent(null);
     const pkg = PACKAGES.find((p) => p.id === packageId);
     if (!pkg) return;
     setActivePackage(packageId);
@@ -328,6 +305,7 @@ function DocumentPackageSelector({
   };
 
   const toggleDocument = (id: DocumentId) => {
+    setSent(null);
     // Picking documents by hand means you are no longer on a package.
     setActivePackage(null);
     setSelected((prev) => {
@@ -436,7 +414,9 @@ function DocumentPackageSelector({
         await readJsonResponse(response, `Sending "${doc.documentName}" to Clio`);
       }
 
-      onGenerated({ matter, documents, missingFields });
+      setSent({ names: documents.map((doc) => doc.documentName), missingFields });
+      setSelected([]);
+      setActivePackage(null);
     } catch (err: any) {
       setError(err.message || 'Failed to generate documents');
     } finally {
@@ -519,6 +499,29 @@ function DocumentPackageSelector({
         </section>
       </div>
 
+      {sent && (
+        <div className='nv-docgen-summary nv-docgen-sent'>
+          <div>
+            <strong>
+              Sent to Clio — {sent.names.length} document{sent.names.length === 1 ? '' : 's'} filed
+            </strong>
+          </div>
+          <ul className='nv-docgen-done-list'>
+            {sent.names.map((name) => (
+              <li key={name}>{name}</li>
+            ))}
+          </ul>
+          {sent.missingFields.length > 0 && (
+            <p className='nv-docgen-missing'>
+              {sent.missingFields.length} field
+              {sent.missingFields.length === 1 ? ' was' : 's were'} empty in Clio (
+              {sent.missingFields.join(', ')}) — left as <code>&lt;&lt; … &gt;&gt;</code> to fill
+              in Word.
+            </p>
+          )}
+        </div>
+      )}
+
       {selected.length > 0 && (
         <div className='nv-docgen-summary'>
           <div>
@@ -558,57 +561,6 @@ function DocumentPackageSelector({
               ? 'Sending to Clio…'
               : 'Generate & Send to Clio'}
         </button>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Screen 3: what was filed                                            */
-/* ------------------------------------------------------------------ */
-
-/**
- * Confirmation only. Generating and filing happen together on one press, so
- * by the time this renders the documents are already on the matter in Clio —
- * there is no decision left to make here.
- */
-function GeneratedDocumentsDialog({
-  result,
-  onDone,
-}: {
-  result: GenerationResult;
-  onDone: () => void;
-}) {
-  const { matter, documents, missingFields } = result;
-
-  return (
-    <div className='nv-docgen'>
-      <div className='nv-docgen-done'>
-        <h3 className='nv-docgen-done-title'>Sent to Clio</h3>
-        <p className='nv-docgen-sub'>
-          {documents.length} document{documents.length === 1 ? '' : 's'} filed on{' '}
-          {matter.client_name}.
-        </p>
-
-        <ul className='nv-docgen-done-list'>
-          {documents.map((doc) => (
-            <li key={doc.documentName}>{doc.documentName}</li>
-          ))}
-        </ul>
-
-        {missingFields.length > 0 && (
-          <p className='nv-docgen-missing'>
-            {missingFields.length} field{missingFields.length === 1 ? '' : 's'} were empty in
-            Clio ({missingFields.join(', ')}) — left as <code>&lt;&lt; … &gt;&gt;</code> to fill
-            in Word.
-          </p>
-        )}
-
-        <div className='nv-docgen-done-actions'>
-          <button type='button' className='nv-btn-qualify' onClick={onDone}>
-            Done
-          </button>
-        </div>
       </div>
     </div>
   );

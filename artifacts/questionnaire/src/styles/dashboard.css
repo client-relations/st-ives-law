@@ -2031,3 +2031,18 @@
   flex: 0 0 auto;
   white-space: nowrap;
 }
+
+/* Outcome of the last press, shown in place on the selection screen rather
+   than on a screen of its own. */
+.nv-docgen-sent {
+  border-color: var(--nv-green);
+  background: rgba(42, 107, 74, 0.05);
+}
+
+.nv-docgen-sent strong {
+  color: var(--nv-green);
+}
+
+.nv-docgen-sent .nv-docgen-done-list {
+  margin: 4px 0 0;
+}

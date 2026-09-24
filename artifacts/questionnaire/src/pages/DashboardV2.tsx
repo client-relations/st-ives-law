@@ -883,17 +883,6 @@ export default function DashboardV2() {
           {isCompletedIntake && (
             <div className='nv-modal-actions'>
               <button
-                className='nv-btn-qualify'
-                style={{ background: '#2f7c94' }}
-                disabled={!!busy}
-                onClick={() => {
-                  setDocumentFormId(viewingForm.id);
-                  setShowDocumentGenerator(true);
-                }}
-              >
-                📄 Generate Documents
-              </button>
-              <button
                 className='nv-btn-view'
                 disabled={!!busy}
                 onClick={() => {
