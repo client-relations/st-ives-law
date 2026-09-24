@@ -5,7 +5,6 @@ import {
   DOCUMENTS,
   PACKAGES,
   WILL_DOCUMENT_IDS,
-  completenessFor,
   getDocument,
   missingFieldsFor,
   type DocumentId,
@@ -252,24 +251,16 @@ function ClioClientTable({ onSelect }: { onSelect: (matter: ClioMatterRow) => vo
               <th>Client</th>
               <th>Matter</th>
               <th>Type</th>
-              <th>Details on file</th>
               <th aria-label='Actions' />
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
-              const { filled, total: fieldTotal } = completenessFor(row.custom_fields);
-              const complete = filled === fieldTotal;
               return (
                 <tr key={row.clio_id}>
                   <td className='nv-docgen-client'>{row.client_name || '(unnamed)'}</td>
                   <td>{row.display_number || '—'}</td>
                   <td>{row.is_couple ? 'Couple' : 'Single'}</td>
-                  <td>
-                    <span className={`nv-docgen-badge${complete ? ' complete' : ''}`}>
-                      {filled}/{fieldTotal} fields
-                    </span>
-                  </td>
                   <td className='nv-docgen-actions'>
                     <button type='button' className='nv-btn-qualify' onClick={() => onSelect(row)}>
                       Generate Documents
