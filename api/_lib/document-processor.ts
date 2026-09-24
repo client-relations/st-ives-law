@@ -198,6 +198,9 @@ export async function generateWillFromTemplate(
   // Look for template in multiple locations
   // __dirname in Vercel points to the function directory
   const possiblePaths = [
+    // This file lives in api/_lib, so the templates are one level up. _lib is
+    // excluded from Vercel's route scan, which is why the helper sits here.
+    join(__dirname, '..', 'templates', templateFile),
     join(__dirname, 'templates', templateFile), // api/templates (for Vercel)
     join(__dirname, templateFile), // Direct in api/
     join(process.cwd(), 'api', 'templates', templateFile),

@@ -17,7 +17,7 @@
  * AUTH is shared with the rest of the Clio integration — see clio-client.ts.
  */
 
-import { CLIO_API, getClioAccessToken } from './clio-client';
+import { CLIO_API, getClioAccessToken } from './_lib/clio-client';
 import { requireLawyer, sendError } from './_lib/server.js';
 
 type PutHeader = { name: string; value: string };

@@ -12,7 +12,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { fetchMatters, getClioAccessToken } from './clio-client';
+import { fetchMatters, getClioAccessToken } from './_lib/clio-client';
 
 export const config = {
   // A full pull is one request per 200 matters, plus any rate-limit backoff.

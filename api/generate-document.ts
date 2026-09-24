@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { generateWillFromTemplate } from './document-processor';
+import { generateWillFromTemplate } from './_lib/document-processor';
 import { requireLawyer, sendError } from './_lib/server.js';
 
 export default async function handler(req: any, res: any) {

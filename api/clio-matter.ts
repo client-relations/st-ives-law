@@ -8,7 +8,7 @@
  * acceptable thing to merge into a legal document.
  */
 
-import { fetchMatter, getClioAccessToken, toTemplateVariables } from './clio-client';
+import { fetchMatter, getClioAccessToken, toTemplateVariables } from './_lib/clio-client';
 import { requireLawyer, sendError } from './_lib/server.js';
 
 export default async function handler(req: any, res: any) {
