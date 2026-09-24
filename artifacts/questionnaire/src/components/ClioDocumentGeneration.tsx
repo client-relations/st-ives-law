@@ -441,6 +441,29 @@ function DocumentPackageSelector({
         </div>
       </div>
 
+      {sent && (
+        <div className='nv-docgen-summary nv-docgen-sent'>
+          <div>
+            <strong>
+              Sent to Clio — {sent.names.length} document{sent.names.length === 1 ? '' : 's'} filed
+            </strong>
+          </div>
+          <ul className='nv-docgen-done-list'>
+            {sent.names.map((name) => (
+              <li key={name}>{name}</li>
+            ))}
+          </ul>
+          {sent.missingFields.length > 0 && (
+            <p className='nv-docgen-missing'>
+              {sent.missingFields.length} field
+              {sent.missingFields.length === 1 ? ' was' : 's were'} empty in Clio (
+              {sent.missingFields.join(', ')}) — left as <code>&lt;&lt; … &gt;&gt;</code> to fill
+              in Word.
+            </p>
+          )}
+        </div>
+      )}
+
       <div className='nv-docgen-split'>
         <section className='nv-docgen-pane'>
           <h4 className='nv-docgen-pane-title'>Standard Documents</h4>
@@ -498,29 +521,6 @@ function DocumentPackageSelector({
           })}
         </section>
       </div>
-
-      {sent && (
-        <div className='nv-docgen-summary nv-docgen-sent'>
-          <div>
-            <strong>
-              Sent to Clio — {sent.names.length} document{sent.names.length === 1 ? '' : 's'} filed
-            </strong>
-          </div>
-          <ul className='nv-docgen-done-list'>
-            {sent.names.map((name) => (
-              <li key={name}>{name}</li>
-            ))}
-          </ul>
-          {sent.missingFields.length > 0 && (
-            <p className='nv-docgen-missing'>
-              {sent.missingFields.length} field
-              {sent.missingFields.length === 1 ? ' was' : 's were'} empty in Clio (
-              {sent.missingFields.join(', ')}) — left as <code>&lt;&lt; … &gt;&gt;</code> to fill
-              in Word.
-            </p>
-          )}
-        </div>
-      )}
 
       {selected.length > 0 && (
         <div className='nv-docgen-summary'>
