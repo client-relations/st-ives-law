@@ -98,6 +98,35 @@ export async function processDocxTemplate(
           }
         });
 
+        // Final pass: placeholders Word split across runs.
+        //
+        // The loop above needs the variable name to be contiguous text. Word
+        // breaks a run wherever formatting changes, and someone highlighted the
+        // word "Mr" inside << Matter.Relationships.Mr.Name >> in the TT
+        // templates — so the name itself lands in three separate runs and no
+        // pattern matching the whole key can see it. The title page of every
+        // generated TT will carried the raw placeholder because of it.
+        //
+        // So instead of matching the key, find each << ... >> region, strip the
+        // tags inside to recover the key, and replace the whole region. The
+        // deleted markup is balanced (every </w:t></w:r> removed is paired with
+        // the <w:r>...<w:t> that follows), so the document stays well-formed and
+        // the text inherits the first run's formatting.
+        xmlContent = xmlContent.replace(
+          /&lt;&lt;((?:(?!&lt;&lt;|&gt;&gt;)[\s\S]){0,3000}?)&gt;&gt;/g,
+          (whole: string, inner: string) => {
+            const key = inner.replace(/<[^>]+>/g, '').replace(/\s+/g, '');
+            const value = variables[key];
+            // Unknown or empty stays visible, same as everywhere else.
+            if (value === undefined || value === null || value === '') return whole;
+            console.log(`  Replaced <<${key}>> (split across runs)`);
+            return String(value)
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;');
+          },
+        );
+
         console.log(`After replacements, size: ${xmlContent.length}`);
 
         // Update the file in the ZIP
