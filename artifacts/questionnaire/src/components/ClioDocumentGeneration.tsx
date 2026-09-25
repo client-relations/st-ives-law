@@ -226,7 +226,6 @@ function ClioClientTable({ onSelect }: { onSelect: (matter: ClioMatterRow) => vo
             <tr>
               <th>Client</th>
               <th>Matter</th>
-              <th>Description</th>
               <th aria-label='Actions' />
             </tr>
           </thead>
@@ -236,14 +235,6 @@ function ClioClientTable({ onSelect }: { onSelect: (matter: ClioMatterRow) => vo
                 <tr key={row.clio_id}>
                   <td className='nv-docgen-client'>{row.client_name || '(unnamed)'}</td>
                   <td>{row.display_number || '—'}</td>
-                  {/* What the matter is actually about. Single/Couple was here,
-                      but it only says how many documents come out, and the
-                      selection screen states that anyway. Most of this list is
-                      conveyancing and general advice, so what a lawyer needs at
-                      a glance is whether the matter is estate planning at all. */}
-                  <td className='nv-docgen-desc' title={row.description || ''}>
-                    {row.description || '—'}
-                  </td>
                   <td className='nv-docgen-actions'>
                     <button type='button' className='nv-btn-qualify' onClick={() => onSelect(row)}>
                       Generate Documents
