@@ -1,0 +1,3 @@
+# Build artefacts from generating the evidence document
+node_modules/
+package-lock.json
