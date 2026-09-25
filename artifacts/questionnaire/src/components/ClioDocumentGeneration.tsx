@@ -226,7 +226,7 @@ function ClioClientTable({ onSelect }: { onSelect: (matter: ClioMatterRow) => vo
             <tr>
               <th>Client</th>
               <th>Matter</th>
-              <th>Matter type</th>
+              <th>Description</th>
               <th aria-label='Actions' />
             </tr>
           </thead>
