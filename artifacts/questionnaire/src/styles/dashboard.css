@@ -2062,3 +2062,13 @@
 .nv-docgen-sent.undone strong {
   color: var(--nv-text-l);
 }
+
+/* Matter descriptions run long — "Conveyancing General - Marden No.5 Pty Ltd
+   Sale of..." — so cap the column and let the title attribute carry the rest. */
+.nv-docgen-desc {
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--nv-text-l);
+}
