@@ -68,17 +68,29 @@ export const DOCUMENTS: DocumentDefinition[] = [
     id: 'epa',
     label: 'Enduring Power of Attorney',
     description: 'Appoints an attorney over financial affairs on loss of capacity.',
-    // No precedent in api/templates yet — awaiting it from the firm.
-    templateType: null,
-    requiredFields: [],
+    // Lands Titles Office Form P2, converted from the firm's LEAP copy.
+    templateType: 'epa',
+    // The form cannot be signed with any of these unresolved: it needs at
+    // least one donee, the jointly/severally election, the commencement
+    // election, and the conditions box — which the form requires to read
+    // "Not Applicable" rather than be left empty.
+    requiredFields: ['EpaDonee', 'EpaDoneeCapacity', 'EpaCommencement', 'EpaConditions'],
     price: { single: 295, couple: 590 },
   },
   {
     id: 'acd',
     label: 'Advance Care Directive',
     description: 'Appoints a substitute decision-maker for health and living decisions.',
-    // No precedent in api/templates yet — awaiting it from the firm.
-    templateType: null,
+    // The Advance Care Directives Act 2013 (SA) form, converted from the
+    // firm's LEAP copy.
+    templateType: 'acd',
+    // Empty on purpose. The Act's mandatory Part 1 details — full name, date
+    // of birth, address — are contact data on the Clio record, not custom
+    // fields, and this list is only ever checked against custom fields, so
+    // naming them here reported every matter as missing all three forever.
+    // Substitute decision-makers are absent for a different reason: appointing
+    // one is optional under the Act and a directive appointing nobody is
+    // valid, so flagging AcdSdm1Name would cry wolf on a correct document.
     requiredFields: [],
     price: { single: 495, couple: 990 },
   },

@@ -25,6 +25,12 @@ export default async function handler(req: any, res: any) {
       governing_jurisdiction,
       form_id,
       lawyer_initials,
+      // Advance Care Directive: the client's own details and the witnessing
+      // solicitor. Optional — see the variable map below for where they fall
+      // back to.
+      client_date_of_birth,
+      client_phone,
+      responsible_attorney,
       // Executor fields (for Simple Will)
       exec_initial_name,
       exec_backup,
@@ -61,8 +67,13 @@ export default async function handler(req: any, res: any) {
       });
     }
 
+    // The firm's own switchboard. Named once because it is printed twice —
+    // on the will's letterhead, and as the witness's contact number in Part 7
+    // of the Advance Care Directive.
+    const FIRM_PHONE = '+61 403 007 534';
+
     // Map form variables to actual template field names in the DOCX
-    // Supports both Simple Will and Testamentary Trust Will templates
+    // Supports the will precedents plus the EPA and ACD statutory forms
     const variables: Record<string, string> = {
       // Client names (used by both Simple Will and TT Will).
       // The INDIVIDUAL templates address the testator as Matter.Client.Name
@@ -73,7 +84,7 @@ export default async function handler(req: any, res: any) {
       'Matter.Client.Name': client_name || '',
       'Matter.Relationships.Mr.Name': client_name || '',
       'Matter.Relationships.Mrs.Name': spouse_name || '',
-      'Matter.Client.Address': client_address || '',
+      'Matter.Client.Address': client_address || extraVars['Matter.CustomField.ClientAddress'] || '',
 
       // Executors (Simple Will templates)
       'Matter.CustomField.InitialExecutor': exec_initial_name || '',
@@ -134,8 +145,32 @@ export default async function handler(req: any, res: any) {
       // and were being printed onto the front page of generated wills.
       'Firm.Name': 'St Ives Law',
       'Firm.Address': '3/136 The Parade, Norwood, South Australia 5067',
-      'Firm.Phone': '+61 403 007 534',
+      'Firm.Phone': FIRM_PHONE,
       'Firm.Email': 'sarah@stiveslaw.com.au',
+
+      // Advance Care Directive, Parts 1 and 7.
+      //
+      // Clio's matter endpoint returns the client's *name* and the matter's
+      // custom fields, and nothing else — no contact record, no responsible
+      // attorney (see toTemplateVariables in _lib/clio-client.ts). The ACD
+      // asks for the client's date of birth and phone in Part 1, and for the
+      // witnessing solicitor's name and phone in Part 7, so those read from
+      // matter custom fields where the firm has set them.
+      //
+      // Where it has not, the value stays empty and document-processor leaves
+      // the placeholder visible on the page. That is deliberate for a
+      // statutory form: a blank date-of-birth line invalidates the directive
+      // quietly, whereas << Matter.Client.DateOfBirth >> in the box is
+      // impossible to sign without noticing.
+      'Matter.Client.DateOfBirth':
+        client_date_of_birth || extraVars['Matter.CustomField.ClientDateOfBirth'] || '',
+      'Matter.Client.PhoneNumber':
+        client_phone || extraVars['Matter.CustomField.ClientPhoneNumber'] || '',
+      'Matter.ResponsibleAttorney':
+        responsible_attorney || extraVars['Matter.CustomField.ResponsibleAttorney'] || '',
+      // The witness is whichever of the firm's solicitors signs Part 7, so the
+      // contact number on the form is the firm's either way.
+      'Matter.ResponsibleAttorney.PhoneNumber': FIRM_PHONE,
     };
 
     // Add any extra variables passed in (for expansion to TT2, TT3, etc in future)
@@ -176,7 +211,9 @@ export default async function handler(req: any, res: any) {
     // Return document metadata
     return res.status(200).json({
       success: true,
-      documentName: `Will - ${scenario} (${templateType})`,
+      // The caller renames this per spouse before filing; the fallback should
+      // still not call an Advance Care Directive a will.
+      documentName: `${templateType} - ${scenario}`,
       documentBase64: docxBase64, // Base64 for DOCX download
       documentPdfBase64: pdfBase64, // Base64 for PDF viewer (null if generation failed)
       templateType,

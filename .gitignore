@@ -55,3 +55,6 @@ artifacts/api-server/uploads/
 .env
 .env.*
 !.env.example
+
+# Handover doc — contains live credentials. Share via password manager, never git.
+HANDOVER.md

@@ -134,7 +134,8 @@ const MATTER_FIELDS = [
   'display_number',
   'description',
   'status',
-  'client{id,name,type}',
+  'client{id,name,type,date_of_birth}',
+  'responsible_attorney{id,name}',
   'custom_field_values{id,field_name,field_type,value}',
 ].join(',');
 
@@ -197,6 +198,9 @@ export type ClioMatter = {
   mr_name: string;
   mrs_name: string;
   custom_fields: Record<string, string>;
+  /** The Advance Care Directive prints these; wills do not use them. */
+  client_date_of_birth: string;
+  responsible_attorney: string;
 };
 
 /**
@@ -242,6 +246,8 @@ export function normaliseMatter(raw: any): ClioMatter {
     mr_name: derived.mr,
     mrs_name: derived.mrs,
     custom_fields,
+    client_date_of_birth: String(raw?.client?.date_of_birth || ''),
+    responsible_attorney: String(raw?.responsible_attorney?.name || ''),
   };
 }
 
@@ -309,6 +315,16 @@ export function toTemplateVariables(matter: ClioMatter): Record<string, string> 
   if (matter.display_number) variables['Matter.ClientReferenceNumber'] = matter.display_number;
   if (matter.mr_name) variables['Matter.Relationships.Mr.Name'] = matter.mr_name;
   if (matter.mrs_name) variables['Matter.Relationships.Mrs.Name'] = matter.mrs_name;
+
+  // Contact and user data rather than custom fields — the Advance Care
+  // Directive prints both. Address and phone would need a second call to
+  // /contacts, which Clio will not nest inside a matter query.
+  if (matter.client_date_of_birth) {
+    variables['Matter.Client.DateOfBirth'] = matter.client_date_of_birth;
+  }
+  if (matter.responsible_attorney) {
+    variables['Matter.ResponsibleAttorney'] = matter.responsible_attorney;
+  }
 
   return variables;
 }

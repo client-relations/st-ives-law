@@ -203,7 +203,7 @@ export async function convertDocxToPdf(docxPath: string): Promise<Buffer> {
 }
 
 export async function generateWillFromTemplate(
-  willType: 'simple_will' | 'single_tt_will' | 'multi_tt_will',
+  willType: 'simple_will' | 'single_tt_will' | 'multi_tt_will' | 'epa' | 'acd',
   scenario: 'individual' | 'couple',
   variables: Record<string, string>,
   outputFormat: 'docx' | 'pdf' = 'docx'
@@ -215,6 +215,19 @@ export async function generateWillFromTemplate(
     single_tt_will_couple: 'Single TT Will - Couple (Clio).docx',
     multi_tt_will_individual: 'Multi TT Will - Individual (Clio).docx',
     multi_tt_will_couple: 'Multi TT Will - Couple (Clio).docx',
+
+    // The EPA and the ACD have no couple variant, and should not have one.
+    // A will can name both spouses; these two cannot — an Enduring Power of
+    // Attorney has one donor per instrument (LTO Form P2), and an Advance Care
+    // Directive is the declaration of one person about their own care. So a
+    // couple gets two documents rather than one covering both, which is what
+    // the generation screen already produces: it runs every selected document
+    // once per spouse, swapping Matter.Client.Name each time. Both scenario
+    // keys therefore point at the same single-donor precedent.
+    epa_individual: 'Enduring Power of Attorney - Individual (Clio).docx',
+    epa_couple: 'Enduring Power of Attorney - Individual (Clio).docx',
+    acd_individual: 'Advance Care Directive - Individual (Clio).docx',
+    acd_couple: 'Advance Care Directive - Individual (Clio).docx',
   };
 
   const templateKey = `${willType}_${scenario}`;
