@@ -244,13 +244,48 @@ sidebar, not from a form card.
     Clio matter.
   - **Verify:** For a couple, **both** documents go, not just one.
 
-- [ ] **Packages, and the two that can't be generated**
-  - **Do:** Select **Standard Will Package**.
-  - **Expect:** It ticks three documents but generates only the will — the other
-    two are skipped with "no precedent on file".
-  - **Why:** Enduring Power of Attorney and Advance Care Directive have no template
-    yet. Correct behaviour is to say so, not to silently hand over a third of a
-    package.
+- [ ] **Enduring Power of Attorney**
+  - **Needs:** `EpaDonee` · `EpaDoneeCapacity` · `EpaCommencement` · `EpaConditions`
+  - **Do:** Tick **Enduring Power of Attorney** → generate.
+  - **Expect:** Single → 1 document · Couple → **2 documents, one per person**
+    (not a mirrored pair — an EPA is made by one person about themselves).
+  - **Verify:** Client's name merges. ⚠️ Everything else will show `<< … >>`
+    until the firm creates the Epa* custom fields in Clio — see *Known data gaps*.
+
+- [ ] **Advance Care Directive**
+  - **Do:** Tick **Advance Care Directive** → generate.
+  - **Expect:** Single → 1 document · Couple → 2 documents, one per person.
+  - **Verify:** Client's name merges; the form is the SA statutory one under the
+    Advance Care Directives Act 2013. ⚠️ Substitute decision-maker fields and the
+    client's date of birth / address / phone stay blank until that data is in
+    Clio — see *Known data gaps*.
+
+- [ ] **Full package end to end**
+  - **Do:** Select **Standard Will Package** on a couple matter.
+  - **Expect:** **6 documents** — 2 wills + 2 EPAs + 2 ACDs. Nothing skipped, no
+    "no precedent on file" warning any more.
+  - **Verify:** All six land on the Clio matter. This is the test that proves the
+    package is whole.
+
+---
+
+## Known data gaps (not bugs)
+
+Both new documents generate correctly but come out mostly blank, because the
+data they print is not in Clio yet. Nothing in the code will fix these.
+
+| What stays `<< … >>` | Why | Who fixes it |
+|---|---|---|
+| `EpaDonee`, `EpaDoneeCapacity`, `EpaCommencement`, `EpaConditions`, `EpaDoneeSecond`, `EpaConditionsContinued` | These custom fields **do not exist in Clio**. The firm created the will fields (`InitialExecutor` and friends) but never the EPA ones. | Firm — create them in Clio, per *Instructions for Clio Coded Precedents* |
+| `AcdSdm1Name` … `AcdSdm4Phone`, `AcdHealthCareRefusals` | Same — no such custom fields in Clio. | Firm |
+| `Matter.Client.DateOfBirth`, `Matter.ResponsibleAttorney` | Now fetched from Clio, but **empty on the test matter**. Fill them on the Clio record and they merge. | Whoever maintains the matter |
+| `Matter.Client.Address`, `Matter.Client.PhoneNumber` | Clio refuses these sub-fields nested inside a matter query; they need a second call to `/contacts` that the code does not yet make. | Dev — small follow-up |
+
+Clio *does* hold `epa_attorneys`, `epa_acting_arrangement`, `epa_effective` and the
+`epa_power_*` flags, pushed there by the intake form. Those are the snake_case
+names the intake writes; the template wants the PascalCase ones. Worth asking
+Isuru whether the firm should create the PascalCase fields, or whether the
+generator should map the snake_case ones it already has.
 
 ---
 
@@ -280,5 +315,8 @@ sidebar, not from a form card.
 |---|---|---|---|
 | Standard Will | ✅ yes | 1 doc | 2 docs |
 | Will with Testamentary Trust | ✅ yes | 1 doc | 2 docs |
-| Enduring Power of Attorney | ❌ missing | Blocked — awaiting the precedent from the firm | |
-| Advance Care Directive | ❌ missing | Blocked — the file supplied was a PDF, not the Word source | |
+| Enduring Power of Attorney | ✅ yes | 1 doc | 2 docs (one per person) |
+| Advance Care Directive | ✅ yes | 1 doc | 2 docs (one per person) |
+
+All four templates now exist. EPA and ACD are made by one person, so a couple
+gets one each rather than a mirrored pair.
