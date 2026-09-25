@@ -27,13 +27,51 @@ function fail(res: any, status: number, error: string, details?: unknown) {
 }
 
 export default async function handler(req: any, res: any) {
-  if (req.method !== 'POST') return fail(res, 405, 'Method not allowed');
+  if (req.method !== 'POST' && req.method !== 'DELETE') {
+    return fail(res, 405, 'Method not allowed');
+  }
 
-  // Uploads into the firm's Clio account, so only a signed-in lawyer may call it.
+  // Touches the firm's Clio account, so only a signed-in lawyer may call it.
   try {
     await requireLawyer(req);
   } catch (err) {
     return sendError(res, err);
+  }
+
+  // DELETE undoes a filing. Generating and filing happen on one press now, so
+  // a mis-picked client puts documents on a real matter with no way back —
+  // this is that way back. Clio moves them to the trash rather than destroying
+  // them, so a wrong undo is recoverable too.
+  if (req.method === 'DELETE') {
+    const ids: unknown[] = req.body?.document_ids || [];
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return fail(res, 400, 'Missing required field: document_ids');
+    }
+
+    const auth = await getClioAccessToken();
+    if (!auth.token) return fail(res, 500, 'Clio authentication unavailable', auth.error);
+
+    const removed: number[] = [];
+    for (const id of ids) {
+      const response = await fetch(`${CLIO_API}/documents/${Number(id)}.json`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${auth.token}` },
+      });
+      // 404 means it is already gone, which is the outcome we wanted anyway.
+      if (!response.ok && response.status !== 404) {
+        const text = await response.text().catch(() => '');
+        return fail(res, 502, 'Clio refused to remove a document', {
+          documentId: id,
+          status: response.status,
+          response: text.slice(0, 300),
+          removedBeforeFailure: removed,
+        });
+      }
+      removed.push(Number(id));
+    }
+
+    console.log(`Removed ${removed.length} document(s) from Clio`);
+    return res.status(200).json({ success: true, removed });
   }
 
   const { docxBase64, matter_id, documentName } = req.body || {};

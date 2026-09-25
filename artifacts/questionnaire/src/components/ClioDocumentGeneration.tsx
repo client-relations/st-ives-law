@@ -291,7 +291,13 @@ function DocumentPackageSelector({
   const [activePackage, setActivePackage] = useState<string | null>(null);
   const [phase, setPhase] = useState<'idle' | 'generating' | 'sending'>('idle');
   // What the last press filed, shown in place rather than on its own screen.
-  const [sent, setSent] = useState<{ names: string[]; missingFields: string[] } | null>(null);
+  const [sent, setSent] = useState<{
+    names: string[];
+    missingFields: string[];
+    clioDocumentIds: number[];
+  } | null>(null);
+  const [undoing, setUndoing] = useState(false);
+  const [undone, setUndone] = useState(false);
   const sentRef = useRef<HTMLDivElement>(null);
 
   // It sits below the action button, which is off-screen on a tall selection
@@ -306,6 +312,7 @@ function DocumentPackageSelector({
 
   const choosePackage = (packageId: string) => {
     setSent(null);
+    setUndone(false);
     const pkg = PACKAGES.find((p) => p.id === packageId);
     if (!pkg) return;
     setActivePackage(packageId);
@@ -314,6 +321,7 @@ function DocumentPackageSelector({
 
   const toggleDocument = (id: DocumentId) => {
     setSent(null);
+    setUndone(false);
     // Picking documents by hand means you are no longer on a package.
     setActivePackage(null);
     setSelected((prev) => {
@@ -325,6 +333,25 @@ function DocumentPackageSelector({
         : prev;
       return [...withoutOtherWill, id];
     });
+  };
+
+  const handleUndo = async () => {
+    if (!sent?.clioDocumentIds.length) return;
+    setUndoing(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/send-to-clio-multipart', {
+        method: 'DELETE',
+        headers: await authHeaders(),
+        body: JSON.stringify({ document_ids: sent.clioDocumentIds }),
+      });
+      await readJsonResponse(response, 'Removing the documents from Clio');
+      setUndone(true);
+    } catch (err: any) {
+      setError(err.message || 'Could not remove the documents from Clio');
+    } finally {
+      setUndoing(false);
+    }
   };
 
   const unavailable = useMemo(
@@ -409,6 +436,7 @@ function DocumentPackageSelector({
       // documents are a merge of Clio's own data, and filing them is the only
       // thing the lawyer was going to do next.
       setPhase('sending');
+      const clioDocumentIds: number[] = [];
       for (const doc of documents) {
         const response = await fetch('/api/send-to-clio-multipart', {
           method: 'POST',
@@ -419,10 +447,16 @@ function DocumentPackageSelector({
             documentName: doc.documentName,
           }),
         });
-        await readJsonResponse(response, `Sending "${doc.documentName}" to Clio`);
+        const filed = await readJsonResponse(response, `Sending "${doc.documentName}" to Clio`);
+        // Kept so the filing can be undone; see the Undo button below.
+        if (filed?.clioDocumentId) clioDocumentIds.push(filed.clioDocumentId);
       }
 
-      setSent({ names: documents.map((doc) => doc.documentName), missingFields });
+      setSent({
+        names: documents.map((doc) => doc.documentName),
+        missingFields,
+        clioDocumentIds,
+      });
       setSelected([]);
       setActivePackage(null);
     } catch (err: any) {
@@ -550,18 +584,33 @@ function DocumentPackageSelector({
       </div>
 
       {sent && (
-        <div className='nv-docgen-summary nv-docgen-sent' ref={sentRef}>
+        <div
+          className={`nv-docgen-summary nv-docgen-sent${undone ? ' undone' : ''}`}
+          ref={sentRef}
+        >
           <div>
             <strong>
-              Sent to Clio — {sent.names.length} document{sent.names.length === 1 ? '' : 's'} filed
+              {undone
+                ? `Removed from Clio — ${sent.names.length} document${sent.names.length === 1 ? '' : 's'} deleted`
+                : `Sent to Clio — ${sent.names.length} document${sent.names.length === 1 ? '' : 's'} filed`}
             </strong>
+            {!undone && sent.clioDocumentIds.length > 0 && (
+              <button
+                type='button'
+                className='nv-btn-view nv-docgen-undo'
+                onClick={handleUndo}
+                disabled={undoing}
+              >
+                {undoing ? 'Removing…' : 'Undo'}
+              </button>
+            )}
           </div>
           <ul className='nv-docgen-done-list'>
             {sent.names.map((name) => (
               <li key={name}>{name}</li>
             ))}
           </ul>
-          {sent.missingFields.length > 0 && (
+          {!undone && sent.missingFields.length > 0 && (
             <p className='nv-docgen-missing'>
               {sent.missingFields.length} field
               {sent.missingFields.length === 1 ? ' was' : 's were'} empty in Clio (

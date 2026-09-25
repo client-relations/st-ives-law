@@ -2046,3 +2046,19 @@
 .nv-docgen-sent .nv-docgen-done-list {
   margin: 4px 0 0;
 }
+
+/* Undo sits with the filing headline, not below the list, so it reads as a
+   correction to what just happened rather than another action to take. */
+.nv-docgen-undo {
+  padding: 5px 14px;
+  font-size: 11.5px;
+}
+
+.nv-docgen-sent.undone {
+  border-color: var(--nv-border);
+  background: var(--nv-bg-d);
+}
+
+.nv-docgen-sent.undone strong {
+  color: var(--nv-text-l);
+}
