@@ -46,6 +46,8 @@
   input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
   textarea { min-height: 4rem; resize: vertical; }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+  .row2.align-end { align-items: end; }
+  .form-alert { background: #fdecea; border: 1px solid var(--error); color: var(--error); border-radius: 8px; padding: 0.75rem 1rem; margin-top: 1rem; font-size: 0.9rem; }
   .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 1rem; }
   @media (max-width:560px){ .row2, .row3 { grid-template-columns: 1fr; } }
 
@@ -567,7 +569,7 @@
           <textarea name="low_wishes"></textarea>
         </div>
         <hr>
-        <div class="row2">
+        <div class="row2 align-end">
           <div><label>Preferred signing date</label><input type="date" name="signing_date"></div>
           <div><label>Where should the executed Will be lodged/held? <span class="req">*</span></label>
             <select name="will_custody" required>
@@ -581,6 +583,7 @@
         </div>
       </div>
 
+      <div id="form-alert" class="form-alert hidden" role="alert"></div>
       <div class="nav-bar">
         <button type="button" id="back-btn" class="nav-btn" disabled>← Back</button>
         <div class="steps-dots" id="steps-dots"></div>
@@ -767,17 +770,53 @@ function prefillFromEarlierStages(result) {
   });
 }
 
+// Set once the saved answers are loaded. Until then nothing is saved, so a
+// failed load can never overwrite the client's real answers with a blank form.
+let loadOk = false;
+
+const LOAD_FAILED_MESSAGE = "We couldn't load your saved answers, so this form is paused to protect them. " +
+  'Please refresh the page. If this keeps happening, contact St Ives Law.';
+
+function showFormAlert(message) {
+  const el = document.getElementById('form-alert');
+  el.textContent = message;
+  el.classList.toggle('hidden', !message);
+  if (message) el.scrollIntoView({ block: 'center' });
+}
+
+// Rebuild the add-another rows (assets, gifts, attorneys, ...) from saved data.
+// Without this, resuming the form showed empty lists and the next save wiped them.
+function restoreRepeatableLists(intakeData) {
+  Object.keys(templates).forEach(key => {
+    const rows = intakeData[key];
+    if (!Array.isArray(rows)) return;
+    const list = document.getElementById(key + '-list');
+    if (!list) return;
+    list.querySelectorAll('.repeat-item').forEach(item => item.remove());
+    rows.slice(0, REPEAT_LIMITS[key] || rows.length).forEach(saved => {
+      const row = templates[key]();
+      row.querySelectorAll('[data-field]').forEach(field => {
+        const value = saved && saved[field.getAttribute('data-field')];
+        if (value != null) field.value = value;
+      });
+      list.appendChild(row);
+    });
+  });
+}
+
 async function loadSavedForm() {
   const params = new URLSearchParams(window.location.search);
   const leadId = params.get('lead_id');
 
   if (!leadId) {
+    loadOk = true;
     return; // Will render after initialization
   }
 
   try {
-    const response = await fetch(`/api/get-form?lead_id=${leadId}`);
+    const response = await fetch(`/api/get-form?lead_id=${encodeURIComponent(leadId)}`);
     if (!response.ok) {
+      showFormAlert(LOAD_FAILED_MESSAGE);
       return;
     }
 
@@ -790,6 +829,7 @@ async function loadSavedForm() {
       // already holds (screening record + inquiry form) so they are not asked
       // to retype details they have already given.
       prefillFromEarlierStages(result);
+      loadOk = true;
       return;
     }
 
@@ -814,27 +854,35 @@ async function loadSavedForm() {
         });
       }
 
-      // Handle text/number inputs and selects
-      const inputs = document.querySelectorAll(`input[name="${fieldName}"], select[name="${fieldName}"], textarea[name="${fieldName}"]`);
+      // Handle text inputs, selects and textareas. Radios and checkboxes are
+      // excluded: setting their .value would change what they submit (e.g. both
+      // scenario radios becoming "Individual").
+      const inputs = document.querySelectorAll(
+        `input[name="${fieldName}"]:not([type="radio"]):not([type="checkbox"]), select[name="${fieldName}"], textarea[name="${fieldName}"]`);
       inputs.forEach(input => {
         input.value = value || '';
       });
     });
 
-    // Trigger change events to show conditional fields
-    document.querySelectorAll('input[type="radio"], input[type="checkbox"], select').forEach(el => {
-      el.dispatchEvent(new Event('change'));
+    restoreRepeatableLists(intakeData);
+
+    // Trigger change events to show conditional fields. They bubble so the
+    // listeners on containers (e.g. the document-type group) see them too.
+    document.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"], select').forEach(el => {
+      el.dispatchEvent(new Event('change', { bubbles: true }));
     });
+    syncAcdStep();
+    syncPersonalBelongings();
 
     // Resume from saved step
     if (metadata.current_step) {
       current = Math.min(metadata.current_step, total - 1);
-      console.log(`Resuming from step ${current + 1}`);
     }
 
-    console.log('Form data loaded and populated');
+    loadOk = true;
   } catch (error) {
     console.error('Error loading form:', error);
+    showFormAlert(LOAD_FAILED_MESSAGE);
   }
 }
 
@@ -943,13 +991,19 @@ nextBtn.addEventListener('click', async () => {
 
   if (!validateStep(steps[current])) return;
 
-  // Auto-save before moving to next step
-  if (params.get('lead_id')) {
-    await autoSaveForm(current + 1);
-  }
+  // The last step is saved once, by submitForm, as the final submission.
+  if (current === total - 1) { submitForm(); return; }
 
-  if (current < total - 1) { current++; render(); return; }
-  submitForm();
+  // Save before moving on; stay on this step if the save fails.
+  if (params.get('lead_id')) {
+    nextBtn.disabled = true;
+    const saved = await autoSaveForm(current + 1);
+    nextBtn.disabled = false;
+    if (!saved.ok) { showFormAlert(saved.message); return; }
+  }
+  showFormAlert('');
+
+  current++; render();
 });
 
 dotsWrap.addEventListener('click', (e) => {
@@ -1458,16 +1512,16 @@ function generateWillText(d){
 }
 
 // ---- auto-save to dashboard ----
-async function autoSaveForm(stepNumber) {
+const SAVE_FAILED_MESSAGE = "Your answers couldn't be saved. Please check your connection and try again. " +
+  'If this keeps happening, contact St Ives Law.';
+
+/** Save the form. Returns { ok, message } so callers can tell the client when it fails. */
+async function autoSaveForm(stepNumber, { final = false } = {}) {
   const params = new URLSearchParams(window.location.search);
   const leadId = params.get('lead_id');
 
-  console.log('[AUTO-SAVE] Starting auto-save for step', stepNumber, 'lead_id:', leadId);
-
-  if (!leadId) {
-    console.log('[AUTO-SAVE] No lead_id in URL, skipping auto-save');
-    return;
-  }
+  if (!leadId) return { ok: true, message: '' };
+  if (!loadOk) return { ok: false, message: LOAD_FAILED_MESSAGE };
 
   try {
     const data = collectData();
@@ -1476,7 +1530,7 @@ async function autoSaveForm(stepNumber) {
       lead_id: leadId,
       form_data: data,
       step: stepNumber,
-      form_type: 'intake',
+      final,
     };
 
     const response = await fetch('/api/submit-intake', {
@@ -1485,20 +1539,16 @@ async function autoSaveForm(stepNumber) {
       body: JSON.stringify(payload),
     });
 
-    console.log('[AUTO-SAVE] Response status:', response.status);
-
     if (!response.ok) {
-      const error = await response.json();
-      console.error('[AUTO-SAVE] Failed:', error);
-      return false;
+      const body = await response.json().catch(() => ({}));
+      console.error('[AUTO-SAVE] Failed:', response.status, body);
+      // 409s carry a message meant for the client (e.g. the firm has locked the form).
+      return { ok: false, message: response.status === 409 && body.error ? body.error : SAVE_FAILED_MESSAGE };
     }
-
-    const result = await response.json();
-    console.log('[AUTO-SAVE] Success! Step', stepNumber, 'Progress:', result.progress_pct + '%');
-    return true;
+    return { ok: true, message: '' };
   } catch (error) {
     console.error('[AUTO-SAVE] Error:', error);
-    return false;
+    return { ok: false, message: SAVE_FAILED_MESSAGE };
   }
 }
 
@@ -1585,9 +1635,18 @@ function submitForm(){
   const data = collectData();
 
   if (leadId) {
-    // Dashboard mode: save to the API, then confirm.
-    autoSaveForm(14).then(success => {
-      if (success) {
+    // Dashboard mode: save to the API as the final submission, then confirm.
+    nextBtn.disabled = true;
+    nextBtn.textContent = 'Submitting…';
+    autoSaveForm(total, { final: true }).then(({ ok, message }) => {
+      if (!ok) {
+        nextBtn.disabled = false;
+        render();
+        showFormAlert(message);
+        return;
+      }
+      showFormAlert('');
+      {
         // The client has finished; that is all they need to be told.
         //
         // This used to print a plain-text mock will assembled in the browser by

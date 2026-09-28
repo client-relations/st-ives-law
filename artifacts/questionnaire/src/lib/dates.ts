@@ -92,3 +92,9 @@ export function formatDbTimestamp(value: string | null | undefined): string {
   const date = parseDbTimestamp(value);
   return date ? date.toLocaleString('en-AU') : '';
 }
+
+/** Format a database timestamp as a date only (no time), in the lawyer's local calendar. */
+export function formatDbDate(value: string | null | undefined): string {
+  const date = parseDbTimestamp(value);
+  return date ? date.toLocaleDateString('en-AU') : '';
+}

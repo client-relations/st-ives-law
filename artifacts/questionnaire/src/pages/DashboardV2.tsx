@@ -16,8 +16,7 @@ import {
   errorMessage,
   type ActionResult,
 } from '../lib/dashboard-actions';
-import { ALL_DATES, formatDbTimestamp, matchesDateFilter, type DateFilter, type DatePreset } from '../lib/dates';
-import { DocumentSelection, DocumentEditor } from '../components/DocumentGenerator';
+import { ALL_DATES, formatDbDate, formatDbTimestamp, matchesDateFilter, type DateFilter, type DatePreset } from '../lib/dates';
 import { ClioDocumentGeneration } from '../components/ClioDocumentGeneration';
 import '../styles/dashboard.css';
 
@@ -68,6 +67,15 @@ function mapForm(f: any) {
     progress: f.progress_pct || 0,
     personResponsible: f.person_responsible || '',
   };
+}
+
+/** True when the client stopped at Q1 of the enquiry (e.g. "Someone has died") rather than completing it. */
+function isEarlyExit(form: any): boolean {
+  let data = form?.form_data;
+  if (typeof data === 'string') {
+    try { data = JSON.parse(data); } catch { return false; }
+  }
+  return data?.inquiry?.early_exit === true;
 }
 
 function matchesSearch(item: any, query: string) {
@@ -123,11 +131,6 @@ export default function DashboardV2() {
 
   // Send back modal
   const [sendBackFormId, setSendBackFormId] = useState<string | null>(null);
-
-  // Document generation
-  const [showDocumentGenerator, setShowDocumentGenerator] = useState(false);
-  const [showDocumentEditor, setShowDocumentEditor] = useState(false);
-  const [documentFormId, setDocumentFormId] = useState<string | null>(null);
 
   // Each page owns its own search and filters.
   const [overviewSearch, setOverviewSearch] = useState({ leads: '', intake: '', completed: '' });
@@ -190,16 +193,6 @@ export default function DashboardV2() {
       mutationObserver?.disconnect();
     };
   }, [showScreeningModal]);
-
-  // DocumentSelection announces a finished generation; switch to the editor.
-  useEffect(() => {
-    const handleDocumentGenerated = () => {
-      setShowDocumentGenerator(false);
-      setShowDocumentEditor(true);
-    };
-    window.addEventListener('documentGenerated', handleDocumentGenerated);
-    return () => window.removeEventListener('documentGenerated', handleDocumentGenerated);
-  }, []);
 
   const handleScreenScrollHint = () => {
     const scrollEl = screeningScrollRef.current;
@@ -295,7 +288,6 @@ export default function DashboardV2() {
 
   const viewingLead = viewingLeadId ? leads.find(l => l.id === viewingLeadId) || null : null;
   const viewingForm = viewingFormId ? forms.find(f => f.id === viewingFormId) || null : null;
-  const documentForm = documentFormId ? forms.find(f => f.id === documentFormId) || null : null;
 
   // Close a modal whose record was removed or actioned elsewhere.
   useEffect(() => {
@@ -369,7 +361,7 @@ export default function DashboardV2() {
     setShareLink(publicLink(`/lead-inquiry?lead_id=${formId}`));
     setNotice(email.ok
       ? { kind: 'success', text: `Lead qualified. ${email.detail}` }
-      : { kind: 'error', text: `Lead qualified, but the inquiry email was NOT sent: ${email.detail}\nShare the link with the client directly.` });
+      : { kind: 'error', text: `Lead qualified, but the enquiry email was NOT sent: ${email.detail}\nShare the link with the client directly.` });
   });
 
   const handleRejectLead = (leadId: string) => runAction('reject', () => rejectLead(leadId), () => setViewingLeadId(null));
@@ -438,7 +430,7 @@ export default function DashboardV2() {
       referralType: lead.referralType,
       billingType: lead.billing_type || '',
       personResponsible: lead.personResponsible,
-      createdAt: formatDbTimestamp(lead.created_at),
+      createdAt: formatDbDate(lead.created_at),
       status: lead.status || 'pending',
     };
   };
@@ -777,10 +769,15 @@ export default function DashboardV2() {
                     {formData.inquiry?.inquiry_reason && (
                       <div><strong>Reason:</strong> {formData.inquiry.inquiry_reason}</div>
                     )}
+                    {formData.inquiry?.early_exit === true && (
+                      <div style={{ marginTop: '6px', color: '#8a5a00' }}>
+                        <strong>Early exit:</strong> the client stopped at question 1, so the rest of the enquiry was not asked. Contact them directly.
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div style={{ marginBottom: '12px', padding: '12px', background: '#fff3cd', borderRadius: '4px', fontSize: '12px', color: '#666' }}>
-                    No inquiry data yet
+                    No enquiry data yet
                   </div>
                 )}
 
@@ -915,6 +912,12 @@ export default function DashboardV2() {
           <span className='nv-chip-dot' />
           {form.personResponsible || 'Unassigned'}
         </span>
+        {isEarlyExit(form) && (
+          <span className='nv-chip warm' title='The client stopped at question 1. Contact them directly.'>
+            <span className='nv-chip-dot' />
+            Early exit
+          </span>
+        )}
         {!INTAKE_STATUSES.includes(form.status) && (
           <span className='nv-chip danger'>
             <span className='nv-chip-dot' />
@@ -1344,7 +1347,7 @@ export default function DashboardV2() {
                             )}
                             <span className='nv-chip'>
                               <span className='nv-chip-dot' />
-                              {formatDbTimestamp(lead.created_at)}
+                              {formatDbDate(lead.created_at)}
                             </span>
                           </div>
                         </div>
@@ -1487,71 +1490,6 @@ export default function DashboardV2() {
 
         {/* Form Link Modal */}
         {renderLinkModal()}
-
-        {/* Document Generator */}
-        {showDocumentGenerator && documentFormId && (
-          <div className='nv-modal-overlay' onClick={() => setShowDocumentGenerator(false)}>
-            <div
-              className='nv-modal'
-              style={{ maxWidth: '1200px' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className='nv-modal-head'>
-                <div className='nv-modal-head-main'>
-                  <p className='nv-modal-eyebrow'>Generate Documents</p>
-                  <h2 className='nv-modal-title'>Select & Customize Documents</h2>
-                </div>
-                <button
-                  type='button'
-                  className='nv-modal-close'
-                  onClick={() => setShowDocumentGenerator(false)}
-                  aria-label='Close'
-                >
-                  ×
-                </button>
-              </div>
-              <div className='nv-modal-body' style={{ maxHeight: '80vh', overflowY: 'auto' }}>
-                <DocumentSelection
-                  formId={documentFormId}
-                  intakeData={documentForm?.form_data?.intake || {}}
-                  onClose={() => setShowDocumentGenerator(false)}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Document Editor */}
-        {showDocumentEditor && documentFormId && (
-          <div className='nv-modal-overlay' onClick={() => setShowDocumentEditor(false)}>
-            <div
-              className='nv-modal'
-              style={{ maxWidth: '1400px' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className='nv-modal-head'>
-                <div className='nv-modal-head-main'>
-                  <p className='nv-modal-eyebrow'>Edit Documents</p>
-                  <h2 className='nv-modal-title'>Document Editor</h2>
-                </div>
-                <button
-                  type='button'
-                  className='nv-modal-close'
-                  onClick={() => setShowDocumentEditor(false)}
-                  aria-label='Close'
-                >
-                  ×
-                </button>
-              </div>
-              <div className='nv-modal-body' style={{ maxHeight: '80vh', overflowY: 'auto' }}>
-                <DocumentEditor
-                  formId={documentFormId}
-                  onClose={() => setShowDocumentEditor(false)}
-                />
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Send Back Modal */}
         {sendBackFormId && (
