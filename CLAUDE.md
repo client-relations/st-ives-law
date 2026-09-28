@@ -11,7 +11,7 @@ A React-based dashboard for lawyers to manage client intake from screening throu
 ### Key Features
 
 1. **Inquiry Form** - Lead-inquiry.html for initial 8-question screening with early-exit handling
-2. **Intake Form** - 14-step estate planning questionnaire (client, assets, executors, beneficiaries, etc.)
+2. **Intake Form** - 15-step estate planning questionnaire (client, assets, executors, beneficiaries, etc.)
 3. **Document Generation** - Auto-generate DOCX from intake form data + optional PDF preview
 4. **Lawyer Dashboard** - View completed forms, download/preview generated documents
 5. **Webhook Integration** - Form completion triggers Make.com for email confirmations
@@ -226,7 +226,7 @@ completed_intake → submitted (TBD - button not shown yet)
 - **Document Generation**: API endpoint triggers DOCX generation with template variables
 
 ### Webhook Flow
-1. Client completes 14-step intake form
+1. Client completes 15-step intake form
 2. Form posts to Make.com webhook
 3. Make.com triggers confirmation email
 4. Form data stored in Supabase
@@ -235,7 +235,7 @@ completed_intake → submitted (TBD - button not shown yet)
 7. API calls `/api/generate-document` with mapped template variables
 8. DOCX generated and returned with optional PDF preview
 
-### Intake Form (14 Steps)
+### Intake Form (15 Steps)
 Located at: `C:\Users\yxzu\Desktop\st ives\intake-form-site (2)\index.html`
 
 1. Scenario & Client Details (Single/Couple, name, address, state, spouse info)
@@ -250,8 +250,9 @@ Located at: `C:\Users\yxzu\Desktop\st ives\intake-form-site (2)\index.html`
 10. Special Disability Trust (yes/no, beneficiary)
 11. Guardianship (minor children, guardians)
 12. Funeral Wishes (organ donation, burial/cremation preferences)
-13. Enduring Power of Attorney (attorneys, arrangements, additional powers)
-14. Letter of Wishes & Custody (signing date, storage location, register)
+13. Enduring Power of Attorney (attorneys, arrangements, additional powers, conditions)
+14. Advance Care Directive (up to 4 substitute decision-makers, health care refusals; shown when ACD ticked in step 3)
+15. Letter of Wishes & Custody (signing date, storage location, register)
 
 ### Webhook Payload Structure
 ```json

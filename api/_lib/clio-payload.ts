@@ -53,17 +53,17 @@ function formatAssets(assets: any[], type: 'real_estate' | 'bank' | 'super'): st
 
   if (type === 'real_estate') {
     return 'Real Estate:\n' + assets
-      .map(a => `• ${a.address} (${a.type}) - $${a.value}`)
+      .map(a => `• ${a.address} (${a.type}) - $${a.value}${a.mortgage ? ` - Mortgage: ${a.mortgage}` : ''}`)
       .join('\n');
   }
   if (type === 'bank') {
     return 'Bank Accounts:\n' + assets
-      .map(a => `• ${a.institution} (${a.type}) - $${a.balance}`)
+      .map(a => `• ${a.institution} (${a.type}${a.holder ? `, ${a.holder}` : ''}) - $${a.balance}`)
       .join('\n');
   }
   if (type === 'super') {
     return 'Superannuation:\n' + assets
-      .map(a => `• ${a.fund_name} - $${a.balance}`)
+      .map(a => `• ${a.fund_name}${a.member_number ? ` (Member ${a.member_number})` : ''} - $${a.balance}${a.nominated_beneficiary ? ` - Nominated: ${a.nominated_beneficiary}` : ''}`)
       .join('\n');
   }
   return '';
@@ -242,6 +242,27 @@ export function buildClioPayload(intakeData: any, form: any, metadata: any) {
     address: a['Address'],
   }));
 
+  // Advance Care Directive substitute decision-makers. Clio has four fixed
+  // slots (AcdSdm1..4 name/dob/address/phone); the form caps the list at four.
+  const sdms = (intakeData.sdm || []).slice(0, 4).map((p: any) => ({
+    name: p['Full name'] || '',
+    dob: p['Date of birth'] || '',
+    address: p['Address'] || '',
+    phone: p['Phone'] || '',
+  }));
+  const acdFields: Record<string, string> = {};
+  for (let i = 0; i < 4; i++) {
+    const p = sdms[i] || { name: '', dob: '', address: '', phone: '' };
+    acdFields[`acd_sdm${i + 1}_name`] = p.name;
+    acdFields[`acd_sdm${i + 1}_dob`] = p.dob;
+    acdFields[`acd_sdm${i + 1}_address`] = p.address;
+    acdFields[`acd_sdm${i + 1}_phone`] = p.phone;
+  }
+
+  // The EPA form has two 255-character lines for conditions on the attorney's
+  // powers; a longer answer continues onto the second line instead of being cut.
+  const epaConditions: string = String(intakeData.epa_conditions || '');
+
   // ===== DOCUMENTS =====
   const docsRequired = {
     will: !!intakeData.doc_will,
@@ -413,6 +434,12 @@ export function buildClioPayload(intakeData: any, form: any, metadata: any) {
     // SEVERALLY TO BE MY ATTORNEY(S)"), so the client's choice is set to match.
     epa_donee_capacity: (intakeData.epa_jointly || '').toUpperCase(),
     epa_commencement: (intakeData.epa_effective || '').toUpperCase(),
+    epa_conditions: epaConditions.slice(0, CLIO_TEXT_FIELD_MAX),
+    epa_conditions_continued: epaConditions.slice(CLIO_TEXT_FIELD_MAX, CLIO_TEXT_FIELD_MAX * 2),
+
+    // Advance Care Directive (Clio: AcdSdm1..4 + AcdHealthCareRefusals).
+    ...acdFields,
+    acd_health_care_refusals: intakeData.acd_health_care_refusals || '',
 
     // The beneficiary summary, percentages included, now that Beneficiary1
     // holds a name. Make has always mapped this key; nothing sent it before.

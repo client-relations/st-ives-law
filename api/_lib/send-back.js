@@ -58,7 +58,10 @@ const FIELD_LABELS = {
   'epa_effective': 'EPA Effectiveness',
   'signing_date': 'Document Signing Date',
   'will_custody': 'Will Storage Location',
-  'low_wishes': 'Letter of Wishes Content'
+  'low_wishes': 'Letter of Wishes Content',
+  'epa_conditions': 'EPA Conditions / Limitations',
+  'sdm': 'Advance Care Directive Substitute Decision-Makers',
+  'acd_health_care_refusals': 'Advance Care Directive Health Care Refusals'
 };
 
 export function generateMissingFieldsMessage(missingFields) {

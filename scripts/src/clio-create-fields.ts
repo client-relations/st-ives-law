@@ -62,6 +62,16 @@ const FIELDS: FieldSpec[] = [
   { name: 'calamity_beneficiaries', type: 'text_area' },
   { name: 'trust_fund_1', type: 'text_area' },
   { name: 'trust_fund_2', type: 'text_area' },
+  // Intake answers the payload already sends but that had no Clio field, so
+  // Make dropped them. The first two are testamentary instructions; the rest
+  // are lead metadata from the screening form.
+  { name: 'former_partner_exclude', type: 'text_line' },
+  { name: 'foreign_persons_excluded', type: 'text_line' },
+  { name: 'trust_fund_structure', type: 'text_line' },
+  { name: 'lead_type', type: 'text_line' },
+  { name: 'region', type: 'text_line' },
+  { name: 'person_responsible', type: 'text_line' },
+  { name: 'submission_date', type: 'text_line' },
 ];
 
 const tokenResponse = await fetch(`${BASE}/oauth/token`, {

@@ -35,7 +35,12 @@ const tokenResponse = await fetch(`${BASE}/oauth/token`, {
 if (!tokenResponse.ok) throw new Error(`Clio refused the refresh token (${tokenResponse.status})`);
 const token = ((await tokenResponse.json()) as { access_token: string }).access_token;
 
-const STAMP = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
+// Date plus time-of-day, so two runs on the same day cannot share a name.
+// The matter lookup below takes the first name match, and a stale matter
+// from an earlier run would otherwise be read before Make creates the new one.
+const STAMP = new Date()
+  .toLocaleString('en-AU', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+  .replace(/[ ,:]+/g, '-');
 
 const common = {
   scenario: 'Single',
@@ -58,6 +63,18 @@ const common = {
   epa_effective: 'Only upon legal incapacity',
   doc_will: true,
   doc_epa: true,
+  former_partner_exclude: 'Xavier Former-Partner',
+  fpe_trust: 'on',
+  realestate: [{ Address: '1 Test Street, Norwood', 'Estimated value': '900000', 'Tenancy type': 'Joint tenants', 'Mortgage details': 'ANZ $200k' }],
+  bank: [{ Bank: 'ANZ', 'Account type': 'Savings', 'Held jointly or individually': 'Joint', Value: '15000' }],
+  super: [{ 'Fund name': 'AustralianSuper', 'Member number': 'M123', Value: '250000', 'Nominated beneficiary': 'Spouse' }],
+  doc_acd: true,
+  epa_conditions: 'My attorney may not sell my home while I live in it. '.repeat(6).trim(), // ~300 chars: spills onto the second line
+  acd_health_care_refusals: 'No blood transfusions',
+  sdm: [
+    { 'Full name': 'Sam Sdm-One', 'Date of birth': '01/02/1960', Address: '4 Parade, Norwood SA 5067', Phone: '0400 000 001' },
+    { 'Full name': 'Sue Sdm-Two', 'Date of birth': '03/04/1962', Address: '5 Parade, Norwood SA 5067', Phone: '0400 000 002' },
+  ],
 };
 
 const cases = [
@@ -96,7 +113,19 @@ const MAP: Record<string, string> = {
   calamity_beneficiaries: 'calamity_beneficiaries', trust_fund_1: 'trust_fund_1', trust_fund_2: 'trust_fund_2',
   beneficiaries_direct: 'beneficiaries_direct',
   InitialExecutor: 'executor_primary_name', BackupExecutor: 'executor_backup_name', FurtherBackupExecutor: 'executor_tertiary_name',
+  former_partner_exclude: 'former_partner_exclude', foreign_persons_excluded: 'foreign_persons_excluded',
+  trust_fund_structure: 'trust_fund_structure', lead_type: 'lead_type', region: 'region',
+  person_responsible: 'person_responsible', submission_date: 'submission_date',
+  assets_real_estate: 'assets_real_estate', assets_bank: 'assets_bank', assets_super: 'assets_super',
+  EpaConditions: 'epa_conditions', EpaConditionsContinued: 'epa_conditions_continued',
+  AcdHealthCareRefusals: 'acd_health_care_refusals',
 };
+for (const n of [1, 2, 3, 4]) {
+  Object.assign(MAP, {
+    [`AcdSdm${n}Name`]: `acd_sdm${n}_name`, [`AcdSdm${n}Dob`]: `acd_sdm${n}_dob`,
+    [`AcdSdm${n}Address`]: `acd_sdm${n}_address`, [`AcdSdm${n}Phone`]: `acd_sdm${n}_phone`,
+  });
+}
 for (const n of [1, 2]) {
   Object.assign(MAP, {
     [`InitialTrusteeTt${n}`]: `tt${n}_trustee_initial`, [`BackupTrusteeTt${n}`]: `tt${n}_trustee_backup`,

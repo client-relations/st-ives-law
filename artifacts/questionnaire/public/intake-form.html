@@ -517,9 +517,27 @@
           <label class="inline"><input type="checkbox" name="epa_power_spouse"> Attorney may confer benefits on spouse (couple matters)</label>
           <label class="inline"><input type="checkbox" name="epa_power_digital"> Attorney may access/manage Digital Assets and Accounts</label>
         </div>
+        <label style="margin-top:1rem;">Conditions or limitations on the attorney's powers (optional)</label>
+        <p class="step-note">For example: "My attorney may not sell my home while I am living in it." Leave blank if there are none.</p>
+        <textarea name="epa_conditions" maxlength="510"></textarea>
       </div>
 
       <!-- STEP 14 -->
+      <div class="step" data-title="Advance Care Directive">
+        <p class="step-title">Advance Care Directive</p>
+        <p class="step-note hidden" id="acd-not-selected">You did not tick "Advance Care Directive" under Document Type. Go back and tick it if you want one, otherwise press Next.</p>
+        <div id="acd-block">
+          <label>Substitute decision-maker(s)</label>
+          <p class="step-note">The people you appoint to make health care and personal decisions if you cannot. Up to four, in order of preference.</p>
+          <div id="sdm-list"></div>
+          <button type="button" class="add-btn" data-add="sdm">+ Add substitute decision-maker</button>
+          <label style="margin-top:1rem;">Health care you refuse or do not want (optional)</label>
+          <p class="step-note">Any treatment you would refuse, and the circumstances. Leave blank if none.</p>
+          <textarea name="acd_health_care_refusals" maxlength="255"></textarea>
+        </div>
+      </div>
+
+      <!-- STEP 15 -->
       <div class="step" data-title="Letter of Wishes, Signing &amp; Custody">
         <p class="step-title">Letter of Wishes, Signing &amp; Custody</p>
         <label>Does the client want a non-binding Letter of Wishes prepared? <span class="req">*</span></label>
@@ -603,7 +621,16 @@ const templates = {
     {label:'Name', type:'text'},
     {label:'Reason', type:'text'},
   ]),
+  // Advance Care Directive substitute decision-makers. Clio holds four fixed
+  // slots (AcdSdm1..4), so the add button stops at four.
+  sdm: () => fieldRow([
+    {label:'Full name', type:'text'},
+    {label:'Date of birth', type:'text'},
+    {label:'Address', type:'text'},
+    {label:'Phone', type:'text'},
+  ]),
 };
+const REPEAT_LIMITS = { sdm: 4 };
 
 function fieldRow(fields){
   const div = document.createElement('div');
@@ -621,7 +648,9 @@ function fieldRow(fields){
 document.querySelectorAll('[data-add]').forEach(btn => {
   btn.addEventListener('click', () => {
     const key = btn.getAttribute('data-add');
-    document.getElementById(key + '-list').appendChild(templates[key]());
+    const list = document.getElementById(key + '-list');
+    if (REPEAT_LIMITS[key] && list.querySelectorAll('.repeat-item').length >= REPEAT_LIMITS[key]) return;
+    list.appendChild(templates[key]());
   });
 });
 
@@ -672,7 +701,18 @@ bindCountSelect('calamity-count', '.calamity-row');
 // ---- doc type: at least one required ----
 document.getElementById('doc-type-group').addEventListener('change', () => {
   document.getElementById('doc-type-error').style.display = 'none';
+  syncAcdStep();
 });
+
+// The Advance Care Directive step only asks its questions when that document
+// was ticked under Document Type; otherwise it explains itself and lets the
+// client move on.
+function syncAcdStep(){
+  const wanted = document.querySelector('input[name=doc_acd]').checked;
+  document.getElementById('acd-block').classList.toggle('hidden', !wanted);
+  document.getElementById('acd-not-selected').classList.toggle('hidden', wanted);
+}
+syncAcdStep();
 
 // ---- load saved form data on page load ----
 /**
@@ -924,7 +964,7 @@ function collectData(){
       data[key] = value;
     }
   });
-  ['realestate','bank','super','gift','attorney','exclusion'].forEach(key => {
+  ['realestate','bank','super','gift','attorney','exclusion','sdm'].forEach(key => {
     const items = [];
     document.querySelectorAll(`#${key}-list .repeat-item`).forEach(item => {
       const fields = item.querySelectorAll('[data-field]');
@@ -1235,6 +1275,7 @@ function generateWillText(d){
     if (d.epa_power_digital) lines.push('— Granted power over digital assets');
     if (d.epa_power_charge) lines.push('— Granted power to charge for services');
     if (d.epa_power_conflict) lines.push('— Granted power despite conflicts of interest');
+    if (d.epa_conditions) lines.push(`Conditions / limitations: ${d.epa_conditions}`);
     lines.push('');
   } else {
     lines.push(`${num()}. Enduring Power of Attorney — Financial`);
