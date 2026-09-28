@@ -4,14 +4,6 @@ import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
-// Dynamic imports - try docxtemplater first, fall back to simple replacement
-let AdmZip: any;
-try {
-  AdmZip = require('adm-zip');
-} catch (e) {
-  console.warn('adm-zip not available, will use fallback');
-}
-
 // Simple but reliable DOCX variable replacement using JSZip
 export async function processDocxTemplate(
   templatePath: string,
@@ -244,26 +236,14 @@ export async function generateWillFromTemplate(
     throw new Error(`Unknown template: ${templateKey}`);
   }
 
-  // Look for template in multiple locations
-  // __dirname in Vercel points to the function directory
+  // Templates live in api/templates only (vercel.json bundles them with the
+  // functions).
   const possiblePaths = [
     // This file lives in api/_lib, so the templates are one level up. _lib is
     // excluded from Vercel's route scan, which is why the helper sits here.
     join(__dirname, '..', 'templates', templateFile),
-    join(__dirname, 'templates', templateFile), // api/templates (for Vercel)
-    join(__dirname, templateFile), // Direct in api/
     join(process.cwd(), 'api', 'templates', templateFile),
-    join(process.cwd(), 'public', 'templates', templateFile),
-    join(process.cwd(), 'templates', templateFile),
   ];
-
-  // Add local development paths
-  if (!process.env.VERCEL) {
-    possiblePaths.push(
-      join(process.cwd(), '..', 'OneDrive_2_9-3-2026', templateFile),
-      `C:\\Users\\yxzu\\Desktop\\st ives\\OneDrive_2_9-3-2026\\${templateFile}`
-    );
-  }
 
   let templatePath = '';
   for (const path of possiblePaths) {

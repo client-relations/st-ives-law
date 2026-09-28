@@ -14,8 +14,7 @@ ACD Part 3g -- are left untouched.
 
 Run again whenever the firm sends a fresh copy of either statutory form --
 Form P2 is reissued by the Registrar-General and the ACD by SA Health, and
-both arrive as LEAP templates. The outputs are committed to api/templates and
-public/templates.
+both arrive as LEAP templates. The outputs are committed to api/templates.
 
     python3 scripts/convert-leap-precedent.py [source-directory]
 """
@@ -30,9 +29,9 @@ from pathlib import Path
 SRC = Path(sys.argv[1]).expanduser() if len(sys.argv) > 1 else Path.home() / "Downloads"
 
 # Anchored to the repo, so running this from anywhere puts the precedents in
-# the two directories generateWillFromTemplate actually searches.
+# the directory generateWillFromTemplate actually searches.
 ROOT = Path(__file__).resolve().parent.parent
-DESTS = [ROOT / "api" / "templates", ROOT / "public" / "templates"]
+DESTS = [ROOT / "api" / "templates"]
 
 SDT = re.compile(r"<w:sdt>.*?</w:sdt>", re.S)
 PLACEHOLDER_RSTYLE = re.compile(r'<w:rStyle w:val="PlaceholderText"\s*/>')
