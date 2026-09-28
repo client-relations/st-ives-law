@@ -9,7 +9,8 @@
     "dev:api": "node --env-file=../.env --import tsx ./src/dev-api.ts",
     "clio:reauth": "node --env-file=../.env --import tsx ./src/clio-reauth.ts",
     "clio:create-fields": "node --env-file=../.env --import tsx ./src/clio-create-fields.ts",
-    "clio:mapping-check": "node --env-file=../.env --import tsx ./checks/clio-mapping-check.ts"
+    "clio:mapping-check": "node --env-file=../.env --import tsx ./checks/clio-mapping-check.ts",
+    "clio:doc-test": "node --env-file=../.env --import tsx ./checks/clio-full-doc-test.ts"
   },
   "devDependencies": {
     "@types/node": "catalog:",

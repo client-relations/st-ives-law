@@ -20,6 +20,7 @@ import {
   sendError,
 } from './_lib/server.js';
 import { buildClioPayload } from './_lib/clio-payload';
+import { findUserIdByName, getClioAccessToken } from './_lib/clio-client';
 
 const CLIO_WEBHOOK = process.env.CLIO_MATTER_WEBHOOK || process.env.VITE_CLIO_MATTER_WEBHOOK || '';
 
@@ -72,7 +73,16 @@ export default async function handler(req: any, res: any) {
         if (!isEmpty || !(key in merged)) merged[key] = value;
       }
 
-      result = await postWebhook(CLIO_WEBHOOK, buildClioPayload(merged, form, formData.metadata || {}), 'Clio matter');
+      // Resolve the person responsible to a Clio user so Make can set the
+      // matter's responsible attorney. Best effort: no permission, no match or
+      // no token just leaves it unset.
+      let responsibleAttorneyId: number | null = null;
+      const auth = await getClioAccessToken();
+      if (auth.token) responsibleAttorneyId = await findUserIdByName(auth.token, form.person_responsible);
+      else console.warn('[populate-clio] no Clio token; responsible attorney left unset');
+
+      const metadata = { ...(formData.metadata || {}), responsible_attorney_id: responsibleAttorneyId };
+      result = await postWebhook(CLIO_WEBHOOK, buildClioPayload(merged, form, metadata), 'Clio matter');
     } catch (err) {
       console.error('[populate-clio] building or sending the payload failed', err);
       result = { ok: false, detail: 'The Clio payload could not be built from this form. Nothing was sent.' };

@@ -48,6 +48,7 @@ const common = {
   client_address: '1 Test Street, Norwood',
   client_phone: '0400000000',
   client_occupation: 'Mapping test',
+  client_date_of_birth: '1970-03-12',
   client_marital_status: 'Single',
   inquiry_reason: 'Field mapping test - safe to delete',
   exec_initial_name: 'Evelyn Executor',
@@ -99,6 +100,8 @@ const cases = [
       fund2_beneficiary: 'Noah Nominated-Two', fund2_class: 'Grandchildren',
       fund2_trustee_initial: 'Tara Trustee-2A', fund2_trustee_backup: 'Theo Trustee-2B', fund2_trustee_further: 'Tess Trustee-2C',
       fund2_appointor_initial: 'Abe Appointor-2A', fund2_appointor_backup: 'Ava Appointor-2B', fund2_appointor_further: 'Axel Appointor-2C',
+      personal_belongings_to: 'Named person(s) below',
+      personal_belongings_1: 'Pam Personal-One', personal_belongings_2: 'Pete Personal-Two', personal_belongings_3: 'Pia Personal-Three',
     },
   },
 ];

@@ -164,6 +164,16 @@ export function buildClioPayload(intakeData: any, form: any, metadata: any) {
   const clientEmail = intakeData.client_email || form.client_email || '';
   const clientPhone = intakeData.client_phone || '';
 
+  // Two values Make writes into Clio's own fields rather than custom fields.
+  // Both are optional in Clio and rejected when sent empty, and Make's raw
+  // JSON body cannot conditionally omit a key, so each is also sent as a
+  // ready-made JSON fragment (key, value and trailing comma, or nothing) that
+  // the Make body inserts verbatim.
+  const clientDateOfBirth = /^\d{4}-\d{2}-\d{2}$/.test(intakeData.client_date_of_birth || '')
+    ? intakeData.client_date_of_birth
+    : '';
+  const responsibleAttorneyId = Number(metadata.responsible_attorney_id) || 0;
+
   // ===== SCENARIO: Fund Count =====
   const fundCount = parseInt(intakeData.fund_count) || 0;
 
@@ -196,6 +206,22 @@ export function buildClioPayload(intakeData: any, form: any, metadata: any) {
     appointor_backup: intakeData.fund2_appointor_backup,
     appointor_further: intakeData.fund2_appointor_further,
   } : null;
+
+  // Personal belongings. The will templates give them to Beneficiary1..3 (the
+  // "named recipients of Personal Items" clause), so when the residue goes
+  // into trusts and there are no residuary beneficiaries, the named recipients
+  // the client typed fill those slots instead. When the residue goes directly
+  // to named beneficiaries those slots already carry them (the Simple Will
+  // uses the same three names for the residue), so separately named
+  // recipients are kept in the summary field for the lawyer to place.
+  const personalBelongingsNamed =
+    intakeData.personal_belongings_to === 'Named person(s) below'
+      ? [intakeData.personal_belongings_1, intakeData.personal_belongings_2, intakeData.personal_belongings_3].filter(Boolean)
+      : [];
+  const personalBelongingsSummary = personalBelongingsNamed.length
+    ? `Named: ${personalBelongingsNamed.join(', ')}`
+    : intakeData.personal_belongings_to || 'Not specified';
+  const beneficiarySlots = fundCount === 0 ? beneficiaries.map((b) => b.name) : personalBelongingsNamed;
 
   // Calamity beneficiaries
   const calamityBeneficiaries = [
@@ -297,6 +323,8 @@ export function buildClioPayload(intakeData: any, form: any, metadata: any) {
     client_last_name: lastName,
     client_email: clientEmail,
     client_phone: clientPhone,
+    client_date_of_birth: clientDateOfBirth,
+    client_date_of_birth_json: clientDateOfBirth ? `"date_of_birth": "${clientDateOfBirth}",` : '',
     client_address: intakeData.client_address,
     client_city: intakeData.client_city || '',
     client_state: intakeData.client_state,
@@ -313,6 +341,11 @@ export function buildClioPayload(intakeData: any, form: any, metadata: any) {
 
     // Matter Info
     person_responsible: form.person_responsible,
+    // Clio user id of the person responsible, looked up by populate-clio when
+    // the Clio app may read users. Sets the matter's own responsible attorney,
+    // which the Advance Care Directive prints as the witnessing solicitor.
+    responsible_attorney_id: responsibleAttorneyId ? String(responsibleAttorneyId) : '',
+    responsible_attorney_json: responsibleAttorneyId ? `"responsible_attorney": { "id": ${responsibleAttorneyId} },` : '',
     inquiry_reason: intakeData.inquiry_reason,
     lead_type: form.lead_type,
     region: form.region,
@@ -330,7 +363,7 @@ export function buildClioPayload(intakeData: any, form: any, metadata: any) {
     // Whether personal belongings follow the named beneficiaries or pass to
     // the client's children. Collected on the intake form (step 9) and a real
     // testamentary instruction — previously dropped before reaching Clio.
-    personal_belongings_to: intakeData.personal_belongings_to || 'Not specified',
+    personal_belongings_to: personalBelongingsSummary,
 
     // Calamity Beneficiaries
     calamity_beneficiaries: formatCalamityBeneficiaries(calamityBeneficiaries),
@@ -418,9 +451,9 @@ export function buildClioPayload(intakeData: any, form: any, metadata: any) {
     // fields (Beneficiary1, InitialTrusteeTt1, EpaDonee...), and the summaries
     // go to fields of their own. Percentages are deliberately absent: the
     // templates leave "[insert %]" for the lawyer, and the summaries keep them.
-    beneficiary_1_name: beneficiaries[0]?.name || '',
-    beneficiary_2_name: beneficiaries[1]?.name || '',
-    beneficiary_3_name: beneficiaries[2]?.name || '',
+    beneficiary_1_name: beneficiarySlots[0] || '',
+    beneficiary_2_name: beneficiarySlots[1] || '',
+    beneficiary_3_name: beneficiarySlots[2] || '',
     calamity_beneficiary_1_name: calamityBeneficiaries[0]?.name || '',
     calamity_beneficiary_2_name: calamityBeneficiaries[1]?.name || '',
     calamity_beneficiary_3_name: calamityBeneficiaries[2]?.name || '',

@@ -201,6 +201,13 @@ export type ClioMatter = {
   /** The Advance Care Directive prints these; wills do not use them. */
   client_date_of_birth: string;
   responsible_attorney: string;
+  /**
+   * Contact data. Clio will not nest a contact's address or phone inside a
+   * matter query, so these are only filled by fetchMatter (one extra call per
+   * matter, at generation time) and stay empty in the bulk sync.
+   */
+  client_address: string;
+  client_phone: string;
 };
 
 /**
@@ -248,7 +255,44 @@ export function normaliseMatter(raw: any): ClioMatter {
     custom_fields,
     client_date_of_birth: String(raw?.client?.date_of_birth || ''),
     responsible_attorney: String(raw?.responsible_attorney?.name || ''),
+    client_address: '',
+    client_phone: '',
   };
+}
+
+/**
+ * The Clio user whose name matches the person responsible on the form, so the
+ * matter can carry a real responsible attorney. Needs the Clio app to hold the
+ * Users read permission; without it Clio answers 403 and this returns null,
+ * which leaves the matter's attorney unset rather than failing the send.
+ */
+export async function findUserIdByName(token: string, name: string): Promise<number | null> {
+  const wanted = String(name || '').trim().toLowerCase();
+  if (!wanted) return null;
+  try {
+    const json = await clioGet(`${CLIO_API}/users.json?fields=id,name,enabled&limit=200`, token);
+    const users: { id: number; name: string; enabled: boolean }[] = json?.data || [];
+    const exact = users.find((u) => u.enabled && String(u.name).trim().toLowerCase() === wanted);
+    const partial = users.find((u) => u.enabled && String(u.name).toLowerCase().includes(wanted.split(' ')[0]));
+    return (exact || partial)?.id ?? null;
+  } catch (err) {
+    console.warn(`Could not look up Clio user "${name}":`, (err as Error).message);
+    return null;
+  }
+}
+
+/** The client's postal address and phone, which every will and the ACD print. */
+async function fetchContactDetails(
+  token: string,
+  contactId: number,
+): Promise<{ address: string; phone: string }> {
+  const fields = 'primary_address{street,city,province,postal_code},primary_phone_number';
+  const json = await clioGet(`${CLIO_API}/contacts/${contactId}.json?fields=${encodeURIComponent(fields)}`, token);
+  const a = json?.data?.primary_address;
+  const address = a
+    ? [a.street, a.city, [a.province, a.postal_code].filter(Boolean).join(' ')].filter((part) => part && String(part).trim()).join(', ')
+    : '';
+  return { address, phone: String(json?.data?.primary_phone_number || '') };
 }
 
 /**
@@ -293,7 +337,21 @@ export async function fetchMatter(token: string, matterId: string | number): Pro
   const url = `${CLIO_API}/matters/${matterId}.json?fields=${encodeURIComponent(MATTER_FIELDS)}`;
   const json = await clioGet(url, token);
   if (!json?.data) throw new Error(`Clio returned no matter ${matterId}`);
-  return normaliseMatter(json.data);
+  const matter = normaliseMatter(json.data);
+
+  // The will's execution block and the ACD's Part 1 print the client's address
+  // and phone. They live on the contact, which needs its own request.
+  const contactId = Number(json.data?.client?.id);
+  if (contactId) {
+    try {
+      const contact = await fetchContactDetails(token, contactId);
+      matter.client_address = contact.address;
+      matter.client_phone = contact.phone;
+    } catch (err) {
+      console.warn(`Could not read contact ${contactId} for matter ${matterId}; address and phone stay empty`, err);
+    }
+  }
+  return matter;
 }
 
 /**
@@ -316,15 +374,84 @@ export function toTemplateVariables(matter: ClioMatter): Record<string, string> 
   if (matter.mr_name) variables['Matter.Relationships.Mr.Name'] = matter.mr_name;
   if (matter.mrs_name) variables['Matter.Relationships.Mrs.Name'] = matter.mrs_name;
 
-  // Contact and user data rather than custom fields — the Advance Care
-  // Directive prints both. Address and phone would need a second call to
-  // /contacts, which Clio will not nest inside a matter query.
+  // Contact and user data rather than custom fields. fetchMatter fills the
+  // address and phone from the contact record; the bulk sync does not.
   if (matter.client_date_of_birth) {
-    variables['Matter.Client.DateOfBirth'] = matter.client_date_of_birth;
+    // Clio stores YYYY-MM-DD; the statutory form is read as day/month/year.
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(matter.client_date_of_birth);
+    variables['Matter.Client.DateOfBirth'] = m ? `${m[3]}/${m[2]}/${m[1]}` : matter.client_date_of_birth;
   }
+  if (matter.client_address) variables['Matter.Client.Address'] = matter.client_address;
+  if (matter.client_phone) variables['Matter.Client.PhoneNumber'] = matter.client_phone;
   if (matter.responsible_attorney) {
     variables['Matter.ResponsibleAttorney'] = matter.responsible_attorney;
   }
 
   return variables;
+}
+
+
+/**
+ * Put a file on a matter. Clio's v4 API will not take bytes inline, so this is
+ * the three-step handshake api/send-to-clio-multipart.ts documents: create the
+ * document record and receive a signed put_url, PUT the bytes there, then PATCH
+ * the record as fully_uploaded so Clio shows it on the matter.
+ *
+ * Shared by that endpoint and by the end-to-end document check in
+ * scripts/checks, so the test files documents exactly the way the app does.
+ */
+export async function uploadDocumentToMatter(
+  token: string,
+  matterId: number,
+  fileName: string,
+  bytes: Buffer,
+): Promise<{ documentId: number }> {
+  const jsonHeaders = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+  const createResponse = await fetch(
+    `${CLIO_API}/documents.json?fields=id,name,latest_document_version{uuid,put_url,put_headers}`,
+    {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify({
+        data: {
+          name: fileName,
+          parent: { id: Number(matterId), type: 'Matter' },
+          document_version: { fully_uploaded: false },
+        },
+      }),
+    },
+  );
+  const createText = await createResponse.text();
+  if (!createResponse.ok) {
+    throw new Error(`Clio rejected the document record (${createResponse.status}): ${createText.slice(0, 800)}`);
+  }
+  const created = JSON.parse(createText);
+  const documentId = created?.data?.id;
+  const version = created?.data?.latest_document_version;
+  const putUrl: string | undefined = version?.put_url;
+  const versionUuid: string | undefined = version?.uuid;
+  const putHeaders: { name: string; value: string }[] = version?.put_headers || [];
+  if (!documentId || !putUrl || !versionUuid) {
+    throw new Error(`Clio did not return an upload URL: ${createText.slice(0, 800)}`);
+  }
+
+  const uploadHeaders: Record<string, string> = {};
+  for (const h of putHeaders) uploadHeaders[h.name] = h.value;
+  const uploadResponse = await fetch(putUrl, { method: 'PUT', headers: uploadHeaders, body: new Uint8Array(bytes) });
+  if (!uploadResponse.ok) {
+    const uploadText = await uploadResponse.text().catch(() => '');
+    throw new Error(`Uploading the file to Clio storage failed (${uploadResponse.status}): ${uploadText.slice(0, 800)}`);
+  }
+
+  const finaliseResponse = await fetch(`${CLIO_API}/documents/${documentId}.json?fields=id,name`, {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    body: JSON.stringify({ data: { uuid: versionUuid, fully_uploaded: true } }),
+  });
+  if (!finaliseResponse.ok) {
+    const finaliseText = await finaliseResponse.text();
+    throw new Error(`Clio stored the file but could not finalise it (${finaliseResponse.status}): ${finaliseText.slice(0, 800)}`);
+  }
+  return { documentId: Number(documentId) };
 }

@@ -238,7 +238,7 @@ completed_intake → submitted (TBD - button not shown yet)
 ### Intake Form (15 Steps)
 Located at: `C:\Users\yxzu\Desktop\st ives\intake-form-site (2)\index.html`
 
-1. Scenario & Client Details (Single/Couple, name, address, state, spouse info)
+1. Scenario & Client Details (Single/Couple, name, date of birth, address, state, spouse info)
 2. Assets & Liabilities (real estate, bank, superannuation, other assets)
 3. Document Type (Will, EPA, Advance Care Directive, SDT)
 4. Executor(s) (primary, backup, tertiary, joint/sole arrangement)
@@ -246,7 +246,7 @@ Located at: `C:\Users\yxzu\Desktop\st ives\intake-form-site (2)\index.html`
 6. Specific Gifts (repeatable items with value)
 7. Company Directorship (company name, ACN, treatment)
 8. Life Tenancy (life tenant, property, outgoings)
-9. Residuary Estate (trust structure, beneficiaries, distribution)
+9. Residuary Estate (trust structure, beneficiaries, distribution, who receives personal belongings)
 10. Special Disability Trust (yes/no, beneficiary)
 11. Guardianship (minor children, guardians)
 12. Funeral Wishes (organ donation, burial/cremation preferences)

@@ -133,6 +133,10 @@
           <div><label>Full legal name <span class="req">*</span></label><input type="text" name="client_name" required></div>
           <div><label>Former/other names (if any)</label><input type="text" name="client_former_names"></div>
         </div>
+        <div class="row2">
+          <div><label>Date of birth <span class="req">*</span></label><input type="date" name="client_date_of_birth" required max="2100-12-31"></div>
+          <div></div>
+        </div>
         <label>Residential address <span class="req">*</span></label><input type="text" name="client_address" required>
         <div class="row2">
           <div><label>Occupation</label><input type="text" name="client_occupation"></div>
@@ -401,12 +405,25 @@
             </div>
           </div>
           <p class="error-msg" id="beneficiary-error">Name every residuary beneficiary — a will cannot be drafted without them.</p>
-          <label>Should personal belongings pass to the same named beneficiary(ies), or to the client's children?</label>
-          <select name="personal_belongings_to">
+        </div>
+        <!-- Personal belongings are a separate gift from the residue, so this is
+             asked whether the residue goes to named beneficiaries or into trusts. -->
+        <div id="personal-belongings-block" style="margin-top:0.9rem;">
+          <label>Who should receive the client's personal belongings? <span class="req">*</span></label>
+          <select name="personal_belongings_to" required>
             <option value="">Select…</option>
-            <option>Same as named beneficiaries above</option>
+            <option id="pb-same-option">Same as named beneficiaries above</option>
             <option>Client's children</option>
+            <option>Named person(s) below</option>
           </select>
+          <div id="personal-belongings-named" class="hidden">
+            <p class="step-note">Up to three people. Belongings are divided between those who survive the client, as the executor determines.</p>
+            <div><label>Recipient 1 <span class="req">*</span></label><input type="text" name="personal_belongings_1" required></div>
+            <div class="row2">
+              <div><label>Recipient 2</label><input type="text" name="personal_belongings_2"></div>
+              <div><label>Recipient 3</label><input type="text" name="personal_belongings_3"></div>
+            </div>
+          </div>
         </div>
 
         <hr>
@@ -683,7 +700,19 @@ document.getElementById('fund-count').addEventListener('change', (e) => {
   document.getElementById('fund2-block').classList.toggle('hidden', n < 2);
   document.getElementById('fpe-block').classList.toggle('hidden', n < 1);
   document.getElementById('direct-beneficiary-block').classList.toggle('hidden', n > 0);
+  const sameOption = document.getElementById('pb-same-option');
+  sameOption.disabled = n > 0;
+  sameOption.hidden = n > 0;
+  const pbSelect = document.querySelector('select[name=personal_belongings_to]');
+  if (n > 0 && pbSelect.value === sameOption.textContent) pbSelect.value = '';
+  syncPersonalBelongings();
 });
+
+function syncPersonalBelongings(){
+  const named = document.querySelector('select[name=personal_belongings_to]').value === 'Named person(s) below';
+  document.getElementById('personal-belongings-named').classList.toggle('hidden', !named);
+}
+document.querySelector('select[name=personal_belongings_to]').addEventListener('change', syncPersonalBelongings);
 
 // ---- dynamic beneficiary / calamity row counts ----
 function bindCountSelect(selectId, rowSelector){
@@ -1085,7 +1114,8 @@ function generateWillText(d){
   if (d.personal_belongings_to === "Client's children") {
     lines.push('I give my Personal Belongings to those of my Children who survive me absolutely, to be divided as my Executor determines.');
   } else {
-    const namedBenes = [1,2,3].map(i => d['beneficiary'+i]).filter(Boolean);
+    const source = d.personal_belongings_to === 'Named person(s) below' ? 'personal_belongings_' : 'beneficiary';
+    const namedBenes = [1,2,3].map(i => d[source+i]).filter(Boolean);
     if (namedBenes.length) lines.push(`I give my Personal Belongings to such of ${namedBenes.join(', ')} who survive me absolutely, to be divided as my Executor determines.`);
   }
   if (d.gift && d.gift.length) {

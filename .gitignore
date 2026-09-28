@@ -58,3 +58,6 @@ artifacts/api-server/uploads/
 
 # Handover doc — contains live credentials. Share via password manager, never git.
 HANDOVER.md
+
+# Documents rendered by scripts/checks/clio-full-doc-test.ts
+test-evidence/doctest-*/

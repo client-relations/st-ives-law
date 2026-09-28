@@ -59,6 +59,9 @@ const FIELD_LABELS = {
   'signing_date': 'Document Signing Date',
   'will_custody': 'Will Storage Location',
   'low_wishes': 'Letter of Wishes Content',
+  'client_date_of_birth': 'Client Date of Birth',
+  'personal_belongings_to': 'Personal Belongings Recipient',
+  'personal_belongings_1': 'Personal Belongings Recipient 1',
   'epa_conditions': 'EPA Conditions / Limitations',
   'sdm': 'Advance Care Directive Substitute Decision-Makers',
   'acd_health_care_refusals': 'Advance Care Directive Health Care Refusals'
@@ -94,7 +97,7 @@ export function validateIntakeForm(intakeData) {
 
   // Always check these core fields (matching actual form field names)
   const alwaysCheck = [
-    'scenario', 'client_name', 'client_address', 'client_state', 'client_marital_status',
+    'scenario', 'client_name', 'client_date_of_birth', 'client_address', 'client_state', 'client_marital_status',
     'client_occupation', 'financial_adviser', 'governing_jurisdiction',
     'doc_will', 'doc_epa',
     'exec_initial_name', 'exec_initial_address', 'exec_initial_relationship',
