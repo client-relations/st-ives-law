@@ -76,6 +76,26 @@ function formatEpaAttorneys(attorneys: any[]): string {
     .join('\n');
 }
 
+/** Form P2 wants each donee as "Full name, address" on a single line. */
+function formatDonee(attorney: { name?: string; address?: string } | undefined): string {
+  if (!attorney) return '';
+  return [attorney.name, attorney.address].filter((part) => part && String(part).trim()).join(', ');
+}
+
+/** The seven single-name fields a testamentary trust fills in the will templates. */
+function trustFundTemplateFields(fundNum: 1 | 2, fund: any): Record<string, string> {
+  const prefix = `tt${fundNum}_`;
+  return {
+    [`${prefix}nominated_beneficiary`]: fund?.beneficiary || '',
+    [`${prefix}trustee_initial`]: fund?.trustee_initial || '',
+    [`${prefix}trustee_backup`]: fund?.trustee_backup || '',
+    [`${prefix}trustee_further`]: fund?.trustee_further || '',
+    [`${prefix}appointor_initial`]: fund?.appointor_initial || '',
+    [`${prefix}appointor_backup`]: fund?.appointor_backup || '',
+    [`${prefix}appointor_further`]: fund?.appointor_further || '',
+  };
+}
+
 function formatDocumentsRequired(docs: any): string {
   const items = [
     docs.will && '• Will',
@@ -364,6 +384,39 @@ export function buildClioPayload(intakeData: any, form: any, metadata: any) {
     // Will Document Info
     will_pdf_path: metadata.will_pdf_path,
     will_pdf_name: willPdfName,
+
+    // ===== TEMPLATE FIELDS: one value per Clio field =====
+    //
+    // The keys above hold readable summaries — a bulleted beneficiary list, a
+    // whole trust fund block — for a lawyer skimming the matter. Make used to
+    // map those same summaries into the fields the will templates read, so a
+    // generated will printed "Beneficiaries: • Jane - 50%" where one person's
+    // name belongs, and every trustee and appointor line stayed blank.
+    //
+    // These carry exactly one name each. Make maps them to the PascalCase
+    // fields (Beneficiary1, InitialTrusteeTt1, EpaDonee...), and the summaries
+    // go to fields of their own. Percentages are deliberately absent: the
+    // templates leave "[insert %]" for the lawyer, and the summaries keep them.
+    beneficiary_1_name: beneficiaries[0]?.name || '',
+    beneficiary_2_name: beneficiaries[1]?.name || '',
+    beneficiary_3_name: beneficiaries[2]?.name || '',
+    calamity_beneficiary_1_name: calamityBeneficiaries[0]?.name || '',
+    calamity_beneficiary_2_name: calamityBeneficiaries[1]?.name || '',
+    calamity_beneficiary_3_name: calamityBeneficiaries[2]?.name || '',
+    ...trustFundTemplateFields(1, trustFund1),
+    ...trustFundTemplateFields(2, trustFund2),
+    // The form labels these "Attorney(s) / Donee(s)"; Form P2 asks for each
+    // donee's full name and address on one line.
+    epa_donee_1: formatDonee(epaAttorneys[0]),
+    epa_donee_2: formatDonee(epaAttorneys[1]),
+    // Both slots sit in capitals on the statutory form ("... JOINTLY AND
+    // SEVERALLY TO BE MY ATTORNEY(S)"), so the client's choice is set to match.
+    epa_donee_capacity: (intakeData.epa_jointly || '').toUpperCase(),
+    epa_commencement: (intakeData.epa_effective || '').toUpperCase(),
+
+    // The beneficiary summary, percentages included, now that Beneficiary1
+    // holds a name. Make has always mapped this key; nothing sent it before.
+    beneficiaries_direct: fundCount === 0 ? formatBeneficiaries(beneficiaries) : '',
 
     // Meta
     form_id: form.id,
