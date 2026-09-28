@@ -112,8 +112,15 @@ export async function processDocxTemplate(
         // deleted markup is balanced (every </w:t></w:r> removed is paired with
         // the <w:r>...<w:t> that follows), so the document stays well-formed and
         // the text inherits the first run's formatting.
+        //
+        // The delimiters themselves can be split too: in the Multi TT Will the
+        // Trustee definition's "<< Matter.CustomField.InitialTrusteeTt1 >>" ends
+        // "&gt;</w:t></w:r><w:r>...<w:t>&gt;", one ">" per run. Requiring a
+        // contiguous "&gt;&gt;" left that line as raw placeholder text while the
+        // same trustee's name printed everywhere else, so markup is allowed
+        // between the two "<" and between the two ">" as well.
         xmlContent = xmlContent.replace(
-          /&lt;&lt;((?:(?!&lt;&lt;|&gt;&gt;)[\s\S]){0,3000}?)&gt;&gt;/g,
+          /&lt;(?:<[^>]+>)*&lt;((?:(?!&lt;(?:<[^>]+>)*&lt;|&gt;(?:<[^>]+>)*&gt;)[\s\S]){0,3000}?)&gt;(?:<[^>]+>)*&gt;/g,
           (whole: string, inner: string) => {
             const key = inner.replace(/<[^>]+>/g, '').replace(/\s+/g, '');
             const value = variables[key];
