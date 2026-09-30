@@ -161,8 +161,26 @@ export function deriveFromDisplayNumber(displayNumber: string): {
   isCouple: boolean;
   mr: string;
   mrs: string;
+  /** Named by the intake's Make scenario rather than by the firm by hand. */
+  fromIntake?: boolean;
 } {
   const withoutFileNumber = displayNumber.replace(/^\s*\d+\s*-\s*/, '');
+
+  // Matters created from the intake form are named by the Make scenario, which
+  // writes a couple as
+  //   "JamesCarter (Engineer) and Emily Rose Carter (Teacher) - Married - Mirror wills - Carter, James"
+  // Read the two spouses straight out of that shape. Taken through the generic
+  // split below, the second spouse came back as "Emily Rose Carter (Teacher) -
+  // Married - Mirror wills - Carter, James" and was printed into the mirror
+  // documents. The first spouse is glued together by Make (no space between
+  // first and last name); normaliseMatter swaps in the contact's own name.
+  const intakeCouple = /^(.+?)\s*\([^)]*\)\s+and\s+(.+?)\s*\([^)]*\)\s+-\s/i.exec(withoutFileNumber);
+  if (intakeCouple) {
+    const mr = intakeCouple[1].trim();
+    const mrs = intakeCouple[2].trim();
+    return { name: `${mr} & ${mrs}`, isCouple: true, mr, mrs, fromIntake: true };
+  }
+
   const name = withoutFileNumber.replace(/[,\s]+$/, '').trim();
 
   const parts = name.split(/\s+&\s+|\s+and\s+/i).map((part) => part.trim()).filter(Boolean);
@@ -184,6 +202,7 @@ export function deriveFromDisplayNumber(displayNumber: string): {
     isCouple,
     mr: isCouple ? parts[0] : '',
     mrs: isCouple ? parts[1] : '',
+    fromIntake: false,
   };
 }
 
@@ -242,6 +261,11 @@ export function normaliseMatter(raw: any): ClioMatter {
   const client_name =
     rawClientName && !isRedacted(rawClientName) ? String(rawClientName) : derived.name;
 
+  // An intake couple's first spouse is the Clio contact, whose real name has
+  // the space Make's matter description drops ("JamesCarter" -> "James Carter").
+  const mr_name =
+    derived.fromIntake && rawClientName && !isRedacted(rawClientName) ? String(rawClientName) : derived.mr;
+
   return {
     clio_id: Number(raw?.id),
     display_number: displayNumber,
@@ -250,7 +274,7 @@ export function normaliseMatter(raw: any): ClioMatter {
     client_name,
     client_type: String(raw?.client?.type || ''),
     is_couple: derived.isCouple,
-    mr_name: derived.mr,
+    mr_name,
     mrs_name: derived.mrs,
     custom_fields,
     client_date_of_birth: String(raw?.client?.date_of_birth || ''),
