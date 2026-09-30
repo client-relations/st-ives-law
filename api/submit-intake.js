@@ -8,7 +8,10 @@ import {
   sendError,
 } from './_lib/server.js';
 
-const TOTAL_STEPS = 14;
+// Must match the number of .step blocks in public/intake-form.html. Only the
+// explicit final submit (final: true) completes the intake, so a step added to
+// the form can never mark it complete before the client reaches the end.
+const TOTAL_STEPS = 15;
 const EDITABLE_STATUSES = ['pending_intake', 'completed_intake'];
 
 export default async function handler(req, res) {
@@ -17,7 +20,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { lead_id, form_data, step: rawStep } = readBody(req);
+    const { lead_id, form_data, step: rawStep, final } = readBody(req);
+    const isFinal = final === true;
     const formId = requireFormId(lead_id);
     if (!form_data || typeof form_data !== 'object' || Array.isArray(form_data)) {
       throw new HttpError(400, 'Missing form_data');
@@ -35,12 +39,14 @@ export default async function handler(req, res) {
 
     const existing = parseFormData(form.form_data);
     const metadata = { ...(existing.metadata || {}), current_step: step };
-    if (step === TOTAL_STEPS) {
+    if (isFinal) {
       metadata.will_pdf_path = `/wills/will_${formId}_${Date.now()}.pdf`;
     }
 
-    const newStatus = step === TOTAL_STEPS && form.status === 'pending_intake' ? 'completed_intake' : form.status;
-    const progressPct = Math.round((step / TOTAL_STEPS) * 100);
+    const newStatus = isFinal && form.status === 'pending_intake' ? 'completed_intake' : form.status;
+    // Autosaves cap below 100 so the dashboard never shows a finished form
+    // that the client has not actually submitted.
+    const progressPct = isFinal || form.status === 'completed_intake' ? 100 : Math.min(99, Math.round((step / TOTAL_STEPS) * 100));
 
     const { data: updated, error: updateError } = await supabase
       .from('forms')

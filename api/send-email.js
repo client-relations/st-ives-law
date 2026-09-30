@@ -24,7 +24,7 @@ const env = (name) => process.env[name] || process.env[`VITE_${name}`] || '';
 
 const KINDS = {
   inquiry: {
-    label: 'Inquiry form email',
+    label: 'Enquiry form email',
     webhook: () => env('SEND_INQUIRY_FORM_WEBHOOK'),
     statuses: ['appointment_sent'],
     path: (id) => `/lead-inquiry?lead_id=${id}`,

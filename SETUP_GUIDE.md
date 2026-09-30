@@ -51,7 +51,7 @@ Create/update `.env.local` in `artifacts/questionnaire/`:
 ```
 VITE_SUPABASE_URL=your_project_url_here
 VITE_SUPABASE_ANON_KEY=your_anon_key_here
-VITE_WEBHOOK_URL=https://hook.eu2.make.com/fou12e2mjy2wgv2h0e3jgqor7fu81rec
+VITE_WEBHOOK_URL=https://hook.eu2.make.com/<hook-id>
 ```
 
 ### Step 3: Install UUID Package

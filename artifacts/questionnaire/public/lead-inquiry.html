@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Estate Planning Lead Inquiry</title>
+<title>Estate Planning Lead Enquiry</title>
 <style>
   :root {
     --border: #d8d8d8;
@@ -118,7 +118,7 @@
 <div class="wrap">
 
   <header>
-    <h1>Estate Planning Lead Inquiry</h1>
+    <h1>Estate Planning Lead Enquiry</h1>
     <p class="subtitle">A short form to understand what you need. It takes about four minutes, and helps us prepare for your first appointment.</p>
     <div class="progress-wrap">
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
@@ -265,7 +265,7 @@
     <div class="card">
       <p class="step-title" id="ending-title">Thanks — we'll be in touch</p>
       <p id="ending-body"></p>
-      <p style="color:var(--muted); font-size:0.85rem;">You don't need to do anything else right now. A member of the team will call you to talk through the best next step.</p>
+      <p id="ending-note" style="color:var(--muted); font-size:0.85rem;">You don't need to do anything else right now. A member of the team will call you to talk through the best next step.</p>
       <div class="nav-bar" style="justify-content:flex-start;">
         <button type="button" id="ending-back-btn" class="nav-btn">← Back</button>
       </div>
@@ -312,6 +312,22 @@ steps.forEach((s) => {
   dotsWrap.appendChild(dot);
 });
 
+// Replace the form with a message. Used when we can't safely continue, so the
+// client is never left on a blank page or told their answers were saved when
+// they weren't.
+function showMessage(title, body) {
+  document.getElementById('loading-spinner').style.display = 'none';
+  formEl.classList.add('hidden');
+  document.getElementById('ending-title').textContent = title;
+  document.getElementById('ending-body').textContent = body;
+  document.getElementById('ending-note').style.display = 'none';
+  document.getElementById('ending-back-btn').style.display = 'none';
+  endingWrap.style.display = 'block';
+}
+
+const LOAD_FAILED = ["We couldn't load your form",
+  'Please refresh the page. If this keeps happening, contact St Ives Law and we will take your details over the phone.'];
+
 // Load existing form data if available
 async function loadExistingData() {
   const params = new URLSearchParams(window.location.search);
@@ -323,9 +339,9 @@ async function loadExistingData() {
   spinner.style.display = 'block';
 
   try {
-    const response = await fetch(`/api/get-form?lead_id=${lead_id}`);
+    const response = await fetch(`/api/get-form?lead_id=${encodeURIComponent(lead_id)}`);
     if (!response.ok) {
-      spinner.style.display = 'none';
+      showMessage(...LOAD_FAILED);
       return;
     }
 
@@ -413,7 +429,7 @@ async function loadExistingData() {
 
   } catch (error) {
     console.error('Error loading form data:', error);
-    spinner.style.display = 'none';
+    showMessage(...LOAD_FAILED);
   }
 }
 
@@ -426,7 +442,7 @@ function showSummary(lead) {
   const summaryHtml = buildSummaryHtml(displayData);
   resultWrap.innerHTML = `
     <div style="margin-top: 1.5rem;">
-      <h2 style="font-size: 1.3rem; margin-bottom: 1.5rem; color: #2f4858;">Inquiry Summary</h2>
+      <h2 style="font-size: 1.3rem; margin-bottom: 1.5rem; color: #2f4858;">Enquiry Summary</h2>
       ${summaryHtml}
       <div style="margin-top: 2rem; padding: 1.5rem; background: #eef9fb; border-radius: 4px; border-left: 4px solid #4a8fa0;">
         <p style="margin: 0; color: #2f4858; font-size: 0.95rem;">✓ Form submitted</p>
@@ -504,13 +520,15 @@ async function showEnding(reason){
       ? `Thanks${name ? ', ' + name : ''}. Concerns about a will or estate are handled case by case, so we won't ask you anything further here.`
       : `Thanks${name ? ', ' + name : ''}. It sounds like a quick conversation will help more than a form right now.`;
 
-  // Save partial form data (Q1-Q2) before showing ending
+  // Save partial form data (Q1-Q2) before showing ending. early_exit tells the
+  // server (and the lawyer) this is not a completed enquiry.
   const params = new URLSearchParams(window.location.search);
   const lead_id = params.get('lead_id');
   if (lead_id) {
-    const data = collectData();
+    const data = { ...collectData(), early_exit: true };
+    let saved = false;
     try {
-      await fetch('/api/submit-form', {
+      const response = await fetch('/api/submit-form', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -519,11 +537,21 @@ async function showEnding(reason){
           form_type: 'inquiry',
         }),
       });
+      saved = response.ok;
+      if (!saved) console.error('Error saving partial form:', response.status);
     } catch (error) {
       console.error('Error saving partial form:', error);
     }
+    if (!saved) {
+      showMessage("We couldn't send your details",
+        'Please try again in a moment, or contact St Ives Law directly so we can help you.');
+      return;
+    }
   }
 
+  document.getElementById('ending-title').textContent = "Thanks — we'll be in touch";
+  document.getElementById('ending-note').style.display = '';
+  document.getElementById('ending-back-btn').style.display = '';
   formEl.classList.add('hidden');
   endingWrap.style.display = 'block';
 }
@@ -560,10 +588,17 @@ dotsWrap.addEventListener('click', (e) => {
 // Start with loading spinner
 const spinner = document.getElementById('loading-spinner');
 const params = new URLSearchParams(window.location.search);
+const isLocalPreview = location.protocol === 'file:' ||
+  ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) || location.hostname.endsWith('.localhost');
 if (params.get('lead_id')) {
   spinner.style.display = 'block';
   formEl.classList.add('hidden');
   loadExistingData();
+} else if (!isLocalPreview) {
+  // Without a lead_id nothing can be saved, so don't let a client fill in the
+  // whole form for nothing.
+  showMessage('This link is incomplete',
+    'Please open the form using the link in the email St Ives Law sent you. If you no longer have it, contact us and we will send it again.');
 } else {
   render();
 }
@@ -942,7 +977,7 @@ function buildSummaryHtml(lead) {
 
   return `
     <div style="background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; padding: 1.5rem;">
-      ${renderField('Reason for inquiry', lead.inquiry_reason)}
+      ${renderField('Reason for enquiry', lead.inquiry_reason)}
       ${renderField('Full name', lead.client_name)}
       ${renderField('Email', lead.client_email)}
       ${renderField('Phone', lead.client_phone)}
@@ -964,7 +999,7 @@ function buildFlagsSummary(lead, mapped){
   const lines = [];
   lines.push('LEAD QUALIFICATION SUMMARY (pre-intake form — confirm everything at appointment)');
   lines.push('-'.repeat(70));
-  lines.push(`Reason for inquiry: ${lead.inquiry_reason || '—'}`);
+  lines.push(`Reason for enquiry: ${lead.inquiry_reason || '—'}`);
   lines.push(`Name: ${lead.client_name || '—'}    Email: ${lead.client_email || '—'}    Phone: ${lead.client_phone || '—'}    State: ${lead.client_state || '—'}`);
   lines.push(`Which apply: ${flags.length ? flags.join('; ') : 'None selected'}`);
   lines.push(`What they own: ${assets.length ? assets.join('; ') : 'None selected'}`);
@@ -1017,7 +1052,7 @@ async function submitForm(){
       const summaryHtml = buildSummaryHtml(lead);
       document.getElementById('result-wrap').innerHTML = `
         <div style="margin-top: 1.5rem;">
-          <h2 style="font-size: 1.3rem; margin-bottom: 1.5rem; color: #2f4858;">Inquiry Summary</h2>
+          <h2 style="font-size: 1.3rem; margin-bottom: 1.5rem; color: #2f4858;">Enquiry Summary</h2>
           ${summaryHtml}
           <div style="margin-top: 2rem; padding: 1.5rem; background: #eef9fb; border-radius: 4px; border-left: 4px solid #4a8fa0;">
             <p style="margin: 0; color: #2f4858; font-size: 0.95rem;">✓ Form submitted successfully</p>

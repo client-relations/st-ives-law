@@ -37,7 +37,10 @@ export default async function handler(req, res) {
       throw new HttpError(409, 'This form can no longer be changed. Please contact the firm.');
     }
 
-    const newStatus = rule.advance[form.status] || form.status;
+    // A client who stops at Q1 (e.g. "Someone has died") has not completed the
+    // enquiry, so the form stays where it is for the firm to follow up.
+    const earlyExit = form_type === 'inquiry' && form_data.early_exit === true;
+    const newStatus = earlyExit ? form.status : (rule.advance[form.status] || form.status);
     const existing = parseFormData(form.form_data);
 
     // Conditional on the status we read, so a concurrent change by the firm
