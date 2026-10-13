@@ -319,12 +319,17 @@ steps.forEach((s) => {
 function showMessage(title, body) {
   document.getElementById('loading-spinner').style.display = 'none';
   formEl.classList.add('hidden');
+  // No questions follow a message, so a "Question 1 of 8" bar would mislead.
+  document.querySelector('.progress-wrap').style.display = 'none';
   document.getElementById('ending-title').textContent = title;
   document.getElementById('ending-body').textContent = body;
   document.getElementById('ending-note').style.display = 'none';
   document.getElementById('ending-back-btn').style.display = 'none';
   endingWrap.style.display = 'block';
 }
+
+const ALREADY_SUBMITTED = ['This form has already been submitted',
+  'Thank you, St Ives Law has your answers. If anything needs to change, please contact us and we will update it for you.'];
 
 const LOAD_FAILED = ["We couldn't load your form",
   'Please refresh the page. If this keeps happening, contact St Ives Law and we will take your details over the phone.'];
@@ -340,118 +345,37 @@ async function loadExistingData() {
   spinner.style.display = 'block';
 
   try {
-    const response = await fetch(`/api/get-form?lead_id=${encodeURIComponent(lead_id)}`);
+    const response = await fetch(`/api/get-form?lead_id=${encodeURIComponent(lead_id)}&form=inquiry`);
     if (!response.ok) {
       showMessage(...LOAD_FAILED);
       return;
     }
 
     const result = await response.json();
-    if (!result.data || Object.keys(result.data).length === 0) {
-      // No saved answers yet. Seed name and email from the screening record so
-      // the client is not asked to retype what the firm already has.
-      const client = result.client || {};
-      if (client.name) {
-        const nameEl = formEl.querySelector('input[name="client_name"]');
-        if (nameEl && !nameEl.value) nameEl.value = client.name;
-      }
-      if (client.email) {
-        const emailEl = formEl.querySelector('input[name="client_email"]');
-        if (emailEl && !emailEl.value) emailEl.value = client.email;
-      }
-      spinner.style.display = 'none';
-      formEl.classList.remove('hidden');
-      render();
+    if (result.closed) {
+      showMessage(...ALREADY_SUBMITTED);
       return;
     }
 
-    const data = result.data;
-
-    // Populate form fields
-    if (data.inquiry_reason) {
-      const option = formEl.querySelector(`input[name="inquiry_reason"][value="${data.inquiry_reason}"]`);
-      if (option) option.checked = true;
+    // Not submitted yet. Seed name and email from the screening record so the
+    // client is not asked to retype what the firm already has.
+    const client = result.client || {};
+    if (client.name) {
+      const nameEl = formEl.querySelector('input[name="client_name"]');
+      if (nameEl && !nameEl.value) nameEl.value = client.name;
     }
-    if (data.client_name) formEl.querySelector('input[name="client_name"]').value = data.client_name;
-    if (data.client_email) formEl.querySelector('input[name="client_email"]').value = data.client_email;
-    if (data.client_phone) formEl.querySelector('input[name="client_phone"]').value = data.client_phone;
-    if (data.client_state) formEl.querySelector('select[name="client_state"]').value = data.client_state;
-
-    // Set checkboxes
-    if (data.complexity_flags) {
-      const flags = Array.isArray(data.complexity_flags) ? data.complexity_flags : [data.complexity_flags];
-      flags.forEach(flag => {
-        const cb = formEl.querySelector(`input[name="complexity_flags"][value="${flag}"]`);
-        if (cb) cb.checked = true;
-      });
+    if (client.email) {
+      const emailEl = formEl.querySelector('input[name="client_email"]');
+      if (emailEl && !emailEl.value) emailEl.value = client.email;
     }
-
-    if (data.asset_flags) {
-      const flags = Array.isArray(data.asset_flags) ? data.asset_flags : [data.asset_flags];
-      flags.forEach(flag => {
-        const cb = formEl.querySelector(`input[name="asset_flags"][value="${flag}"]`);
-        if (cb) cb.checked = true;
-      });
-    }
-
-    if (data.goal) {
-      const goals = Array.isArray(data.goal) ? data.goal : [data.goal];
-      goals.forEach(goal => {
-        const cb = formEl.querySelector(`input[name="goal"][value="${goal}"]`);
-        if (cb) cb.checked = true;
-      });
-    }
-
-    if (data.funeral_wishes) {
-      const wishes = Array.isArray(data.funeral_wishes) ? data.funeral_wishes : [data.funeral_wishes];
-      wishes.forEach(wish => {
-        const cb = formEl.querySelector(`input[name="funeral_wishes"][value="${wish}"]`);
-        if (cb) cb.checked = true;
-      });
-    }
-
-    // Set radio buttons
-    if (data.executor_confidence) {
-      const option = formEl.querySelector(`input[name="executor_confidence"][value="${data.executor_confidence}"]`);
-      if (option) option.checked = true;
-    }
-    if (data.gifts_volume) {
-      const option = formEl.querySelector(`input[name="gifts_volume"][value="${data.gifts_volume}"]`);
-      if (option) option.checked = true;
-    }
-
-    if (data.additional_notes) {
-      formEl.querySelector('textarea[name="additional_notes"]').value = data.additional_notes;
-    }
-
-    // Skip to summary
-    current = total - 1;
-    showSummary(data);
+    spinner.style.display = 'none';
+    formEl.classList.remove('hidden');
+    render();
 
   } catch (error) {
     console.error('Error loading form data:', error);
     showMessage(...LOAD_FAILED);
   }
-}
-
-function showSummary(lead) {
-  document.getElementById('loading-spinner').style.display = 'none';
-  document.querySelector('.card').style.display = 'none';
-  const resultWrap = document.getElementById('result-wrap');
-  // Extract inquiry data if nested
-  const displayData = lead.inquiry || lead;
-  const summaryHtml = buildSummaryHtml(displayData);
-  resultWrap.innerHTML = `
-    <div style="margin-top: 1.5rem;">
-      <h2 style="font-size: 1.3rem; margin-bottom: 1.5rem; color: #2f4858;">Enquiry Summary</h2>
-      ${summaryHtml}
-      <div style="margin-top: 2rem; padding: 1.5rem; background: #eef9fb; border-radius: 4px; border-left: 4px solid #4a8fa0;">
-        <p style="margin: 0; color: #2f4858; font-size: 0.95rem;">✓ Form submitted</p>
-      </div>
-    </div>
-  `;
-  resultWrap.style.display = 'block';
-  resultWrap.scrollIntoView({ behavior: 'smooth' });
 }
 
 function render(){
