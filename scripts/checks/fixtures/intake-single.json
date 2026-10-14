@@ -1,0 +1,207 @@
+{
+  "_note": "Fake data only. form_data.intake is the exact object the real intake form's collectData() returned in Chromium (offline, 2026-10-14) - checkbox 'on', select text, numbers as strings, hidden fields as ''. The 'clio' block simulates what Clio hands back after Make creates the matter; display_number shape follows the comment in api/_lib/clio-client.ts deriveFromDisplayNumber, the live Make scenario is not in this repo.",
+  "form": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "client_name": "Test Client",
+    "client_email": "isuru+test@lex-ops.io",
+    "person_responsible": "Test Lawyer",
+    "lead_type": "Estate planning",
+    "region": "SA",
+    "status": "completed_intake",
+    "created_at": "2026-10-01T01:02:03.000"
+  },
+  "form_data": {
+    "inquiry": {
+      "inquiry_reason": "Put a will or estate plan in place",
+      "client_name": "Test Client",
+      "client_email": "isuru+test@lex-ops.io",
+      "client_phone": "0400 000 000",
+      "client_state": "SA",
+      "complexity_flags": [
+        "Already have a will",
+        "Children under 18"
+      ],
+      "asset_flags": [
+        "Property in my name",
+        "Superannuation"
+      ],
+      "goal": "A will — who receives what",
+      "executor_confidence": "I know exactly who",
+      "gifts_volume": "A few",
+      "funeral_wishes": "Organ or tissue donor",
+      "additional_notes": "Test note"
+    },
+    "intake": {
+      "scenario": "Single",
+      "client_name": "Test Client",
+      "client_former_names": "Test Former-Name",
+      "client_date_of_birth": "1970-03-12",
+      "client_address": "1 Test Street, Norwood SA 5067",
+      "client_occupation": "Test Occupation",
+      "client_state": "SA",
+      "client_marital_status": "Widowed",
+      "former_partner_exclude": "Test Former-Partner",
+      "spouse_name": "",
+      "spouse_occupation": "",
+      "mirror_or_independent": "",
+      "financial_adviser": "Test Adviser, Test Advice Pty Ltd",
+      "governing_jurisdiction": "",
+      "other_assets": "Test shares portfolio; test life policy",
+      "doc_will": "on",
+      "doc_epa": "on",
+      "doc_acd": "on",
+      "exec_initial_name": "Test Executor-One",
+      "exec_initial_address": "2 Test Street, Norwood SA 5067",
+      "exec_initial_relationship": "Test friend",
+      "exec_backup": "Test Executor-Two",
+      "exec_further_backup": "Test Executor-Three",
+      "exec_joint": "Sole executor may act at any time",
+      "exec_power_of_sale": "on",
+      "no_contest_clause": "on",
+      "has_company": "Yes",
+      "company_name": "Test Company Pty Ltd",
+      "company_acn": "000 000 000",
+      "company_on_death": "Transfer/sell",
+      "company_share_treatment": "Falls into residue",
+      "has_life_tenancy": "Yes",
+      "life_tenant": "Test Life-Tenant",
+      "life_tenancy_property": "1 Test Street, Norwood SA 5067",
+      "life_tenancy_outgoings": "Life tenant",
+      "life_tenancy_balance": "Test Beneficiary-One",
+      "life_tenancy_sale_power": "on",
+      "fund_count": "0",
+      "fund1_beneficiary": "",
+      "fund1_class": "",
+      "fund1_trustee_initial": "",
+      "fund1_trustee_backup": "",
+      "fund1_trustee_further": "",
+      "fund1_appointor_initial": "",
+      "fund1_appointor_backup": "",
+      "fund1_appointor_further": "",
+      "fund2_beneficiary": "",
+      "fund2_class": "",
+      "fund2_trustee_initial": "",
+      "fund2_trustee_backup": "",
+      "fund2_trustee_further": "",
+      "fund2_appointor_initial": "",
+      "fund2_appointor_backup": "",
+      "fund2_appointor_further": "",
+      "beneficiary_count": "2",
+      "beneficiary1": "Test Beneficiary-One",
+      "beneficiary1_pct": "60",
+      "beneficiary2": "Test Beneficiary-Two",
+      "beneficiary2_pct": "40",
+      "beneficiary3": "",
+      "beneficiary3_pct": "",
+      "personal_belongings_to": "Same as named beneficiaries above",
+      "personal_belongings_1": "",
+      "personal_belongings_2": "",
+      "personal_belongings_3": "",
+      "calamity_count": "1",
+      "calamity1": "Test Calamity-One",
+      "calamity1_pct": "100",
+      "calamity2": "",
+      "calamity2_pct": "",
+      "calamity3": "",
+      "calamity3_pct": "",
+      "has_sdt": "No",
+      "sdt_mechanism": "",
+      "sdt_principal_beneficiary": "",
+      "has_minors": "Yes",
+      "guardian_initial": "Test Guardian-One",
+      "guardian_backup": "Test Guardian-Two",
+      "organ_donation": "Available",
+      "burial_or_cremation": "Cremation",
+      "funeral_other": "Test funeral wish",
+      "epa_jointly": "Jointly and severally",
+      "epa_effective": "Only upon legal incapacity",
+      "epa_power_gifts": "on",
+      "epa_power_digital": "on",
+      "epa_conditions": "Test condition on the attorney's powers.",
+      "acd_health_care_refusals": "Test refusal",
+      "has_low": "Yes",
+      "low_wishes": "Test letter of wishes text",
+      "signing_date": "2026-11-03",
+      "will_custody": "Firm",
+      "add_to_wills_register": "on",
+      "realestate": [
+        {
+          "Address": "1 Test Street, Norwood SA 5067",
+          "Estimated value": "900000",
+          "Tenancy type": "Sole ownership",
+          "Mortgage details": "None"
+        },
+        {
+          "Address": "3 Test Road, Glenelg SA 5045",
+          "Estimated value": "650000",
+          "Tenancy type": "Tenants in common",
+          "Mortgage details": "Test Bank $100,000"
+        }
+      ],
+      "bank": [
+        {
+          "Bank": "Test Bank",
+          "Account type": "Savings",
+          "Held jointly or individually": "Individual",
+          "Value": "15000"
+        }
+      ],
+      "super": [
+        {
+          "Fund name": "Test Super Fund",
+          "Member number": "T000",
+          "Value": "250000",
+          "Nominated beneficiary": "Test Beneficiary-One"
+        }
+      ],
+      "gift": [
+        {
+          "Item description": "Test watch",
+          "Recipient": "Test Beneficiary-Two",
+          "Fallback if recipient predeceases": "Test Calamity-One"
+        }
+      ],
+      "attorney": [
+        {
+          "Full name": "Test Attorney-One",
+          "Address": "4 Test Street, Norwood SA 5067"
+        },
+        {
+          "Full name": "Test Attorney-Two",
+          "Address": "5 Test Street, Norwood SA 5067"
+        }
+      ],
+      "exclusion": [
+        {
+          "Name": "Test Excluded-Person",
+          "Reason": "Test reason"
+        }
+      ],
+      "sdm": [
+        {
+          "Full name": "Test Decision-Maker-One",
+          "Date of birth": "01/02/1960",
+          "Address": "6 Test Street, Norwood SA 5067",
+          "Phone": "0400 000 001"
+        },
+        {
+          "Full name": "Test Decision-Maker-Two",
+          "Date of birth": "03/04/1962",
+          "Address": "7 Test Street, Norwood SA 5067",
+          "Phone": "0400 000 002"
+        }
+      ]
+    },
+    "metadata": {
+      "current_step": 15,
+      "will_pdf_path": "/wills/will_00000000-0000-4000-8000-000000000001_1760000000000.pdf"
+    }
+  },
+  "clio": {
+    "matter_id": 1000001,
+    "display_number": "1000001-Test Client",
+    "contact_name": "Test Client",
+    "responsible_attorney_id": 1001,
+    "responsible_attorney_name": "Test Lawyer"
+  }
+}
