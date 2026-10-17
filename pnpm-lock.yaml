@@ -149,6 +149,9 @@ importers:
       lightningcss-win32-x64-msvc:
         specifier: ^1.33.0
         version: 1.33.0
+      tsx:
+        specifier: 'catalog:'
+        version: 4.23.12
       typescript:
         specifier: ~5.9.2
         version: 5.9.3
