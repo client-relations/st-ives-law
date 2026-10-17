@@ -12,10 +12,13 @@ import {
   deleteLead,
   populateMatterToClio,
   sendBackForm,
+  markScheduled,
+  markScheduledWarning,
   publicLink,
   errorMessage,
   type ActionResult,
 } from '../lib/dashboard-actions';
+import { enquiryRows, isEarlyExitEnquiry } from '../lib/enquiry-summary';
 import { ALL_DATES, formatDbDate, formatDbTimestamp, matchesDateFilter, type DateFilter, type DatePreset } from '../lib/dates';
 import { ClioDocumentGeneration } from '../components/ClioDocumentGeneration';
 import '../styles/dashboard.css';
@@ -69,13 +72,16 @@ function mapForm(f: any) {
   };
 }
 
-/** True when the client stopped at Q1 of the enquiry (e.g. "Someone has died") rather than completing it. */
+/**
+ * True when the client chose a non-qualifying reason at Q1 (e.g. "Someone has
+ * died") and stopped after giving their details at Q2.
+ */
 function isEarlyExit(form: any): boolean {
   let data = form?.form_data;
   if (typeof data === 'string') {
     try { data = JSON.parse(data); } catch { return false; }
   }
-  return data?.inquiry?.early_exit === true;
+  return isEarlyExitEnquiry(data?.inquiry);
 }
 
 function matchesSearch(item: any, query: string) {
@@ -386,6 +392,34 @@ export default function DashboardV2() {
   });
 
   const handleResendIntake = (form: any) => runAction('resend-intake', () => resendIntakeEmail(form.id));
+
+  // The owning lawyer or an admin; row-level security enforces the same rule.
+  const canManageForm = (form: any) =>
+    !!lawyer && (lawyer.is_admin || String(form.lawyer_id) === String(lawyer.id));
+
+  const handleMarkScheduled = (form: any, formData: any) => {
+    const warning = markScheduledWarning(formData);
+    const prompt = [
+      `Mark ${form.name} as scheduled?`,
+      warning ? `Warning: ${warning}` : '',
+      'The form moves to the Scheduled column. No email is sent to the client.',
+    ].filter(Boolean).join('\n\n');
+    if (!window.confirm(prompt)) return;
+    runAction('mark-scheduled', () => markScheduled(form.id));
+  };
+
+  // The lawyer copies the link to send it; opening it here would let them
+  // fill in the client's enquiry by mistake.
+  const handleCopyEnquiryLink = async (form: any) => {
+    const link = publicLink(`/lead-inquiry?lead_id=${form.id}`);
+    try {
+      await navigator.clipboard.writeText(link.url);
+      setNotice({ kind: 'success', text: link.warning ? `Enquiry link copied. ${link.warning}` : 'Enquiry link copied to clipboard.' });
+    } catch {
+      // No clipboard access (e.g. an insecure origin): show the link to copy by hand.
+      setShareLink(link);
+    }
+  };
 
   const handleSendBack = (formId: string) => runAction('send-back', () => sendBackForm(formId), () => setSendBackFormId(null));
 
@@ -751,29 +785,26 @@ export default function DashboardV2() {
               <div style={{ marginBottom: '16px', padding: '12px', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
                 <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '12px' }}>Initial Outreach Form</div>
 
-                {/* Display inquiry form summary if submitted */}
+                {/* Every saved enquiry answer, read here in the dashboard. The
+                    client link is closed once the enquiry is submitted and
+                    never sends answers back.
+                    TODO(PENDING: Isuru): should reopening the client link show
+                    the client their saved answers? (handover Part D #14) */}
                 {formData?.inquiry ? (
-                  <div style={{ marginBottom: '12px', padding: '12px', background: '#f9f9f9', borderRadius: '4px', fontSize: '12px', lineHeight: '1.6' }}>
-                    {formData.inquiry?.client_name && (
-                      <div><strong>Name:</strong> {formData.inquiry.client_name}</div>
-                    )}
-                    {formData.inquiry?.client_email && (
-                      <div><strong>Email:</strong> {formData.inquiry.client_email}</div>
-                    )}
-                    {formData.inquiry?.client_phone && (
-                      <div><strong>Phone:</strong> {formData.inquiry.client_phone}</div>
-                    )}
-                    {formData.inquiry?.client_state && (
-                      <div><strong>State:</strong> {formData.inquiry.client_state}</div>
-                    )}
-                    {formData.inquiry?.inquiry_reason && (
-                      <div><strong>Reason:</strong> {formData.inquiry.inquiry_reason}</div>
-                    )}
-                    {formData.inquiry?.early_exit === true && (
-                      <div style={{ marginTop: '6px', color: '#8a5a00' }}>
-                        <strong>Early exit:</strong> the client stopped at question 1, so the rest of the enquiry was not asked. Contact them directly.
+                  <div className='nv-enquiry-answers'>
+                    {isEarlyExitEnquiry(formData.inquiry) && (
+                      <div className='nv-enquiry-early-exit'>
+                        <strong>Early exit:</strong> the client stopped after question 2, so questions 3 to 8 were not asked. Contact them directly.
                       </div>
                     )}
+                    <dl>
+                      {enquiryRows(formData.inquiry).map((row) => (
+                        <div key={row.key} className='nv-enquiry-row'>
+                          <dt>{row.label}</dt>
+                          <dd>{row.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
                   </div>
                 ) : (
                   <div style={{ marginBottom: '12px', padding: '12px', background: '#fff3cd', borderRadius: '4px', fontSize: '12px', color: '#666' }}>
@@ -781,20 +812,15 @@ export default function DashboardV2() {
                   </div>
                 )}
 
-                <button
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    background: '#4a8fa0',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                  }}
-                  onClick={() => window.open(`/lead-inquiry?lead_id=${viewingForm.id}`, '_blank')}
-                >
-                  {formData?.inquiry ? 'View Details' : 'View Form'}
-                </button>
+                {!formData?.inquiry && (viewingForm.status === 'appointment_sent' || viewingForm.status === 'scheduled') && (
+                  <button
+                    className='nv-btn-view'
+                    disabled={!!busy}
+                    onClick={() => handleCopyEnquiryLink(viewingForm)}
+                  >
+                    Copy enquiry link
+                  </button>
+                )}
               </div>
 
               {showBothForms ? (
@@ -845,6 +871,18 @@ export default function DashboardV2() {
               )}
             </div>
           </div>
+
+          {viewingForm.status === 'appointment_sent' && canManageForm(viewingForm) && (
+            <div className='nv-modal-actions'>
+              <button
+                className='nv-btn-qualify'
+                disabled={!!busy}
+                onClick={() => handleMarkScheduled(viewingForm, formData)}
+              >
+                {busy === 'mark-scheduled' ? 'Saving...' : 'Mark as scheduled'}
+              </button>
+            </div>
+          )}
 
           {viewingForm.status === 'scheduled' && (
             <div className='nv-modal-actions'>
@@ -913,7 +951,7 @@ export default function DashboardV2() {
           {form.personResponsible || 'Unassigned'}
         </span>
         {isEarlyExit(form) && (
-          <span className='nv-chip warm' title='The client stopped at question 1. Contact them directly.'>
+          <span className='nv-chip warm' title='The client stopped after question 2. Contact them directly.'>
             <span className='nv-chip-dot' />
             Early exit
           </span>

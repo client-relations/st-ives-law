@@ -41,7 +41,7 @@ export default async function handler(req, res) {
     // The enquiry can be submitted once. A second submission from an old tab
     // or a reopened link must not overwrite the answers the firm already has.
     if (form_type === 'inquiry' && existing.inquiry) {
-      throw new HttpError(409, 'This form has already been submitted. Please contact the firm if anything needs to change.');
+      throw new HttpError(409, 'This form has already been submitted. Please contact the firm if anything needs to change.', 'ALREADY_SUBMITTED');
     }
 
     // A client who stops at Q1 (e.g. "Someone has died") has not completed the
