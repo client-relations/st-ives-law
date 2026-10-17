@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// import.meta.env exists only under Vite; the unit tests import this module
+// under plain Node, where it is undefined.
+const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || '';
 
 let supabase: any;
 if (supabaseUrl && supabaseAnonKey) {

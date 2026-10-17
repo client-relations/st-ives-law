@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { isEarlyExitEnquiry } from './enquiry-summary';
 
 // Every dashboard mutation returns an ActionResult so the UI can always tell
 // the lawyer what happened — never a bare boolean, never a console-only error.
@@ -189,6 +190,46 @@ export async function createPersonLead(input: NewPersonLead): Promise<ActionResu
 }
 
 // ── Forms ──────────────────────────────────────────────────────────────────
+
+/**
+ * Why a lawyer should think twice before marking this form scheduled, or null
+ * when the client completed the enquiry. Shown in the confirmation prompt.
+ */
+export function markScheduledWarning(formData: { inquiry?: Record<string, unknown> } | null | undefined): string | null {
+  const inquiry = formData?.inquiry;
+  if (!inquiry) return 'The client has not completed the enquiry form yet.';
+  if (isEarlyExitEnquiry(inquiry)) {
+    return 'The client stopped the enquiry after question 2 (early exit), so questions 3 to 8 were never answered.';
+  }
+  return null;
+}
+
+/**
+ * Move a form from Appointment Sent to Scheduled by hand, for clients who
+ * booked without finishing the enquiry. Conditional on the form still being
+ * 'appointment_sent', so a stale modal cannot pull a form back from a later
+ * stage. Row-level security limits it to the owning lawyer or an admin.
+ * Sends no email and touches neither Make nor Clio.
+ *
+ * TODO(PENDING: Isuru): who may use this, and whether early-exit or
+ * no-enquiry forms are allowed (handover Part D #15). Default until decided:
+ * owning lawyer or admin; allowed, with a warning.
+ */
+export async function markScheduled(formId: string, client = supabase): Promise<ActionResult> {
+  try {
+    const { data, error } = await client
+      .from('forms')
+      .update({ status: 'scheduled' })
+      .eq('id', formId)
+      .eq('status', 'appointment_sent')
+      .select('id');
+    if (error) return fail(errorMessage(error));
+    if (!data || data.length === 0) return fail(STALE, 'STALE');
+    return ok(undefined, 'Marked as scheduled.');
+  } catch (err) {
+    return fail(errorMessage(err));
+  }
+}
 
 export type IntakeSentResult = { email: EmailResult };
 
