@@ -395,6 +395,9 @@ function DocumentPackageSelector({
                 'Matter.Relationships.Mr.Name': variables['Matter.Relationships.Mrs.Name'] || '',
                 'Matter.Relationships.Mrs.Name': variables['Matter.Relationships.Mr.Name'] || '',
                 'Matter.Client.Name': variables['Matter.Relationships.Mrs.Name'] || '',
+                // The will-maker's gender (Testator/Testatrix) follows the swap.
+                'Matter.CustomField.ClientGender': variables['Matter.CustomField.SpouseGender'] || '',
+                'Matter.CustomField.SpouseGender': variables['Matter.CustomField.ClientGender'] || '',
               },
             },
           ]

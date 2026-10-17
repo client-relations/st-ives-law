@@ -174,6 +174,18 @@ export function deriveFromDisplayNumber(displayNumber: string): {
   // Married - Mirror wills - Carter, James" and was printed into the mirror
   // documents. The first spouse is glued together by Make (no space between
   // first and last name); normaliseMatter swaps in the contact's own name.
+  // From CR 2026-10-14 Make names the matter from the payload's
+  // matter_description instead: "Estate Planning - Couple - Carter, James".
+  // That carries the primary client only, so the second spouse comes from the
+  // SpouseName custom field (normaliseMatter). Without this, the generic split
+  // below read every such couple as one person called "Estate Planning".
+  const described = /^Estate Planning\s+-\s+(Single|Couple)\s+-\s+([^,]+),\s*(.+?)[,\s]*$/i.exec(withoutFileNumber);
+  if (described) {
+    const name = `${described[3].trim()} ${described[2].trim()}`;
+    const isCouple = described[1].toLowerCase() === 'couple';
+    return { name, isCouple, mr: isCouple ? name : '', mrs: '', fromIntake: true };
+  }
+
   const intakeCouple = /^(.+?)\s*\([^)]*\)\s+and\s+(.+?)\s*\([^)]*\)\s+-\s/i.exec(withoutFileNumber);
   if (intakeCouple) {
     const mr = intakeCouple[1].trim();
@@ -303,7 +315,9 @@ export function normaliseMatter(raw: any): ClioMatter {
     client_type: String(raw?.client?.type || ''),
     is_couple: derived.isCouple,
     mr_name: cleanPersonName(mr_name),
-    mrs_name: cleanPersonName(derived.mrs),
+    // A matter named from matter_description has no second spouse in its
+    // name; Make maps the payload's spouse_name to SpouseName for it.
+    mrs_name: cleanPersonName(derived.mrs || (derived.isCouple ? custom_fields.SpouseName || '' : '')),
     custom_fields,
     client_date_of_birth: String(raw?.client?.date_of_birth || ''),
     responsible_attorney: String(raw?.responsible_attorney?.name || ''),

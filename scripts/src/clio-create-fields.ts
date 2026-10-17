@@ -78,6 +78,10 @@ const FIELDS: FieldSpec[] = [
   // map the two payload keys onto these fields (CR 2026-10-14).
   { name: 'ClientGender', type: 'text_line' },
   { name: 'SpouseGender', type: 'text_line' },
+  // The second spouse's name, for matters Make names from matter_description
+  // ("Estate Planning - Couple - Last, First"), which carries only the
+  // primary client (api/_lib/clio-client.ts deriveFromDisplayNumber).
+  { name: 'SpouseName', type: 'text_line' },
 ];
 
 const tokenResponse = await fetch(`${BASE}/oauth/token`, {

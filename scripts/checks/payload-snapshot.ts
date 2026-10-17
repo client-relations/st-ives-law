@@ -127,6 +127,8 @@ function dashboardVersions(variables: Record<string, string>, isCouple: boolean)
             'Matter.Relationships.Mr.Name': variables['Matter.Relationships.Mrs.Name'] || '',
             'Matter.Relationships.Mrs.Name': variables['Matter.Relationships.Mr.Name'] || '',
             'Matter.Client.Name': variables['Matter.Relationships.Mrs.Name'] || '',
+            'Matter.CustomField.ClientGender': variables['Matter.CustomField.SpouseGender'] || '',
+            'Matter.CustomField.SpouseGender': variables['Matter.CustomField.ClientGender'] || '',
           },
         },
       ]
