@@ -9,6 +9,7 @@ import {
   missingFieldsFor,
   type DocumentId,
 } from '../lib/documentPackages';
+import { documentFileName } from '../lib/documentNames';
 
 /**
  * Document generation, driven by Clio rather than by the intake pipeline.
@@ -399,6 +400,9 @@ function DocumentPackageSelector({
           ]
         : [{ suffix: '', variables }];
 
+      // One date for the whole set, so a batch generated across midnight in
+      // Adelaide doesn't end up with two different stamps.
+      const generatedAt = new Date();
       const requests: Promise<any>[] = [];
       for (const documentId of generatable) {
         const definition = getDocument(documentId);
@@ -418,9 +422,13 @@ function DocumentPackageSelector({
               .then((r) => r.json())
               .then((doc) => ({
                 ...doc,
-                documentName: version.suffix
-                  ? `${definition.label} — ${version.suffix}`
-                  : `${definition.label} — ${matter.client_name}`,
+                // For a couple each spouse's copy carries that spouse's name.
+                documentName: documentFileName(
+                  documentId,
+                  definition.label,
+                  version.suffix || matter.client_name,
+                  generatedAt,
+                ),
               })),
           );
         }
