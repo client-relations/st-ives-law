@@ -98,6 +98,17 @@
     background: #fff; border: 1px solid var(--border); border-radius: 6px;
     padding: 2.5rem; overflow-x: auto;
   }
+  .explain { background: var(--accent-soft); border-radius: 6px; padding: 0.6rem 0.8rem; color: #33434d; }
+  /* DD/MM/YYYY entry with a calendar button. The named type=date input holds
+     the stored ISO value and opens as the picker; the text box is what the
+     client sees and types into. */
+  .date-entry { display: flex; gap: 0.4rem; align-items: stretch; position: relative; }
+  .date-entry .date-text { flex: 1; }
+  .date-entry .date-picker-btn { flex: none; padding: 0 0.6rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer; }
+  .date-entry .date-picker-btn:hover { border-color: var(--accent); }
+  .date-entry input[type=date] { position: absolute; right: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; padding: 0; border: 0; }
+  .date-error { font-size: 0.8rem; color: var(--error); margin-top: 0.3rem; }
+  .bring-list { margin: 0.6rem 0 0; padding-left: 1.2rem; line-height: 1.7; }
   .will-container pre {
     font-family: 'Courier New', monospace; font-size: 0.95rem; line-height: 1.7;
     margin: 0; white-space: pre-wrap; word-wrap: break-word;
@@ -113,7 +124,7 @@
     <div class="progress-wrap">
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
       <div class="progress-label">
-        <span id="progress-text">Step 1 of 14</span>
+        <span id="progress-text">Step 1 of 17</span>
         <span id="progress-title">Scenario &amp; Client Details</span>
       </div>
     </div>
@@ -136,8 +147,13 @@
           <div><label>Former/other names (if any)</label><input type="text" name="client_former_names"></div>
         </div>
         <div class="row2">
-          <div><label>Date of birth <span class="req">*</span></label><input type="date" name="client_date_of_birth" required max="2100-12-31"></div>
-          <div></div>
+          <div><label>Date of birth <span class="req">*</span></label><div class="date-entry"><input type="date" name="client_date_of_birth" required max="2100-12-31"></div></div>
+          <div><label>Gender <span class="req">*</span></label>
+            <div class="radio-group">
+              <label class="inline"><input type="radio" name="client_gender" value="Male" required> Male</label>
+              <label class="inline"><input type="radio" name="client_gender" value="Female" required> Female</label>
+            </div>
+          </div>
         </div>
         <label>Residential address <span class="req">*</span></label><input type="text" name="client_address" required>
         <div class="row2">
@@ -162,6 +178,11 @@
         <div id="spouse-block" class="hidden">
           <hr>
           <label>Spouse/partner full legal name</label><input type="text" name="spouse_name">
+          <label>Spouse/partner gender <span class="req">*</span></label>
+          <div class="radio-group">
+            <label class="inline"><input type="radio" name="spouse_gender" value="Male" required> Male</label>
+            <label class="inline"><input type="radio" name="spouse_gender" value="Female" required> Female</label>
+          </div>
           <div class="row2">
             <div><label>Spouse occupation</label><input type="text" name="spouse_occupation"></div>
             <div><label>Mirror wills or independent wills?</label>
@@ -190,21 +211,53 @@
       <!-- STEP 2 -->
       <div class="step" data-title="Assets &amp; Liabilities">
         <p class="step-title">Assets &amp; Liabilities</p>
-        <p class="step-note">Add as many entries as needed in each category.</p>
-        <label>Real estate</label>
+        <p class="step-note">Add as many entries as needed in each category. Leave a category empty if it does not apply.</p>
+        <label>Real estate (your home and other property you live in or use)</label>
         <div id="realestate-list"></div>
         <button type="button" class="add-btn" data-add="realestate">+ Add real estate</button>
+
+        <label style="margin-top:1.2rem;">Investment properties</label>
+        <div id="investment_property-list"></div>
+        <button type="button" class="add-btn" data-add="investment_property">+ Add investment property</button>
+
+        <label style="margin-top:1.2rem;">Motor vehicles</label>
+        <div id="vehicle-list"></div>
+        <button type="button" class="add-btn" data-add="vehicle">+ Add motor vehicle</button>
 
         <label style="margin-top:1.2rem;">Bank accounts</label>
         <div id="bank-list"></div>
         <button type="button" class="add-btn" data-add="bank">+ Add bank account</button>
 
+        <label style="margin-top:1.2rem;">Shares and other investments</label>
+        <div id="shares-list"></div>
+        <button type="button" class="add-btn" data-add="shares">+ Add shares or investment</button>
+
+        <label style="margin-top:1.2rem;">Life insurance, TPD (total and permanent disability) and income protection</label>
+        <div id="insurance-list"></div>
+        <button type="button" class="add-btn" data-add="insurance">+ Add insurance policy</button>
+
         <label style="margin-top:1.2rem;">Superannuation</label>
         <div id="super-list"></div>
         <button type="button" class="add-btn" data-add="super">+ Add super fund</button>
 
+        <label style="margin-top:1.2rem;">Self-managed super fund</label>
+        <div id="smsf-list"></div>
+        <button type="button" class="add-btn" data-add="smsf">+ Add self-managed super fund</button>
+
+        <label style="margin-top:1.2rem;">Money owed to you</label>
+        <div id="money_owed-list"></div>
+        <button type="button" class="add-btn" data-add="money_owed">+ Add money owed to you</button>
+
+        <label style="margin-top:1.2rem;">Likely future inheritance</label>
+        <div id="inheritance-list"></div>
+        <button type="button" class="add-btn" data-add="inheritance">+ Add likely inheritance</button>
+
+        <label style="margin-top:1.2rem;">Companies, trusts or other entities</label>
+        <div id="entity-list"></div>
+        <button type="button" class="add-btn" data-add="entity">+ Add company, trust or entity</button>
+
         <label style="margin-top:1.2rem;">Other assets or liabilities</label>
-        <textarea name="other_assets" placeholder="Investments, insurance, loans owed to the client, expected inheritance, company or trust interests, etc."></textarea>
+        <textarea name="other_assets" placeholder="Anything not listed above, and any debts or loans you owe."></textarea>
       </div>
 
       <!-- STEP 3 -->
@@ -215,14 +268,21 @@
           <label class="inline"><input type="checkbox" name="doc_will"> Will</label>
           <label class="inline"><input type="checkbox" name="doc_epa"> Enduring Power of Attorney</label>
           <label class="inline"><input type="checkbox" name="doc_acd"> Advance Care Directive</label>
+          <label class="inline"><input type="checkbox" name="doc_tt"> Testamentary trust</label>
           <label class="inline"><input type="checkbox" name="doc_sdt"> Special Disability Trust provision</label>
         </div>
         <p class="error-msg" id="doc-type-error">Select at least one document.</p>
+        <label style="margin-top:1.2rem;">Do you already have a will, power of attorney, advance care directive or other estate planning documents?</label>
+        <div class="radio-group">
+          <label class="inline"><input type="radio" name="has_existing_documents" value="No"> No</label>
+          <label class="inline"><input type="radio" name="has_existing_documents" value="Yes"> Yes</label>
+        </div>
       </div>
 
       <!-- STEP 4 -->
       <div class="step" data-title="Executor(s)">
         <p class="step-title">Executor(s)</p>
+        <p class="step-note explain">An executor is a person you appoint who is responsible for managing your estate and distributing your assets. You can nominate one or more executors.</p>
         <p class="step-note">Initial executor</p>
         <div class="row3">
           <div><label>Full name <span class="req">*</span></label><input type="text" name="exec_initial_name" required></div>
@@ -295,6 +355,7 @@
       <!-- STEP 8 -->
       <div class="step" data-title="Life Tenancy">
         <p class="step-title">Life Tenancy</p>
+        <p class="step-note explain">A life tenancy can be granted to someone to use, occupy or benefit from your principal place of residence or another property for the duration of their lifetime. If you hold a property with someone else as joint tenants, you don't need to give them a life tenancy.</p>
         <label>Is a life tenancy required? <span class="req">*</span></label>
         <div class="radio-group">
           <label class="inline"><input type="radio" name="has_life_tenancy" value="No" checked> No</label>
@@ -324,6 +385,7 @@
       <!-- STEP 9 -->
       <div class="step" data-title="Residuary Estate">
         <p class="step-title">Residuary Estate</p>
+        <p class="step-note explain">Your residuary estate is the balance of what remains of your assets after all debts, taxes, funeral costs, administration costs and specific gifts have been paid out.</p>
         <label>How many separate trust funds should the residuary estate be divided into? <span class="req">*</span></label>
         <select id="fund-count" name="fund_count" required>
           <option value="0">None (residue passes directly to named beneficiaries)</option>
@@ -459,8 +521,25 @@
       </div>
 
       <!-- STEP 10 -->
+      <div class="step" data-title="Testamentary Trust">
+        <p class="step-title">Testamentary Trust</p>
+        <p class="step-note explain">A testamentary trust only comes into effect after the will-maker dies. Instead of passing assets like cash or real estate directly to beneficiaries, the assets are transferred into a trust managed by a trustee for the benefit of the people you name.</p>
+        <label>Would you like a testamentary trust in your will? <span class="req">*</span></label>
+        <div class="radio-group">
+          <label class="inline"><input type="radio" name="has_tt" value="No" checked> No</label>
+          <label class="inline"><input type="radio" name="has_tt" value="Yes"> Yes</label>
+          <label class="inline"><input type="radio" name="has_tt" value="Not sure"> Not sure, I'd like to discuss it</label>
+        </div>
+        <div id="tt-block" class="hidden">
+          <label>Who should the testamentary trust be for? <span class="req">*</span></label>
+          <textarea name="tt_beneficiaries" required placeholder="For example: each of my children and their families"></textarea>
+        </div>
+      </div>
+
+      <!-- STEP 11 -->
       <div class="step" data-title="Special Disability Trust">
         <p class="step-title">Special Disability Trust</p>
+        <p class="step-note explain">A special disability trust is a legal structure set up to help parents and immediate family members provide for the long-term care, accommodation and welfare of a person with a mental or physical disability.</p>
         <label>Is an SDT provision required? <span class="req">*</span></label>
         <div class="radio-group">
           <label class="inline"><input type="radio" name="has_sdt" value="No" checked> No</label>
@@ -477,7 +556,7 @@
         </div>
       </div>
 
-      <!-- STEP 11 -->
+      <!-- STEP 12 -->
       <div class="step" data-title="Guardianship">
         <p class="step-title">Guardianship</p>
         <label>Does the client have children under 18? <span class="req">*</span></label>
@@ -493,24 +572,37 @@
         </div>
       </div>
 
-      <!-- STEP 12 -->
+      <!-- STEP 13 -->
       <div class="step" data-title="Funeral Wishes">
         <p class="step-title">Funeral Wishes</p>
         <div class="row2">
-          <div><label>Organ donation <span class="req">*</span></label>
-            <select name="organ_donation" required><option value="">Select…</option><option>Available</option><option>Not available</option></select>
+          <div><label>Do you wish to be an organ donor? <span class="req">*</span></label>
+            <!-- Shown as Yes/No; the stored values go to Clio unchanged. -->
+            <select name="organ_donation" required><option value="">Select…</option><option value="Available">Yes</option><option value="Not available">No</option></select>
           </div>
           <div><label>Burial or cremation? <span class="req">*</span></label>
             <select name="burial_or_cremation" required><option value="">Select…</option><option>Burial</option><option>Cremation</option></select>
           </div>
         </div>
-        <label>Any other funeral wishes (non-binding)</label>
+        <div id="remains-place-block" class="hidden">
+          <label><span id="remains-place-question">Do you have a specific place in mind?</span> <span class="req">*</span></label>
+          <div class="radio-group">
+            <label class="inline"><input type="radio" name="remains_place_choice" value="Specific place" required> Yes, a specific place</label>
+            <label class="inline"><input type="radio" name="remains_place_choice" value="Leave it to my executor or family" required> Leave it to my executor or family</label>
+          </div>
+          <div id="remains-place-detail" class="hidden">
+            <label><span id="remains-place-label">Where?</span> <span class="req">*</span></label>
+            <input type="text" name="remains_place" required>
+          </div>
+        </div>
+        <label>Do you have any other wishes for your body after death?</label>
         <textarea name="funeral_other"></textarea>
       </div>
 
-      <!-- STEP 13 -->
+      <!-- STEP 14 -->
       <div class="step" data-title="Enduring Power of Attorney">
         <p class="step-title">Enduring Power of Attorney</p>
+        <p class="step-note explain">A power of attorney is a document that allows you to appoint a trusted person or people to make financial, property and legal decisions on your behalf.</p>
         <label>Attorney(s) / Donee(s)</label>
         <div id="attorney-list"></div>
         <button type="button" class="add-btn" data-add="attorney">+ Add attorney</button>
@@ -541,9 +633,10 @@
         <textarea name="epa_conditions" maxlength="510"></textarea>
       </div>
 
-      <!-- STEP 14 -->
+      <!-- STEP 15 -->
       <div class="step" data-title="Advance Care Directive">
         <p class="step-title">Advance Care Directive</p>
+        <p class="step-note explain">An advance care directive is a legal document that allows you to record your preferences, values and instructions for the people you nominate to make your future health care, end of life care, living arrangements and personal decisions if you are temporarily or permanently unable to make these decisions yourself.</p>
         <p class="step-note hidden" id="acd-not-selected">You did not tick "Advance Care Directive" under Document Type. Go back and tick it if you want one, otherwise press Next.</p>
         <div id="acd-block">
           <label>Substitute decision-maker(s)</label>
@@ -556,9 +649,10 @@
         </div>
       </div>
 
-      <!-- STEP 15 -->
-      <div class="step" data-title="Letter of Wishes, Signing &amp; Custody">
-        <p class="step-title">Letter of Wishes, Signing &amp; Custody</p>
+      <!-- STEP 16 -->
+      <div class="step" data-title="Letter of Wishes, First Meeting &amp; Custody">
+        <p class="step-title">Letter of Wishes, First Meeting &amp; Custody</p>
+        <p class="step-note explain">A letter of wishes is a private, non-legally binding document that sits alongside your will and guides your executors. It explains why you made your choices and shares personal reflections and practical details.</p>
         <label>Does the client want a non-binding Letter of Wishes prepared? <span class="req">*</span></label>
         <div class="radio-group">
           <label class="inline"><input type="radio" name="has_low" value="No" checked> No</label>
@@ -569,8 +663,16 @@
           <textarea name="low_wishes"></textarea>
         </div>
         <hr>
+        <!-- signing_date keeps its key and ISO format: it now holds the first
+             choice of meeting date (see docs/HANDOVER-CR-2026-10-14.md). -->
+        <label>Preferred first meeting dates</label>
+        <p class="step-note">Give up to three dates in the next two weeks, in order of preference.</p>
+        <div class="row3">
+          <div><label>Preferred first meeting date</label><div class="date-entry"><input type="date" name="signing_date" data-window-days="14"></div></div>
+          <div><label>Second choice</label><div class="date-entry"><input type="date" name="preferred_meeting_date_2" data-window-days="14"></div></div>
+          <div><label>Third choice</label><div class="date-entry"><input type="date" name="preferred_meeting_date_3" data-window-days="14"></div></div>
+        </div>
         <div class="row2 align-end">
-          <div><label>Preferred signing date</label><input type="date" name="signing_date"></div>
           <div><label>Where should the executed Will be lodged/held? <span class="req">*</span></label>
             <select name="will_custody" required>
               <option value="">Select…</option>
@@ -581,6 +683,13 @@
         <div class="checkbox-group">
           <label class="inline"><input type="checkbox" name="add_to_wills_register"> Add to the Law Society Wills Register</label>
         </div>
+      </div>
+
+      <!-- STEP 17 -->
+      <div class="step" data-title="Documents to Bring">
+        <p class="step-title">Documents to bring to your first meeting</p>
+        <p class="step-note">Based on your answers, please bring the following to your first meeting.</p>
+        <ul class="bring-list" id="bring-list"></ul>
       </div>
 
       <div id="form-alert" class="form-alert hidden" role="alert"></div>
@@ -613,8 +722,20 @@ const templates = {
   realestate: () => fieldRow([
     {label:'Address', type:'text'},
     {label:'Estimated value', type:'text'},
-    {label:'Tenancy type', type:'select', options:['Sole ownership','Joint tenants','Tenants in common']},
+    {label:'Tenancy type', type:'select', options:['Sole ownership','Joint tenants','Tenants in common','Don’t know']},
     {label:'Mortgage details', type:'text'},
+  ]),
+  investment_property: () => fieldRow([
+    {label:'Address', type:'text'},
+    {label:'Estimated value', type:'text'},
+    {label:'Tenancy type', type:'select', options:['Sole ownership','Joint tenants','Tenants in common','Don’t know']},
+    {label:'Mortgage details', type:'text'},
+  ]),
+  vehicle: () => fieldRow([
+    {label:'Make and model', type:'text'},
+    {label:'Registration', type:'text'},
+    {label:'Estimated value', type:'text'},
+    {label:'Finance owing', type:'text'},
   ]),
   bank: () => fieldRow([
     {label:'Bank', type:'text'},
@@ -622,11 +743,43 @@ const templates = {
     {label:'Held jointly or individually', type:'select', options:['Individual','Joint','Other']},
     {label:'Value', type:'text'},
   ]),
+  shares: () => fieldRow([
+    {label:'Description', type:'text'},
+    {label:'Held in whose name', type:'text'},
+    {label:'Estimated value', type:'text'},
+  ]),
+  insurance: () => fieldRow([
+    {label:'Insurer', type:'text'},
+    {label:'Policy type', type:'select', options:['Life insurance','TPD','Income protection','Other']},
+    {label:'Sum insured', type:'text'},
+    {label:'Nominated beneficiary', type:'text'},
+  ]),
   super: () => fieldRow([
     {label:'Fund name', type:'text'},
     {label:'Member number', type:'text'},
     {label:'Value', type:'text'},
     {label:'Nominated beneficiary', type:'text'},
+  ]),
+  smsf: () => fieldRow([
+    {label:'Fund name', type:'text'},
+    {label:'Trustee', type:'text'},
+    {label:'Your balance', type:'text'},
+    {label:'Nominated beneficiary', type:'text'},
+  ]),
+  money_owed: () => fieldRow([
+    {label:'Who owes you', type:'text'},
+    {label:'Amount', type:'text'},
+    {label:'Written loan agreement', type:'select', options:['Yes','No','Don’t know']},
+  ]),
+  inheritance: () => fieldRow([
+    {label:'From whom', type:'text'},
+    {label:'Estimated value', type:'text'},
+  ]),
+  entity: () => fieldRow([
+    {label:'Name', type:'text'},
+    {label:'Type', type:'select', options:['Pty Ltd company','Family trust','Unit trust','Partnership','Other']},
+    {label:'Your role or interest', type:'text'},
+    {label:'Estimated value', type:'text'},
   ]),
   gift: () => fieldRow([
     {label:'Item description', type:'text'},
@@ -652,15 +805,20 @@ const templates = {
 };
 const REPEAT_LIMITS = { sdm: 4 };
 
+// The label is also the key each row is stored under, so a question is
+// reworded here rather than by changing the label.
+const FIELD_DISPLAY_LABELS = { 'Tenancy type': 'Held as' };
+
 function fieldRow(fields){
   const div = document.createElement('div');
   div.className = 'repeat-item';
   div.innerHTML = '<button type="button" class="remove-btn">Remove</button>' +
     fields.map(f => {
+      const shown = FIELD_DISPLAY_LABELS[f.label] || f.label;
       if (f.type === 'select') {
-        return `<label>${f.label}</label><select data-field="${f.label}"><option value="">Select…</option>${f.options.map(o=>`<option>${o}</option>`).join('')}</select>`;
+        return `<label>${shown}</label><select data-field="${f.label}"><option value="">Select…</option>${f.options.map(o=>`<option>${o}</option>`).join('')}</select>`;
       }
-      return `<label>${f.label}</label><input type="text" data-field="${f.label}">`;
+      return `<label>${shown}</label><input type="text" data-field="${f.label}">`;
     }).join('');
   div.querySelector('.remove-btn').addEventListener('click', () => div.remove());
   return div;
@@ -696,6 +854,168 @@ bindToggle('has_life_tenancy', 'life-tenancy-block', 'Yes');
 bindToggle('has_sdt', 'sdt-block', 'Yes');
 bindToggle('has_minors', 'guardian-block', 'Yes');
 bindToggle('has_low', 'low-block', 'Yes');
+bindToggle('has_tt', 'tt-block', 'Yes');
+
+// ---- funeral: where the body or ashes should go ----
+function syncRemainsPlace(){
+  const method = document.querySelector('select[name=burial_or_cremation]').value;
+  document.getElementById('remains-place-block').classList.toggle('hidden', !method);
+  document.getElementById('remains-place-question').textContent = method === 'Cremation'
+    ? 'Do you have a specific place in mind for your ashes?'
+    : 'Do you have a specific burial place in mind?';
+  document.getElementById('remains-place-label').textContent = method === 'Cremation'
+    ? 'Where would you like your ashes to be placed?'
+    : 'Where would you like to be buried?';
+  const choice = document.querySelector('input[name=remains_place_choice]:checked');
+  document.getElementById('remains-place-detail').classList.toggle('hidden', !choice || choice.value !== 'Specific place');
+}
+document.querySelector('select[name=burial_or_cremation]').addEventListener('change', syncRemainsPlace);
+document.querySelectorAll('input[name=remains_place_choice]').forEach(r => r.addEventListener('change', syncRemainsPlace));
+
+// ---- dates: shown and typed as DD/MM/YYYY, stored as ISO (YYYY-MM-DD) ----
+// The stored value must stay ISO: Clio only accepts client_date_of_birth in
+// that shape and silently drops anything else (api/_lib/clio-payload.ts).
+const FIRM_TIME_ZONE = 'Australia/Adelaide';
+
+/** Today's date at the firm, as ISO. The client's own clock and zone don't matter. */
+function todayAtFirm(){
+  const parts = {};
+  new Intl.DateTimeFormat('en-AU', { timeZone: FIRM_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(new Date()).forEach(p => { parts[p.type] = p.value; });
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function addDaysIso(iso, days){
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+function isoToDisplay(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+}
+
+/** "7/3/1975" or "07/03/1975" to "1975-03-07"; null when it is not a real date. */
+function displayToIso(text){
+  const m = /^\s*(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})\s*$/.exec(text || '');
+  if (!m) return null;
+  const day = Number(m[1]), month = Number(m[2]), year = Number(m[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return `${m[3]}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/** Meeting dates must fall between today and today + N days, at the firm. */
+function applyDateWindows(){
+  const today = todayAtFirm();
+  document.querySelectorAll('input[type=date][data-window-days]').forEach(input => {
+    input.min = today;
+    input.max = addDaysIso(today, Number(input.getAttribute('data-window-days')));
+  });
+}
+
+function showDateError(native, message){
+  native._dateError.textContent = message;
+  native._dateError.classList.toggle('hidden', !message);
+  native._dateText.style.borderColor = message ? 'var(--error)' : '';
+}
+
+/**
+ * Copy what the client typed into the stored (ISO) input. Returns an error
+ * message, or '' when the date is fine or left blank. An invalid date is never
+ * stored: the stored value is cleared so a bad entry can't reach Clio.
+ */
+function commitTypedDate(native){
+  const text = native._dateText.value.trim();
+  if (!text) { native.value = ''; showDateError(native, ''); return ''; }
+  const iso = displayToIso(text);
+  let message = '';
+  if (!iso) message = 'Enter a real date as DD/MM/YYYY, for example 07/03/1975.';
+  else if ((native.min && iso < native.min) || (native.max && iso > native.max)) {
+    message = native.hasAttribute('data-window-days')
+      ? `Choose a date between ${isoToDisplay(native.min)} and ${isoToDisplay(native.max)}.`
+      : 'Enter a date that is not in the future.';
+  }
+  native.value = message ? '' : iso;
+  if (!message) native._dateText.value = isoToDisplay(iso);
+  showDateError(native, message);
+  return message;
+}
+
+/** Refresh the visible DD/MM/YYYY boxes from the stored values (after a load). */
+function syncDateTexts(){
+  document.querySelectorAll('.date-entry input[type=date]').forEach(native => {
+    native._dateText.value = isoToDisplay(native.value);
+    showDateError(native, '');
+  });
+}
+
+function enhanceDateInputs(){
+  document.querySelectorAll('.date-entry input[type=date]').forEach(native => {
+    const label = native.closest('div:not(.date-entry)')?.querySelector('label');
+    const text = document.createElement('input');
+    text.type = 'text';
+    text.className = 'date-text';
+    text.placeholder = 'DD/MM/YYYY';
+    text.inputMode = 'numeric';
+    text.autocomplete = 'off';
+    if (label) text.setAttribute('aria-label', label.textContent.replace('*', '').trim() + ' (DD/MM/YYYY)');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'date-picker-btn';
+    button.setAttribute('aria-label', 'Choose from a calendar');
+    button.textContent = '📅';
+    const error = document.createElement('p');
+    error.className = 'date-error hidden';
+    error.setAttribute('role', 'alert');
+    native.tabIndex = -1;
+    native.setAttribute('aria-hidden', 'true');
+    native.before(text, button);
+    native.closest('.date-entry').after(error);
+    native._dateText = text;
+    native._dateError = error;
+
+    text.addEventListener('input', () => showDateError(native, ''));
+    text.addEventListener('change', () => commitTypedDate(native));
+    native.addEventListener('change', () => { text.value = isoToDisplay(native.value); showDateError(native, ''); });
+    button.addEventListener('click', () => {
+      applyDateWindows();
+      try { native.showPicker(); } catch { text.focus(); }
+    });
+  });
+}
+enhanceDateInputs();
+applyDateWindows();
+
+// ---- documents to bring to the first meeting ----
+function documentsToBring(d){
+  const items = ["Photo ID, such as a driver's licence or passport"];
+  if (d.has_existing_documents === 'Yes') {
+    items.push('Copies of your existing will, power of attorney, advance care directive or other estate planning documents');
+  }
+  const entities = d.entity || [];
+  if (d.has_company === 'Yes' || entities.some(e => e['Type'] === 'Pty Ltd company')) {
+    items.push('The constitution of each Pty Ltd company you hold shares in or are a director of');
+  }
+  // TODO(PENDING: Sarah to confirm) that the trust deed is what a client with a
+  // family or unit trust should bring; the call transcript was unclear.
+  if (entities.some(e => e['Type'] === 'Family trust' || e['Type'] === 'Unit trust')) {
+    items.push('The trust deed of each family or unit trust');
+  }
+  [...(d.realestate || []), ...(d.investment_property || [])].forEach((property, i) => {
+    items.push(`The latest council rates notice for ${property['Address'] || `property ${i + 1}`}`);
+  });
+  return items;
+}
+
+function renderDocumentsToBring(){
+  const list = document.getElementById('bring-list');
+  list.replaceChildren(...documentsToBring(collectData()).map(text => {
+    const li = document.createElement('li');
+    li.textContent = text;
+    return li;
+  }));
+}
 
 document.getElementById('fund-count').addEventListener('change', (e) => {
   const n = parseInt(e.target.value, 10);
@@ -759,6 +1079,13 @@ function prefillFromEarlierStages(result) {
     client_name: inquiry.full_name || inquiry.name || client.name || '',
     client_state: inquiry.state || inquiry.client_state || '',
   };
+
+  // The enquiry already says whether the client has a will; seed the answer.
+  const flags = [].concat(inquiry.complexity_flags || []);
+  if (flags.includes('Already have a will') || inquiry.inquiry_reason === 'Update an existing one') {
+    const yes = document.querySelector('input[name=has_existing_documents][value=Yes]');
+    if (!document.querySelector('input[name=has_existing_documents]:checked')) yes.checked = true;
+  }
 
   Object.keys(seed).forEach(fieldName => {
     const value = seed[fieldName];
@@ -873,6 +1200,8 @@ async function loadSavedForm() {
     });
     syncAcdStep();
     syncPersonalBelongings();
+    syncRemainsPlace();
+    syncDateTexts();
 
     // Resume from saved step
     if (metadata.current_step) {
@@ -913,6 +1242,7 @@ function render(){
   progressText.textContent = `Step ${current + 1} of ${total}`;
   progressTitle.textContent = steps[current].getAttribute('data-title').replace('&amp;','&');
   backBtn.disabled = current === 0;
+  if (steps[current].querySelector('#bring-list')) renderDocumentsToBring();
 
   if (isReadonly) {
     nextBtn.textContent = current === total - 1 ? 'Close' : 'Next →';
@@ -939,11 +1269,31 @@ function isVisible(el){
 
 function validateStep(stepEl){
   let firstInvalid = null;
+  applyDateWindows();
+  // Typed dates first: an invalid one clears its stored value, which the
+  // required check below then reports.
+  stepEl.querySelectorAll('.date-entry input[type=date]').forEach(native => {
+    if (!isVisible(native)) return;
+    if (commitTypedDate(native) && !firstInvalid) firstInvalid = native._dateText;
+  });
   const required = stepEl.querySelectorAll('[required]');
   required.forEach(field => {
     if (!isVisible(field)) return;
-    if (!field.value) { if (!firstInvalid) firstInvalid = field; field.style.borderColor = 'var(--error)'; }
-    else { field.style.borderColor = ''; }
+    // A radio's value is always set; what matters is whether one is chosen.
+    if (field.type === 'radio') {
+      const group = field.closest('.radio-group');
+      const chosen = stepEl.querySelector(`input[name="${field.name}"]:checked`);
+      if (group) group.style.outline = chosen ? '' : '1px solid var(--error)';
+      if (!chosen && !firstInvalid) firstInvalid = group || field;
+      return;
+    }
+    const shown = field._dateText || field;
+    if (!field.value) {
+      if (!firstInvalid) firstInvalid = shown;
+      shown.style.borderColor = 'var(--error)';
+      if (field._dateText && !field._dateError.textContent) showDateError(field, 'Enter a date as DD/MM/YYYY.');
+    }
+    else { shown.style.borderColor = ''; }
   });
 
   // A residuary beneficiary is the one instruction a will cannot be drafted
@@ -1026,7 +1376,7 @@ dotsWrap.addEventListener('click', (e) => {
 
   // Disable all form inputs in readonly mode
   if (isReadonly) {
-    document.querySelectorAll('input, select, textarea, button.add-btn, button.remove-btn').forEach(el => {
+    document.querySelectorAll('input, select, textarea, button.add-btn, button.remove-btn, button.date-picker-btn').forEach(el => {
       if (el.classList.contains('nav-btn') || el.id === 'next-btn' || el.id === 'back-btn') return;
       el.disabled = true;
     });
@@ -1047,7 +1397,7 @@ function collectData(){
       data[key] = value;
     }
   });
-  ['realestate','bank','super','gift','attorney','exclusion','sdm'].forEach(key => {
+  ['realestate','investment_property','vehicle','bank','shares','insurance','super','smsf','money_owed','inheritance','entity','gift','attorney','exclusion','sdm'].forEach(key => {
     const items = [];
     document.querySelectorAll(`#${key}-list .repeat-item`).forEach(item => {
       const fields = item.querySelectorAll('[data-field]');
@@ -1057,6 +1407,7 @@ function collectData(){
     });
     data[key] = items;
   });
+  data.documents_to_bring = documentsToBring(data);
   return data;
 }
 
@@ -1457,11 +1808,9 @@ function generateWillText(d){
   lines.push('PART L — EXECUTION');
   lines.push('='.repeat(60));
   lines.push('');
-  if (d.signing_date) {
-    lines.push(`Executed by ${testator} on ${d.signing_date}`);
-  } else {
-    lines.push(`Executed by ${testator} on _______________________________`);
-  }
+  // signing_date now holds the preferred first meeting date, not a signing
+  // date, so the execution line is always left blank.
+  lines.push(`Executed by ${testator} on _______________________________`);
   lines.push('');
   lines.push(`Signed by ${testator} as their last will, in the presence of us both at the same time, who at their request and in their presence, and in the presence of each other, have signed our names as witnesses.`);
   lines.push('');

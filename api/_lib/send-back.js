@@ -56,10 +56,12 @@ const FIELD_LABELS = {
   'funeral_other': 'Other Funeral Wishes',
   'epa_jointly': 'EPA Acting Arrangement',
   'epa_effective': 'EPA Effectiveness',
-  'signing_date': 'Document Signing Date',
+  'signing_date': 'Preferred First Meeting Date',
   'will_custody': 'Will Storage Location',
   'low_wishes': 'Letter of Wishes Content',
   'client_date_of_birth': 'Client Date of Birth',
+  'client_gender': 'Client Gender',
+  'spouse_gender': 'Spouse Gender',
   'personal_belongings_to': 'Personal Belongings Recipient',
   'personal_belongings_1': 'Personal Belongings Recipient 1',
   'epa_conditions': 'EPA Conditions / Limitations',
@@ -97,7 +99,7 @@ export function validateIntakeForm(intakeData) {
 
   // Always check these core fields (matching actual form field names)
   const alwaysCheck = [
-    'scenario', 'client_name', 'client_date_of_birth', 'client_address', 'client_state', 'client_marital_status',
+    'scenario', 'client_name', 'client_date_of_birth', 'client_gender', 'client_address', 'client_state', 'client_marital_status',
     'client_occupation', 'financial_adviser', 'governing_jurisdiction',
     'doc_will', 'doc_epa',
     'exec_initial_name', 'exec_initial_address', 'exec_initial_relationship',
@@ -111,7 +113,7 @@ export function validateIntakeForm(intakeData) {
 
   // Conditional fields based on scenario/responses
   const conditionalFields = {
-    'Couple': ['spouse_name', 'spouse_occupation', 'mirror_or_independent'],
+    'Couple': ['spouse_name', 'spouse_gender', 'spouse_occupation', 'mirror_or_independent'],
     'has_company_yes': ['company_name', 'company_acn', 'company_on_death', 'company_share_treatment'],
     'has_life_tenancy_yes': ['life_tenant', 'life_tenancy_property', 'life_tenancy_outgoings', 'life_tenancy_balance'],
     'has_sdt_yes': ['sdt_mechanism', 'sdt_principal_beneficiary'],
