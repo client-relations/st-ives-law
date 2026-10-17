@@ -4,6 +4,32 @@ import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
+/**
+ * Whether the will footer carries the executor's printed name and signature
+ * line, beside the Testator's and the two witnesses'.
+ * TODO(PENDING: Ces to confirm) the firm wants the executor in the footer.
+ * Set to false to drop it from every generated will; the precedents keep the
+ * block between an ExecutorFooter bookmark (scripts/will-header-footer.py).
+ */
+export const WILL_FOOTER_SHOWS_EXECUTOR = true;
+
+// TODO(PENDING: Sarah to describe the new format): the will's last-page
+// execution block is the precedents' existing one, unchanged.
+
+/** Remove the paragraphs from the ExecutorFooter bookmark's start to its end. */
+export function removeExecutorFooter(xml: string): string {
+  const start = /<w:bookmarkStart\b[^>]*w:name="ExecutorFooter"[^>]*\/>/.exec(xml);
+  if (!start) return xml;
+  const id = /w:id="([^"]+)"/.exec(start[0])?.[1];
+  const end = new RegExp(`<w:bookmarkEnd\\b[^>]*w:id="${id}"[^>]*/>`).exec(xml.slice(start.index));
+  if (!end) return xml;
+  const from = Math.max(xml.lastIndexOf('<w:p>', start.index), xml.lastIndexOf('<w:p ', start.index));
+  const endAt = start.index + end.index;
+  const to = xml.indexOf('</w:p>', endAt);
+  if (from < 0 || to < 0) return xml;
+  return xml.slice(0, from) + xml.slice(to + '</w:p>'.length);
+}
+
 // Simple but reliable DOCX variable replacement using JSZip
 export async function processDocxTemplate(
   templatePath: string,
@@ -42,6 +68,10 @@ export async function processDocxTemplate(
 
         let xmlContent = await fileObj.async('text');
         if (!xmlContent) continue;
+
+        if (!WILL_FOOTER_SHOWS_EXECUTOR && xmlFile.startsWith('word/footer')) {
+          xmlContent = removeExecutorFooter(xmlContent);
+        }
 
         console.log(`Processing ${xmlFile}, original size: ${xmlContent.length}`);
 
