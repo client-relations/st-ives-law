@@ -11,7 +11,7 @@ import {
 // Must match the number of .step blocks in public/intake-form.html. Only the
 // explicit final submit (final: true) completes the intake, so a step added to
 // the form can never mark it complete before the client reaches the end.
-const TOTAL_STEPS = 15;
+const TOTAL_STEPS = 17;
 const EDITABLE_STATUSES = ['pending_intake', 'completed_intake'];
 
 export default async function handler(req, res) {

@@ -6,7 +6,10 @@
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
-    "typecheck": "pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "test": "pnpm run test:unit && pnpm run test:e2e",
+    "test:unit": "node --import tsx --test \"tests/unit/**/*.test.ts\"",
+    "test:e2e": "playwright test"
   },
   "private": true,
   "dependencies": {
@@ -19,6 +22,7 @@
     "@tailwindcss/oxide-win32-x64-msvc": "^4.3.3",
     "@types/node": "catalog:",
     "lightningcss-win32-x64-msvc": "^1.33.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "tsx": "catalog:"
   }
 }

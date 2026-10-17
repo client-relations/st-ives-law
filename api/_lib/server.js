@@ -22,22 +22,43 @@ export function getAdminClient() {
 }
 
 export class HttpError extends Error {
-  constructor(status, message) {
+  /** `code` is an optional machine-readable reason the browser can branch on. */
+  constructor(status, message, code) {
     super(message);
     this.status = status;
+    this.code = code;
   }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * One line per rejected request: status, route and the form id it was about.
+ * Never the message or the body: some messages quote what the client typed
+ * (an email address, for one), and the body holds the client's answers.
+ */
+export function logClientError(req, status) {
+  const route = String(req?.url || '?').split('?')[0];
+  let body = req?.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch { body = null; }
+  }
+  if (!body || typeof body !== 'object') body = {};
+  const candidate = req?.query?.lead_id ?? req?.query?.form_id ?? body.lead_id ?? body.form_id;
+  const leadId = typeof candidate === 'string' && UUID.test(candidate.trim()) ? candidate.trim() : '-';
+  console.warn(`[api] ${status} ${route} lead_id=${leadId}`);
 }
 
 /** Send an error as JSON. Unexpected errors are logged and reported generically. */
 export function sendError(res, err) {
   if (err instanceof HttpError) {
-    return res.status(err.status).json({ error: err.message });
+    // Node's ServerResponse keeps its request as res.req.
+    if (err.status >= 400 && err.status < 500) logClientError(res.req, err.status);
+    return res.status(err.status).json(err.code ? { error: err.message, code: err.code } : { error: err.message });
   }
   console.error(err);
   return res.status(500).json({ error: 'Server error' });
 }
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Validate a form id taken from a request. */
 export function requireFormId(value) {

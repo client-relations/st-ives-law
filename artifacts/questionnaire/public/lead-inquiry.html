@@ -58,6 +58,10 @@
   .radio-group label.option input, .checkbox-group label.option input { margin-top: 0.2rem; flex-shrink: 0; }
   .helper { font-size: 0.78rem; color: var(--muted); margin: 0.15rem 0 0 1.5rem; }
   .error-msg { font-size: 0.8rem; color: var(--error); margin-top: 0.5rem; display: none; }
+  .submit-error {
+    display: none; margin-top: 1.2rem; padding: 0.7rem 0.9rem; border: 1px solid var(--error);
+    border-radius: 6px; background: #fdf0ef; color: var(--error); font-size: 0.86rem;
+  }
   hr { border: none; border-top: 1px solid var(--border); margin: 1.2rem 0; }
 
   .hidden { display: none !important; }
@@ -253,6 +257,8 @@
         <textarea name="additional_notes" placeholder="Health, travel, family circumstances, urgency — anything you'd like us to know before your appointment."></textarea>
       </div>
 
+      <div class="submit-error" id="submit-error" role="alert"></div>
+
       <div class="nav-bar">
         <button type="button" id="back-btn" class="nav-btn" disabled>← Back</button>
         <div class="steps-dots" id="steps-dots"></div>
@@ -333,6 +339,48 @@ const ALREADY_SUBMITTED = ['This form has already been submitted',
 
 const LOAD_FAILED = ["We couldn't load your form",
   'Please refresh the page. If this keeps happening, contact St Ives Law and we will take your details over the phone.'];
+
+const submitErrorEl = document.getElementById('submit-error');
+
+// One save at a time. A double click on Submit used to send the enquiry twice,
+// and the second copy came back as a 409 "already submitted".
+let requestInFlight = false;
+function setRequestInFlight(inFlight) {
+  requestInFlight = inFlight;
+  nextBtn.disabled = inFlight;
+  backBtn.disabled = inFlight || current === 0;
+  nextBtn.setAttribute('aria-busy', String(inFlight));
+}
+
+function showSubmitError(text) {
+  submitErrorEl.textContent = text;
+  submitErrorEl.style.display = text ? 'block' : 'none';
+}
+
+// POST the enquiry. Resolves to { ok: true }, or { ok: false, alreadySubmitted,
+// message } where message is the server's own explanation when it gave one.
+async function postInquiry(lead_id, form_data) {
+  let response;
+  try {
+    response = await fetch('/api/submit-form', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lead_id, form_data, form_type: 'inquiry' }),
+    });
+  } catch (error) {
+    console.error('Error saving form:', error);
+    return { ok: false, alreadySubmitted: false,
+      message: "We couldn't reach St Ives Law. Check your internet connection and try again." };
+  }
+  if (response.ok) return { ok: true };
+  const body = await response.json().catch(() => ({}));
+  console.error('Error saving form:', response.status);
+  return {
+    ok: false,
+    alreadySubmitted: response.status === 409 && body.code === 'ALREADY_SUBMITTED',
+    message: body.error || `Your answers could not be saved (error ${response.status}). Please try again, or contact St Ives Law.`,
+  };
+}
 
 // Load existing form data if available
 async function loadExistingData() {
@@ -450,40 +498,33 @@ async function showEnding(reason){
   const params = new URLSearchParams(window.location.search);
   const lead_id = params.get('lead_id');
   if (lead_id) {
-    const data = { ...collectData(), early_exit: true };
-    let saved = false;
-    try {
-      const response = await fetch('/api/submit-form', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lead_id,
-          form_data: data,
-          form_type: 'inquiry',
-        }),
-      });
-      saved = response.ok;
-      if (!saved) console.error('Error saving partial form:', response.status);
-    } catch (error) {
-      console.error('Error saving partial form:', error);
-    }
-    if (!saved) {
-      showMessage("We couldn't send your details",
-        'Please try again in a moment, or contact St Ives Law directly so we can help you.');
+    showSubmitError('');
+    setRequestInFlight(true);
+    const result = await postInquiry(lead_id, { ...collectData(), early_exit: true });
+    setRequestInFlight(false);
+    if (!result.ok) {
+      if (result.alreadySubmitted) showMessage(...ALREADY_SUBMITTED);
+      else showSubmitError(result.message);
       return;
     }
   }
 
   document.getElementById('ending-title').textContent = "Thanks — we'll be in touch";
   document.getElementById('ending-note').style.display = '';
-  document.getElementById('ending-back-btn').style.display = '';
+  // Once the early exit is saved the enquiry is closed: going back and
+  // submitting the rest would only be refused by the server as a duplicate.
+  // The local preview (no lead_id) saves nothing, so it keeps Back.
+  // TODO(PENDING: Isuru): remove Back for good (this default), or let the
+  // client complete the full enquiry later? (handover Part D #13)
+  document.getElementById('ending-back-btn').style.display = lead_id ? 'none' : '';
   formEl.classList.add('hidden');
   endingWrap.style.display = 'block';
 }
 
-backBtn.addEventListener('click', () => { if (current > 0) { current--; render(); } });
+backBtn.addEventListener('click', () => { if (!requestInFlight && current > 0) { current--; render(); } });
 
 nextBtn.addEventListener('click', () => {
+  if (requestInFlight) return;
   if (!validateStep(steps[current])) return;
 
   // routing check happens right after Q2 (index 1)
@@ -507,7 +548,7 @@ document.getElementById('ending-back-btn').addEventListener('click', () => {
 
 dotsWrap.addEventListener('click', (e) => {
   const idx = Array.from(dotsWrap.children).indexOf(e.target);
-  if (idx >= 0 && idx <= current) { current = idx; render(); }
+  if (!requestInFlight && idx >= 0 && idx <= current) { current = idx; render(); }
 });
 
 // Start with loading spinner
@@ -886,12 +927,16 @@ function generateWillText(d){
   return lines.join('\n');
 }
 
+// The dashboard's View modal shows the same answers under the same labels:
+// keep ENQUIRY_FIELDS in src/lib/enquiry-summary.ts in step with this list
+// (tests/unit/enquiry-summary.test.ts fails when the two drift apart).
 function buildSummaryHtml(lead) {
   const toArray = (v) => v === undefined ? [] : Array.isArray(v) ? v : [v];
+  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   const renderField = (label, value) => {
     if (!value || (Array.isArray(value) && value.length === 0)) return '';
-    const displayValue = Array.isArray(value) ? value.join(', ') : value;
+    const displayValue = escapeHtml(Array.isArray(value) ? value.join(', ') : value);
     return `
       <div style="margin-bottom: 1rem;">
         <strong style="color: #2f4858; font-size: 0.9rem;">${label}</strong>
@@ -954,40 +999,31 @@ async function submitForm(){
   const lead_id = params.get('lead_id');
 
   if (lead_id) {
-    // Submit to API endpoint
-    try {
-      const response = await fetch('/api/submit-form', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lead_id,
-          form_data: lead,
-          form_type: 'inquiry',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to submit form');
-      }
-
-      // Show summary as confirmation
-      formEl.classList.add('hidden');
-      document.getElementById('result-wrap').style.display = 'block';
-
-      const summaryHtml = buildSummaryHtml(lead);
-      document.getElementById('result-wrap').innerHTML = `
-        <div style="margin-top: 1.5rem;">
-          <h2 style="font-size: 1.3rem; margin-bottom: 1.5rem; color: #2f4858;">Enquiry Summary</h2>
-          ${summaryHtml}
-          <div style="margin-top: 2rem; padding: 1.5rem; background: #eef9fb; border-radius: 4px; border-left: 4px solid #4a8fa0;">
-            <p style="margin: 0; color: #2f4858; font-size: 0.95rem;">✓ Form submitted successfully</p>
-          </div>
-        </div>
-      `;
-      document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth' });
-    } catch (error) {
-      alert('Error submitting form: ' + error.message);
+    showSubmitError('');
+    setRequestInFlight(true);
+    const result = await postInquiry(lead_id, lead);
+    setRequestInFlight(false);
+    if (!result.ok) {
+      if (result.alreadySubmitted) showMessage(...ALREADY_SUBMITTED);
+      else showSubmitError(result.message);
+      return;
     }
+
+    // Show summary as confirmation
+    formEl.classList.add('hidden');
+    document.getElementById('result-wrap').style.display = 'block';
+
+    const summaryHtml = buildSummaryHtml(lead);
+    document.getElementById('result-wrap').innerHTML = `
+      <div style="margin-top: 1.5rem;">
+        <h2 style="font-size: 1.3rem; margin-bottom: 1.5rem; color: #2f4858;">Enquiry Summary</h2>
+        ${summaryHtml}
+        <div style="margin-top: 2rem; padding: 1.5rem; background: #eef9fb; border-radius: 4px; border-left: 4px solid #4a8fa0;">
+          <p style="margin: 0; color: #2f4858; font-size: 0.95rem;">✓ Form submitted successfully</p>
+        </div>
+      </div>
+    `;
+    document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth' });
   } else {
     // Demo mode - show will draft
     document.getElementById('will-doc').textContent = willText;

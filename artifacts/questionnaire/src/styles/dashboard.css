@@ -2063,3 +2063,53 @@
   color: var(--nv-text-l);
 }
 
+
+/* Enquiry answers in the form View modal */
+.nv-enquiry-answers {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: #f9f9f9;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.nv-enquiry-answers dl {
+  margin: 0;
+}
+
+.nv-enquiry-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 34%) 1fr;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--nv-bg-d);
+}
+
+.nv-enquiry-row:last-child {
+  border-bottom: none;
+}
+
+.nv-enquiry-row dt {
+  font-weight: 600;
+  color: var(--nv-text);
+}
+
+.nv-enquiry-row dd {
+  margin: 0;
+  color: var(--nv-text-l);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.nv-enquiry-early-exit {
+  margin-bottom: 8px;
+  color: #8a5a00;
+}
+
+@media (max-width: 520px) {
+  .nv-enquiry-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}

@@ -174,6 +174,18 @@ export function deriveFromDisplayNumber(displayNumber: string): {
   // Married - Mirror wills - Carter, James" and was printed into the mirror
   // documents. The first spouse is glued together by Make (no space between
   // first and last name); normaliseMatter swaps in the contact's own name.
+  // From CR 2026-10-14 Make names the matter from the payload's
+  // matter_description instead: "Estate Planning - Couple - Carter, James".
+  // That carries the primary client only, so the second spouse comes from the
+  // SpouseName custom field (normaliseMatter). Without this, the generic split
+  // below read every such couple as one person called "Estate Planning".
+  const described = /^Estate Planning\s+-\s+(Single|Couple)\s+-\s+([^,]+),\s*(.+?)[,\s]*$/i.exec(withoutFileNumber);
+  if (described) {
+    const name = `${described[3].trim()} ${described[2].trim()}`;
+    const isCouple = described[1].toLowerCase() === 'couple';
+    return { name, isCouple, mr: isCouple ? name : '', mrs: '', fromIntake: true };
+  }
+
   const intakeCouple = /^(.+?)\s*\([^)]*\)\s+and\s+(.+?)\s*\([^)]*\)\s+-\s/i.exec(withoutFileNumber);
   if (intakeCouple) {
     const mr = intakeCouple[1].trim();
@@ -204,6 +216,32 @@ export function deriveFromDisplayNumber(displayNumber: string): {
     mrs: isCouple ? parts[1] : '',
     fromIntake: false,
   };
+}
+
+/**
+ * A person's name with anything that is not their name taken off.
+ *
+ * Names reach the will from Clio: the contact's name, or, when Clio redacts
+ * that, the tail of the matter's display number. Neither is guaranteed to be
+ * only a name. A display number Make wrote carries "(occupation) - Married -
+ * Mirror wills - Last, First" after the name, and the test matters the
+ * scripts in scripts/checks create carry a date-time stamp in the contact's
+ * last name ("ZZ DOCTEST Single 14-Oct-2026-10-22-33"). Either way the will
+ * was titled "Last Will of" the name plus that tail. No real name contains a
+ * date, a bracketed note or a spaced " - ", so those go; hyphenated names
+ * ("Client-Two") are left alone.
+ */
+export function cleanPersonName(name: string): string {
+  return String(name)
+    .replace(/\s+-\s.*$/, '')
+    .replace(/\([^)]*\)/g, ' ')
+    // Longest shapes first, so a time after a date goes with it.
+    .replace(/\b\d{1,2}[-\s](?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[-\s,]+\d{4}(?:[-\s,:]+\d{1,2}){0,3}\b/gi, ' ')
+    .replace(/\b\d{4}-\d{2}-\d{2}(?:[T ][\d:.]+Z?)?/g, ' ')
+    .replace(/\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/[\s,;-]+$/, '')
+    .trim();
 }
 
 export type ClioMatter = {
@@ -271,11 +309,15 @@ export function normaliseMatter(raw: any): ClioMatter {
     display_number: displayNumber,
     description: String(raw?.description || ''),
     status: String(raw?.status || ''),
-    client_name,
+    // Cleaned here as well as at merge time so the dashboard's client list and
+    // generated file names carry the bare name too.
+    client_name: cleanPersonName(client_name),
     client_type: String(raw?.client?.type || ''),
     is_couple: derived.isCouple,
-    mr_name,
-    mrs_name: derived.mrs,
+    mr_name: cleanPersonName(mr_name),
+    // A matter named from matter_description has no second spouse in its
+    // name; Make maps the payload's spouse_name to SpouseName for it.
+    mrs_name: cleanPersonName(derived.mrs || (derived.isCouple ? custom_fields.SpouseName || '' : '')),
     custom_fields,
     client_date_of_birth: String(raw?.client?.date_of_birth || ''),
     responsible_attorney: String(raw?.responsible_attorney?.name || ''),
@@ -389,6 +431,9 @@ export async function fetchMatter(token: string, matterId: string | number): Pro
 export function toTemplateVariables(matter: ClioMatter): Record<string, string> {
   const variables: Record<string, string> = {};
 
+  // Includes ClientGender and SpouseGender ("Male"/"Female", from the intake's
+  // client_gender and spouse_gender once Make maps them), which
+  // generate-document turns into the will's Testator/Testatrix label.
   for (const [name, value] of Object.entries(matter.custom_fields)) {
     variables[`Matter.CustomField.${name}`] = value;
   }

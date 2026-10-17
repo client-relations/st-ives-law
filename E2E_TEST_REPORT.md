@@ -105,7 +105,7 @@ string `Accepted`, not JSON. `response.json()` throws, the catch block returns 5
 and the document is lost.
 
 **Second, independent failure.** The webhook it targets
-(`hook.eu2.make.com/5n4gkxu...`, hardcoded at line 71) produced **no scenario
+(a `hook.eu2.make.com` URL, redacted, hardcoded at line 71) produced **no scenario
 execution at all** during the test. The scenario that appears to own it,
 **`Sending Document` (ID 9826270), is switched OFF** in Make. So even with the JSON
 bug fixed, the document would go nowhere.

@@ -72,6 +72,16 @@ const FIELDS: FieldSpec[] = [
   { name: 'region', type: 'text_line' },
   { name: 'person_responsible', type: 'text_line' },
   { name: 'submission_date', type: 'text_line' },
+  // The will-maker's gender, "Male" or "Female", from the intake's
+  // client_gender and spouse_gender. The will prints Testatrix for a female
+  // will-maker and Testator otherwise (api/generate-document.ts). Make must
+  // map the two payload keys onto these fields (CR 2026-10-14).
+  { name: 'ClientGender', type: 'text_line' },
+  { name: 'SpouseGender', type: 'text_line' },
+  // The second spouse's name, for matters Make names from matter_description
+  // ("Estate Planning - Couple - Last, First"), which carries only the
+  // primary client (api/_lib/clio-client.ts deriveFromDisplayNumber).
+  { name: 'SpouseName', type: 'text_line' },
 ];
 
 const tokenResponse = await fetch(`${BASE}/oauth/token`, {

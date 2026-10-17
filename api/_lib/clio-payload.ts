@@ -69,6 +69,26 @@ function formatAssets(assets: any[], type: 'real_estate' | 'bank' | 'super'): st
   return '';
 }
 
+/**
+ * One bullet per repeat row, for the asset categories added in CR 2026-10-14.
+ * Empty when the client listed none, so the Clio field stays blank.
+ */
+function formatRows(title: string, rows: any[], fields: string[]): string {
+  const lines = (rows || [])
+    .map((row) => fields.map((f) => row?.[f]).filter((v) => v && String(v).trim()).join(' - '))
+    .filter(Boolean);
+  return lines.length ? `${title}:\n` + lines.map((l) => `• ${l}`).join('\n') : '';
+}
+
+/**
+ * The Clio matter description, e.g. "Estate Planning - Single - Smith, Jane".
+ * Clio puts the matter number in front of it. Named after the primary client.
+ */
+export function buildMatterDescription(scenario: string, firstName: string, lastName: string): string {
+  const kind = scenario === 'Couple' ? 'Couple' : 'Single';
+  return `Estate Planning - ${kind} - ${lastName}, ${firstName}`;
+}
+
 function formatEpaAttorneys(attorneys: any[]): string {
   if (!attorneys || attorneys.length === 0) return 'No EPA attorneys appointed';
   return 'EPA Attorneys:\n' + attorneys
@@ -102,6 +122,7 @@ function formatDocumentsRequired(docs: any): string {
     docs.epa && '• Enduring Power of Attorney (Financial)',
     docs.acd && '• Advance Care Directive',
     docs.sdt && '• Special Disability Trust',
+    docs.tt && '• Testamentary Trust',
   ].filter(Boolean);
 
   return items.length === 0 ? 'No documents selected' : 'Documents Required:\n' + items.join('\n');
@@ -295,6 +316,7 @@ export function buildClioPayload(intakeData: any, form: any, metadata: any) {
     epa: !!intakeData.doc_epa,
     acd: !!intakeData.doc_acd,
     sdt: !!intakeData.doc_sdt,
+    tt: !!intakeData.doc_tt,
   };
 
   // ===== CONDITIONAL BLOCKS =====
@@ -477,6 +499,46 @@ export function buildClioPayload(intakeData: any, form: any, metadata: any) {
     // The beneficiary summary, percentages included, now that Beneficiary1
     // holds a name. Make has always mapped this key; nothing sent it before.
     beneficiaries_direct: fundCount === 0 ? formatBeneficiaries(beneficiaries) : '',
+
+    // ===== Added by CR 2026-10-14. All additive: Make maps each to Clio. =====
+    // "Estate Planning - Single|Couple - <Last>, <First>"; replaces the
+    // "Single lead"/"Couple lead" text Make sets today. lead_type is unchanged.
+    matter_description: buildMatterDescription(intakeData.scenario, firstName, lastName),
+    // Exactly "Male" or "Female". The will templates print Testatrix for
+    // Female and Testator otherwise.
+    client_gender: intakeData.client_gender || '',
+    spouse_gender: intakeData.scenario === 'Couple' ? (intakeData.spouse_gender || '') : '',
+    // The full asset list from the firm's instruction sheet. Real estate, bank
+    // and super keep their own keys above; "Held as" is the Tenancy type
+    // already printed in assets_real_estate.
+    assets_investment_property: formatAssets(
+      (intakeData.investment_property || []).map((r: any) => ({
+        address: r['Address'], type: r['Tenancy type'], value: r['Estimated value'], mortgage: r['Mortgage details'],
+      })),
+      'real_estate',
+    ).replace(/^Real Estate:/, 'Investment Properties:').replace(/^No real estate assets defined$/, ''),
+    assets_vehicles: formatRows('Motor Vehicles', intakeData.vehicle, ['Make and model', 'Registration', 'Estimated value', 'Finance owing']),
+    assets_shares: formatRows('Shares and Investments', intakeData.shares, ['Description', 'Held in whose name', 'Estimated value']),
+    assets_insurance: formatRows('Insurance', intakeData.insurance, ['Insurer', 'Policy type', 'Sum insured', 'Nominated beneficiary']),
+    assets_smsf: formatRows('Self-Managed Super Fund', intakeData.smsf, ['Fund name', 'Trustee', 'Your balance', 'Nominated beneficiary']),
+    assets_money_owed: formatRows('Money Owed to Client', intakeData.money_owed, ['Who owes you', 'Amount', 'Written loan agreement']),
+    assets_inheritance: formatRows('Likely Inheritance', intakeData.inheritance, ['From whom', 'Estimated value']),
+    assets_entities: formatRows('Companies, Trusts and Entities', intakeData.entity, ['Name', 'Type', 'Your role or interest', 'Estimated value']),
+    // Testamentary trust page: Yes / No / Not sure, and for whom.
+    wants_testamentary_trust: intakeData.has_tt || '',
+    testamentary_trust_for: intakeData.has_tt === 'Yes' ? (intakeData.tt_beneficiaries || '') : '',
+    // Second and third choices of first meeting date (ISO). The first choice
+    // is signing_date, which keeps its key and format.
+    preferred_meeting_date_2: intakeData.preferred_meeting_date_2 || '',
+    preferred_meeting_date_3: intakeData.preferred_meeting_date_3 || '',
+    // Burial place or place for the ashes, or the client's choice to leave it.
+    funeral_remains_place: intakeData.remains_place_choice === 'Specific place'
+      ? (intakeData.remains_place || '')
+      : (intakeData.remains_place_choice || ''),
+    has_existing_documents: intakeData.has_existing_documents || '',
+    documents_to_bring: Array.isArray(intakeData.documents_to_bring)
+      ? intakeData.documents_to_bring.map((d: string) => `• ${d}`).join('\n')
+      : '',
 
     // Meta
     form_id: form.id,

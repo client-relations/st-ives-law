@@ -1,0 +1,158 @@
+{
+  "_note": "Fake data only. form_data.intake is the exact object the real intake form's collectData() returned in Chromium (offline, 2026-10-14) - checkbox 'on', select text, numbers as strings, hidden fields as ''. The 'clio' block simulates what Clio hands back after Make creates the matter; display_number shape follows the comment in api/_lib/clio-client.ts deriveFromDisplayNumber, the live Make scenario is not in this repo.",
+  "form": {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "client_name": "Test Client-Two",
+    "client_email": "isuru+test2@lex-ops.io",
+    "person_responsible": "Test Lawyer",
+    "lead_type": "Estate planning",
+    "region": "SA",
+    "status": "completed_intake",
+    "created_at": "2026-10-02T23:30:00.000"
+  },
+  "form_data": {
+    "inquiry": {
+      "inquiry_reason": "Update an existing one",
+      "client_name": "Test Client-Two",
+      "client_email": "isuru+test2@lex-ops.io",
+      "client_phone": "0400 000 009",
+      "client_state": "SA",
+      "complexity_flags": "Planning with a partner",
+      "asset_flags": [
+        "Jointly owned property"
+      ],
+      "goal": [
+        "A will — who receives what",
+        "Protecting an inheritance rather than paying it out directly"
+      ],
+      "executor_confidence": "Someone in mind, not certain",
+      "gifts_volume": "None, divide by share"
+    },
+    "intake": {
+      "scenario": "Couple",
+      "client_name": "Test Client-Two",
+      "client_former_names": "",
+      "client_date_of_birth": "1980-07-31",
+      "client_address": "8 Test Avenue, Kensington SA 5068",
+      "client_occupation": "Test Engineer",
+      "client_state": "SA",
+      "client_marital_status": "Married",
+      "former_partner_exclude": "",
+      "spouse_name": "Test Spouse",
+      "spouse_occupation": "Test Teacher",
+      "mirror_or_independent": "Mirror wills",
+      "financial_adviser": "",
+      "governing_jurisdiction": "SA",
+      "other_assets": "",
+      "doc_will": "on",
+      "doc_epa": "on",
+      "doc_sdt": "on",
+      "exec_initial_name": "Test Spouse",
+      "exec_initial_address": "",
+      "exec_initial_relationship": "",
+      "exec_backup": "Test Executor-Backup",
+      "exec_further_backup": "",
+      "exec_joint": "Act jointly",
+      "has_company": "No",
+      "company_name": "",
+      "company_acn": "",
+      "company_on_death": "",
+      "company_share_treatment": "",
+      "has_life_tenancy": "No",
+      "life_tenant": "",
+      "life_tenancy_property": "",
+      "life_tenancy_outgoings": "",
+      "life_tenancy_balance": "",
+      "fund_count": "2",
+      "fund1_beneficiary": "Test Child-One",
+      "fund1_class": "Test Child-One and their children",
+      "fund1_trustee_initial": "Test Trustee-1A",
+      "fund1_trustee_backup": "Test Trustee-1B",
+      "fund1_trustee_further": "Test Trustee-1C",
+      "fund1_appointor_initial": "Test Appointor-1A",
+      "fund1_appointor_backup": "Test Appointor-1B",
+      "fund1_appointor_further": "Test Appointor-1C",
+      "fund2_beneficiary": "Test Child-Two",
+      "fund2_class": "Test Child-Two and their children",
+      "fund2_trustee_initial": "Test Trustee-2A",
+      "fund2_trustee_backup": "",
+      "fund2_trustee_further": "",
+      "fund2_appointor_initial": "Test Appointor-2A",
+      "fund2_appointor_backup": "",
+      "fund2_appointor_further": "",
+      "fpe_trust": "on",
+      "beneficiary_count": "1",
+      "beneficiary1": "",
+      "beneficiary1_pct": "",
+      "beneficiary2": "",
+      "beneficiary2_pct": "",
+      "beneficiary3": "",
+      "beneficiary3_pct": "",
+      "personal_belongings_to": "Named person(s) below",
+      "personal_belongings_1": "Test Child-One",
+      "personal_belongings_2": "Test Child-Two",
+      "personal_belongings_3": "",
+      "calamity_count": "0",
+      "calamity1": "",
+      "calamity1_pct": "",
+      "calamity2": "",
+      "calamity2_pct": "",
+      "calamity3": "",
+      "calamity3_pct": "",
+      "has_sdt": "Yes",
+      "sdt_mechanism": "Standard executor power (distribute a trust gift directly to the beneficiary to fund an SDT they establish separately)",
+      "sdt_principal_beneficiary": "Test Child-Two",
+      "has_minors": "No",
+      "guardian_initial": "",
+      "guardian_backup": "",
+      "organ_donation": "Not available",
+      "burial_or_cremation": "Burial",
+      "funeral_other": "",
+      "epa_jointly": "Jointly",
+      "epa_effective": "Upon execution",
+      "epa_conditions": "",
+      "acd_health_care_refusals": "",
+      "has_low": "No",
+      "low_wishes": "",
+      "signing_date": "",
+      "will_custody": "Other",
+      "realestate": [
+        {
+          "Address": "8 Test Avenue, Kensington SA 5068",
+          "Estimated value": "1100000",
+          "Tenancy type": "Joint tenants",
+          "Mortgage details": "Test Bank $400,000"
+        }
+      ],
+      "bank": [
+        {
+          "Bank": "Test Bank",
+          "Account type": "Offset",
+          "Held jointly or individually": "Joint",
+          "Value": "30000"
+        }
+      ],
+      "super": [],
+      "gift": [],
+      "attorney": [
+        {
+          "Full name": "Test Spouse",
+          "Address": "8 Test Avenue, Kensington SA 5068"
+        }
+      ],
+      "exclusion": [],
+      "sdm": []
+    },
+    "metadata": {
+      "current_step": 15,
+      "will_pdf_path": "/wills/will_00000000-0000-4000-8000-000000000002_1760000000000.pdf"
+    }
+  },
+  "clio": {
+    "matter_id": 1000002,
+    "display_number": "1000002-TestClient-Two (Test Engineer) and Test Spouse (Test Teacher) - Married - Mirror wills - Client-Two, Test",
+    "contact_name": "Test Client-Two",
+    "responsible_attorney_id": null,
+    "responsible_attorney_name": ""
+  }
+}

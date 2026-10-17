@@ -10,7 +10,8 @@
     "clio:create-fields": "node --env-file=../.env --import tsx ./src/clio-create-fields.ts",
     "clio:mapping-check": "node --env-file=../.env --import tsx ./checks/clio-mapping-check.ts",
     "clio:doc-test": "node --env-file=../.env --import tsx ./checks/clio-full-doc-test.ts",
-    "demo:prefill": "node --env-file=../.env --import tsx ./src/demo-prefill.ts"
+    "demo:prefill": "node --env-file=../.env --import tsx ./src/demo-prefill.ts",
+    "payload:snapshot": "node --import tsx ./checks/payload-snapshot.ts"
   },
   "devDependencies": {
     "@types/node": "catalog:",
