@@ -1,4 +1,5 @@
 /// <reference types="node" />
+import { cleanPersonName } from './_lib/clio-client';
 import { generateWillFromTemplate } from './_lib/document-processor';
 import { requireLawyer, sendError } from './_lib/server.js';
 
@@ -168,7 +169,35 @@ export function buildTemplateVariables(body: any): Record<string, string> {
     }
   });
 
+  // The will-maker's names print in the will title, the header and the
+  // execution block, so they must be names and nothing else. Cleaned after
+  // the extra variables because the dashboard sends these keys again in its
+  // spread of the matter's variables.
+  for (const key of ['Matter.Client.Name', 'Matter.Relationships.Mr.Name', 'Matter.Relationships.Mrs.Name']) {
+    if (variables[key]) variables[key] = cleanPersonName(variables[key]);
+  }
+
+  // "Testator" or "Testatrix" wherever the will names the will-maker: the
+  // definition, the trust clauses, the signature block and the page footer.
+  // Never left as a visible placeholder: without a gender the will reads
+  // Testator, as it did before gender was collected.
+  variables['Will.TestatorLabel'] = testatorLabel(
+    body.client_gender || variables['Matter.CustomField.ClientGender'],
+  );
+
   return variables;
+}
+
+/**
+ * "Testatrix" for a female will-maker, "Testator" otherwise.
+ *
+ * The gender is the will-maker's: Matter.CustomField.ClientGender, which
+ * Make fills from the intake's client_gender. For a couple the dashboard's
+ * second version swaps ClientGender and SpouseGender along with Mr and Mrs,
+ * so the spouse's will reads the spouse's gender.
+ */
+export function testatorLabel(gender: unknown): 'Testator' | 'Testatrix' {
+  return String(gender ?? '').trim().toLowerCase() === 'female' ? 'Testatrix' : 'Testator';
 }
 
 export default async function handler(req: any, res: any) {
